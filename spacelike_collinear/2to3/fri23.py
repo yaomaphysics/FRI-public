@@ -1171,9 +1171,9 @@ def messenger_ok(blk, mode, comps, confirmed, edges, em, vm, ext_attach, ext_mod
     return False
 
 # IR compatibility — recursive fixpoint over three conditions; every non-H component must be confirmed:
-#   condition 1: the partial sum of the momenta entering the component (externals + confirmed components) is of its mode (third-port included);
-#   condition 2: the component is a messenger (S^m; or the SC23 special messenger of this kinematics);
-#   condition 3: the component mode is the meet of two confirmed components relevant to it.
+#   [condition 1] the partial sum of the momenta entering the component (externals + confirmed components) is of its mode (third-port included);
+#   [condition 2] the component is a messenger (S^m; or the SC23 special messenger of this kinematics);
+#   [condition 3] the component mode is the meet of two confirmed components relevant to it.
 def ir_ok(edges, verts, em, vm, ext_attach, ext_mode, dbg=None):
     comps = {}
     modes_present = sorted(set(em) | set(vm.values()))
@@ -1182,6 +1182,85 @@ def ir_ok(edges, verts, em, vm, ext_attach, ext_mode, dbg=None):
     # drop empty
     comps = {m: c for m, c in comps.items() if c}
     confirmed = {}
+    # tadpole gate (2026-09-12, ported from wide-angle primitives.py).
+    # A soft-containing component (m >= 1) adjacent to NO harder-mode component is already a 1VI block of its own mode subgraph;
+    #   it can then only be confirmed by cond 1 — unless it is pure soft carrying two attached momenta whose join is exactly its mode (rule 3), in which case cond 2/3 are allowed again.
+    # Hard and jet modes are exempt.
+    def _tadp(md, blk):
+        if m_of(md) < 1:
+            return False
+        realV = {v for v in blk[0] if v != 'aux'}
+        idxs = blk[2] if len(blk) > 2 else []
+        ends = set(realV)
+        for ei in idxs:
+            ends |= set(edges[ei])
+        for w in ends:
+            if vm.get(w) == H():
+                return False
+        def _adj(a_idxs, a_v, b_idxs, b_v):
+            for ei in a_idxs:
+                for w in edges[ei]:
+                    if w in b_v:
+                        return True
+            for ei in b_idxs:
+                for w in edges[ei]:
+                    if w in a_v:
+                        return True
+            return False
+        for md2, lst2 in comps.items():
+            if V(md2) >= V(md):
+                continue
+            for c2 in lst2:
+                c2v = {v for v in c2[0] if v != 'aux'}
+                c2i = c2[2] if len(c2) > 2 else []
+                if _adj(idxs, realV, c2i, c2v):
+                    return False
+        return True
+
+    def _vee_ok(md, blk):
+        # Rule 3: two momenta attached to the component — carrier line
+        # modes (collinear part) or external momenta — with join23 equal to
+        # its mode.  Pure-soft lines cannot be the scale source of a soft
+        # blob and are excluded.
+        realV = {v for v in blk[0] if v != 'aux'}
+        idxs = blk[2] if len(blk) > 2 else []
+        ends = set(realV)
+        for ei in idxs:
+            ends |= set(edges[ei])
+        pool = []
+        for i2 in range(len(edges)):
+            u, w = edges[i2]
+            if (u in ends or w in ends) and isC(em[i2]):
+                pool.append(em[i2])
+        for nm, v in ext_attach.items():
+            if v in ends:
+                pool.append(ext_mode[nm])
+        if len(pool) < 2:
+            return False
+        for a in range(len(pool)):
+            for b in range(a + 1, len(pool)):
+                if join23(pool[a], pool[b]) == md:
+                    return True
+        return False
+
+    _tad_cache = {}
+    _vee_cache = {}
+
+    def _cond_allowed(md, blk):
+        t = _tad_cache.get(id(blk))
+        if t is None:
+            t = _tadp(md, blk)
+            _tad_cache[id(blk)] = t
+        if not t:
+            return True
+        if not isS(md):
+            return False        # SC tadpoles keep the cond 2/3 ban
+        ok = _vee_cache.get(id(blk))
+        if ok is None:
+            ok = _vee_ok(md, blk)
+            _vee_cache[id(blk)] = ok
+        return ok
+
     # record a fresh confirmation.
     def try_confirm(mode, i):
         if (mode, i) in confirmed: return False
@@ -1198,18 +1277,20 @@ def ir_ok(edges, verts, em, vm, ext_attach, ext_mode, dbg=None):
     guard = 0
     while changed and guard < 40:
         changed = False; guard += 1
-        # condition 2: S messengers.
+        # [condition 2] S messengers.
         for sm, lst in comps.items():
             if sm[0] != 'S': continue
             for i, blk in enumerate(lst):
                 if (sm, i) in confirmed: continue
+                if not _cond_allowed(sm, blk): continue
                 if messenger_ok(blk, sm, comps, confirmed, edges, em, vm, ext_attach, ext_mode, dbg):
                     changed |= try_confirm(sm, i)
-        # special messenger for the 23-collinear kinematics: simultaneously relevant to a C2C23 component, a C3C23 component, and a C_i component (i in 1,4,5), with >=1 of those confirmed.
+        # [condition 2] special messenger for the 23-collinear kinematics: simultaneously relevant to a C2C23 component, a C3C23 component, and a C_i component (i in 1,4,5), with >=1 of those confirmed.
         scm = P(0, 0, 1)
         sc_cats = ((P(1, 2),), (P(1, 3),), (W(1, 1), W(4, 1), W(5, 1)))
         for i, blk in enumerate(comps.get(scm, [])):
             if (scm, i) in confirmed: continue
+            if not _cond_allowed(scm, blk): continue
             adj = []
             ok_all = True
             for cat in sc_cats:
@@ -1224,10 +1305,11 @@ def ir_ok(edges, verts, em, vm, ext_attach, ext_mode, dbg=None):
                     break
             if ok_all and any(confirmed.get((md, j)) for (md, j) in adj):
                 changed |= try_confirm(scm, i)
-        # condition 3: meet of two confirmed relevant components.
+        # [condition 3] meet of two confirmed relevant components.
         for md, lst in comps.items():
             for i, blk in enumerate(lst):
                 if (md, i) in confirmed: continue
+                if not _cond_allowed(md, blk): continue
                 hit = []
                 for (cm, ci) in list(confirmed):
                     if relevant23(blk, comps[cm][ci], cm, edges, em, vm, md):
@@ -1243,7 +1325,7 @@ def ir_ok(edges, verts, em, vm, ext_attach, ext_mode, dbg=None):
                     if done: break
                 if done:
                     changed |= try_confirm(md, i)
-        # condition 1 for every unconfirmed block (vee of inflows == mode; the C23 blocks also require third-port).
+        # [condition 1] for every unconfirmed block, we need (1) vee of inflows == mode (2) the C23 blocks also require third-port.
         for md, lst in comps.items():
             if md[0] == 'H': continue
             for i, blk in enumerate(lst):
@@ -1251,7 +1333,7 @@ def ir_ok(edges, verts, em, vm, ext_attach, ext_mode, dbg=None):
                 if not cond1_confirms(blk, md, comps, confirmed, edges, em, vm, ext_attach, ext_mode, dbg):
                     continue
                 changed |= try_confirm(md, i)
-    # all comps (except H) must be confirmed; H auto-ok for now
+    # all components (except H) must be confirmed; H automatically okay in this scenario.
     unconf = []
     for md, lst in comps.items():
         if md[0] == 'H': continue
@@ -1278,8 +1360,7 @@ def cut_options(edges, verts, roots, forbid=frozenset()):
     return out
 
 def cut_options_split(edges, verts, v2, v3, forbid=frozenset(), k1=False):
-    # C_23 cut:
-    # all m_i = INF simultaneously (k1) -> connected, either empty or containing the incident vertices of p2 and p3 simultaneously.
+    # C_23 cut: all m_i = INF simultaneously (k1) -> connected, either empty or containing the incident vertices of p2 and p3 simultaneously.
     # Otherwise two components are allowed, one around p2 and the other around p3 (each component must contain v2 or v3).
     cand = sorted(set(verts) - set(forbid))
     out = [frozenset()]
@@ -1303,9 +1384,7 @@ def cut_options_split(edges, verts, v2, v3, forbid=frozenset(), k1=False):
     return out
 
 def refined_opts23(edges, verts, root, base, forbid):
-    # Single-external refined cut candidates:
-    # connected subsets containing root, inside `base`, avoiding forbidden
-    # vertices; the empty set (meaning 'no refined cut') is included.
+    # Single-external refined cut candidates: connected subsets containing root, inside `base`, avoiding forbidden vertices; the empty set (meaning 'no refined cut') is included.
     allowed = {v for v in base if v not in forbid}
     out = [frozenset()]
     if root not in allowed:
@@ -1335,16 +1414,14 @@ def _refine_towers23(edges, verts, root, base, forbid, levels):
 
 # main enumerator: cut options x refinement towers -> overlay -> checks -> survivors.
 def enumerate_regions(edges, verts, ext_attach, ext_mode, restrict=True, verbose=False):
-    # restrict scope (the only scope implemented; the generous superset sweep was retired):
-    # a cut may not contain other external-leg vertices (roots + internal vertices only); empty cut allowed.
+    # restrict scope (the only scope implemented; the generous superset sweep was retired): a cut can be empty, but cannot contain other external-leg vertices (roots + internal vertices only).
     extvs = set(ext_attach.values())
     R23 = {ext_attach['p2'], ext_attach['p3']}
     R1, R4, R5 = {ext_attach['p1']}, {ext_attach['p4']}, {ext_attach['p5']}
     v2v, v3v = ext_attach['p2'], ext_attach['p3']
     # Cut-chain tops M_i from the possibly-softest mode:
-    #   all-INF (k1): unchanged (no refinement).
-    #   otherwise m = min{m1, m2-1, m3-1, m4, m5}; M_i = m_i (i=1,4,5) /
-    #   m_i - 1 (i=2,3) if finite, else m.
+    #   all-INF (k1): refinement (inducing the modes SC23, C2C23, C3C23 from 4-loop level).
+    #   otherwise m = min{m1, m2-1, m3-1, m4, m5}; M_i = m_i (i=1,4,5) / m_i - 1 (i=2,3) if finite, else m.
     #   Chains: C1..C1^M1; C2C23..C2^M2C23; C3C23..C3^M3C23; C4..C4^M4; C5..C5^M5.
     v1v, v4v, v5v = ext_attach['p1'], ext_attach['p4'], ext_attach['p5']
     # finite m_i of a leg (None when INF).
@@ -1355,8 +1432,13 @@ def enumerate_regions(edges, verts, ext_attach, ext_mode, restrict=True, verbose
     _f = [v for v in (_mf(l) for l in ('p1', 'p2', 'p3', 'p4', 'p5')) if v is not None]
     _allinf = (not _f)
     if not _f:
-        # k1 (all on-shell): old no-refinement behaviour
-        _L2 = _L3 = _L1 = _L4 = _L5 = 0
+        # k1 (all on-shell): the first pair-chain refinement level (C2C23 / C3C23 cuts) is needed only from L >= 4 loops on (with SC23 the possibly softest mode).
+        # L = E - V + 1; skip the level for L <= 3.  No refinements for 1, 4, and 5.
+        if len(edges) - len(verts) + 1 >= 4:
+            _L2 = _L3 = 1
+        else:
+            _L2 = _L3 = 0
+        _L1 = _L4 = _L5 = 0
     else:
         msf = max(_f)   # m = max{m_i, m_i != INF}
         # cut-chain top M_i of a leg.
@@ -1366,9 +1448,7 @@ def enumerate_regions(edges, verts, ext_attach, ext_mode, restrict=True, verbose
             mi = x + 1 if leg in ('p2', 'p3') else x
             return min(mi, msf)
         M1, M2, M3, M4, M5 = (_top(l) for l in ('p1', 'p2', 'p3', 'p4', 'p5'))
-        # refinement tower levels: pair chains contribute M2/M3 levels
-        # (C2C23 is already refinement level 1); wide chains contribute
-        # (M_i - 1) levels (C_i itself is the base).
+        # refinement tower levels: pair chains contribute M2/M3 levels (C2C23 is already refinement level 1); wide chains contribute (M_i - 1) levels (C_i itself is the base).
         _L2, _L3 = max(M2 - 1, 1), max(M3 - 1, 1)   # chains C2C23..C2^{M2-1}C23; at least the first level stays
         _L1, _L4, _L5 = M1 - 1, M4 - 1, M5 - 1
     forbid1, forbid4, forbid5 = extvs - {v1v}, extvs - {v4v}, extvs - {v5v}
