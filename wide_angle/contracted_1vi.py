@@ -98,8 +98,8 @@ def biconnected_blocks(verts, edges):
     """Biconnected components (blocks) of (verts, edges); bridges appear as
     single-edge blocks; self-loops as single-vertex blocks; isolated vertices
     as single-vertex blocks.  (Tarjan; identical algorithm to
-    regge_limit/regge_core.mode_components — 2026-08-21: the Regge
-    methodology decomposes γ̃_X into 1VI blocks instead of filtering.)"""
+    spacelike_collinear/regge/regge_core.mode_components — 2026-08-21: the
+    Regge methodology decomposes γ̃_X into 1VI blocks instead of filtering.)"""
     loops = [(a, b) for (a, b) in edges if a == b]
     other = [(a, b) for (a, b) in edges if a != b]
     out = []

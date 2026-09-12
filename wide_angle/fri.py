@@ -19,12 +19,11 @@ Usage:
 Mode syntax: H / S / S^m / C_i / C_i^n / C_i^inf / SC_i / SC_i^n / S^mC_i^n.
 
 This file is a thin wrapper: the interactive browser lives in
-wide_angle/facet_regions_interactive.py (main).
+facet_regions_interactive.py (same directory).
 """
 import sys, os
 
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                'wide_angle'))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from facet_regions_interactive import main
 
 if __name__ == '__main__':

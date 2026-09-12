@@ -19,8 +19,7 @@ Usage:
     python3 fri_demo.py [1|2|3|4]     # run one demo (default: all)
 """
 import sys, os, time
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                'wide_angle'))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from read_graph import mode_str
 from truncation_check import kappa_of, run_layered
 from facet_regions_interactive import (group_by_type,
