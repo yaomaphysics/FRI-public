@@ -921,6 +921,10 @@ def sc_hidden_path_confirms(blk, i, comps, confirmed, edges, em, vm,
     # C_a^{m_a}·pair / C_b^{m_b}·pair with m >= 0 (incl. ∞ = lightlike).
     if ma not in ext_a_fam or mb not in ext_b_fam:
         return False
+    # receiver must still pass the port requirement (conduction is not an exemption); excludes the union of all source entries  (R068_v8 k3, 2026-09-13)
+    if not _hp_receiver_port_ok(blk, pair_mode, edges, em, vm, ext_attach, ext_mode,
+                                confirmed, comps):
+        return False
     cv = {v for v in blk[0] if v != 'aux'}
     has_a = va in cv
     has_b = vb in cv
@@ -990,13 +994,17 @@ def adjacent(blk, comp, edges, em, vm, sc_mode):
 
 # SC13/SC24 cond-1 — momentum-flow confirmation: EXISTS a cut of the SC component into two pieces such that for ONE piece, the line momenta of CONFIRMED components crossing into it (edge belongs to a confirmed component, relevant to the piece) have ∨(inflows) == mode.
 # Single-real-vertex blocks take the degenerate cut (whole block one piece, aux alone).  External momenta do not participate: an external alone can never ∨ to an SC mode.
-def sc_cond1_confirms(blk, mode, comps, confirmed, edges, em, vm):
+def sc_cond1_confirms(blk, mode, comps, confirmed, edges, em, vm,
+                      ext_attach, ext_mode):
     bv, be, *rest = blk
     sidx = rest[0] if rest else []
     real = [v for v in bv if v != 'aux']
     n = len(real)
     if n == 0:
         return False
+    # the third-port requirement is part of condition 1 (same as cond1_confirms; ported from wide-angle / fri23, 2026-09-13)
+    def _port_ok():
+        return _port_ok_regge(blk, mode, edges, em, vm, ext_attach, ext_mode, confirmed, comps)
     def inflows_of(A):
         inflow = []
         tgt = (set(A), [])
@@ -1032,7 +1040,7 @@ def sc_cond1_confirms(blk, mode, comps, confirmed, edges, em, vm):
         acc = inflow[0]
         for m2 in inflow[1:]:
             acc = join(acc, m2)
-        return acc == mode
+        return acc == mode and _port_ok()
     for mask in range(1, 1 << n):
         A = {real[i] for i in range(n) if (mask >> i) & 1}
         if not A:
@@ -1047,7 +1055,7 @@ def sc_cond1_confirms(blk, mode, comps, confirmed, edges, em, vm):
         for m2 in inflow[1:]:
             acc = join(acc, m2)
         if acc == mode:
-            return True
+            return _port_ok()
     return False
 
 
@@ -1334,95 +1342,246 @@ def h_comp_confirmed(blk, comps, confirmed, edges, em, vm, ext_attach,
 # The cut edges of X itself are not inflows.  ∨(inflows) == mode ⟹ confirmed.
 def cond1_confirms(blk, mode, comps, confirmed, edges, em, vm,
                    ext_attach, ext_mode):
-    bv, be, *rest = blk
-    verts = [v for v in bv if v != 'aux']
-    n = len(verts)
-    if n == 0:
+    # NEW FORM v3 (2026-09-13 晚, 小马): no "cut".  Two momenta — external or
+    # already-confirmed line momenta — must ENTER the component (strict
+    # monotone entry walk with edge modes checked, first-touch stop), their
+    # join == mode; a third port must remain for ONE admissible choice of
+    # entry points (any combination).  Single momentum already of the mode:
+    # allowed, port per entry.
+    realV = {v for v in blk[0] if v != 'aux'}
+    if not realV:
         return False
-    # line momenta of confirmed components crossing into a vertex set A: an edge (a,b) with em == m, one endpoint in A, the other endpoint belonging to (i.e. real vertex of) a CONFIRMED component of mode m.
-    def inflows_of(A):
-        inflow = []
-        tgt = (set(A), [])
-        def _reachable(v, A):
-            # same-mode reachability (no marginal-softness test), THIS mode only; start not G/sH (no longitudinal) nor H (absorbs)
-            if vm.get(v) in ('H', 'G', 'sH'):
-                return False
-            seen = {v}
-            stack = [v]
-            while stack:
-                x = stack.pop()
-                if x in A:
-                    return True
-                for ei, (a, b) in enumerate(edges):
-                    if em[ei] != mode:
-                        continue
-                    w = b if a == x else (a if b == x else None)
-                    if w is None or w in seen:
-                        continue
-                    if vm.get(w) in ('H', 'G', 'sH'):
-                        continue
-                    seen.add(w)
-                    stack.append(w)
-            return False
-        for extn, vv in ext_attach.items():
-            m_ext = ext_mode_for(ext_attach, ext_mode, extn)
-            if vv in A:
-                inflow.append(m_ext)  # sitting IN the piece (same-mode direct scale source)
-                continue
-            if m_ext == mode:
-                if _reachable(vv, A):  # same-mode external momentum: reachability along mode edges
-                    inflow.append(m_ext)
-                continue
-            ext_comp = ({vv, 'aux'}, [(vv, 'aux')])
-            if relevant(ext_comp, tgt, mode, edges, em, vm, m_ext):
-                inflow.append(m_ext)
-        for ei, (a, b) in enumerate(edges):
-            m = em[ei]
-            if m in ('H', 'G', 'sH'):
-                continue
-            for i, (sv, se, *sidx) in enumerate(comps.get(m, ())):
-                if not confirmed.get((m, i)):
+    def entry_walk(start_vs):
+        src = {v for v in start_vs if vm.get(v) not in ('G', 'H', 'sH')}
+        if not src:
+            return set()
+        adj = {v: [] for v in vm}
+        for i, (a, b) in enumerate(edges):
+            adj[a].append((b, i)); adj[b].append((a, i))
+        seen = set(src)
+        stack = [(v, V[vm.get(v, 'H')]) for v in src]
+        touch = set()
+        while stack:
+            v, last = stack.pop()
+            if v in realV:
+                touch.add(v); continue
+            for w, ei in adj[v]:
+                if w in seen:
                     continue
-                if sidx and ei in sidx[0]:
-                    if m == mode:
-                        if a in A or b in A:  # same-mode line of a confirmed block: direct contact suffices (same scaling, no marginal-softness test)
-                            inflow.append(m)
-                    else:
-                        line_comp = ({a, b}, [(a, b)])  # line momentum of a confirmed component: the edge (endpoints) is the source, relevant to A
-                        if relevant(line_comp, tgt, mode, edges, em, vm, m):
-                            inflow.append(m)
-                    break
-        return inflow
-
-    # single-vertex (or edge-less) block: the "cut" degenerates to the whole block as one piece
-    if n == 1 or not any((a in set(verts)) != (b in set(verts))
-                         for (a, b) in be):
-        inflow = inflows_of(set(verts))
-        if not inflow:
-            return False
-        acc = inflow[0]
-        for m2 in inflow[1:]:
-            acc = join(acc, m2)
-        return acc == mode
-
-    # A may be ALL real vertices (aux alone as the other piece): p1 & p3 flow into one piece, vee(C1C13, C3C13) = C13 confirms it
-    for mask in range(1, 1 << n):
-        A = {verts[i] for i in range(n) if (mask >> i) & 1}
-        B = set(verts) - A
-        if not A:
+                if vm.get(w) in ('G', 'H', 'sH'):
+                    continue
+                eV = V[em[ei]]
+                if eV > last:
+                    continue
+                wV = V[vm.get(w, 'H')]
+                if wV > eV:
+                    continue
+                seen.add(w); stack.append((w, wV))
+        return touch
+    cands = []          # (tag, md, entry_points)
+    for extn, v0 in ext_attach.items():
+        md = ext_mode_for(ext_attach, ext_mode, extn)
+        if v0 in realV:
+            cands.append((extn, md, {v0}))
             continue
-        # the cut must actually separate the block: some block edge crosses
-        if not any((a in A) != (b in A) for (a, b) in be):
+        if md == mode or marginally_softer(md, mode):
+            t = entry_walk([v0])
+            if t:
+                cands.append((extn, md, t))
+    for (cm, ci) in list(confirmed.keys()):
+        if cm != mode and not marginally_softer(cm, mode):
             continue
-        inflow = inflows_of(A)
-        if not inflow:
-            continue
-        acc = inflow[0]
-        for m2 in inflow[1:]:
-            acc = join(acc, m2)
-        if acc == mode:
-            return True
+        sblk = comps[cm][ci]
+        sidx = sblk[2] if len(sblk) > 2 and sblk[2] else []
+        for ei in sidx:
+            a, b = edges[ei]
+            if cm == mode:
+                ent = {w for w in (a, b) if w in realV}
+                if ent:
+                    cands.append(('%s#%d' % (cm, ci), cm, ent))
+            else:
+                t = entry_walk([a, b])
+                if t:
+                    cands.append(('%s#%d' % (cm, ci), cm, t))
+    if not cands:
+        return False
+    for (_tag, md, ent) in cands:
+        if md == mode:
+            for a in sorted(ent):
+                if _third_port_regge(blk, mode, {a}, comps.get(mode, []), vm, edges):
+                    return True
+    for i in range(len(cands)):
+        for j in range(i + 1, len(cands)):
+            m1, e1 = cands[i][1], cands[i][2]
+            m2, e2 = cands[j][1], cands[j][2]
+            try:
+                if join(m1, m2) != mode:
+                    continue
+            except Exception:
+                continue
+            for a in e1:
+                for b in e2:
+                    if _third_port_regge(blk, mode, {a, b}, comps.get(mode, []), vm, edges):
+                        return True
     return False
+
+
+# ---- Third-port requirement (part of condition 1) ----
+# Ported from the wide-angle cond1_strong and the 2->3 enumerator (2026-09-13): a component whose scale is
+# assembled from momenta entering at {va, vb} must have a THIRD PORT w outside {va, vb} — either
+#   (A) a same-mode vertex of the block shared with another same-mode component, or
+#   (B) a harder-mode vertex reached by one of the block's own edges (the exit endpoint; G counts).
+# A scale assembled from two sources with no exit port is scaleless; H components are exempt (momentum sinks).
+USE_THIRD_PORT = True
+
+
+def _harder_or_eq_regge(mw, X):
+    if mw == X:
+        return True
+    if X == 'H':
+        return False
+    if mw == 'H':
+        return True
+    if mw == 'G':
+        return True
+    if mw == 'sH' or X in ('G', 'sH'):
+        return False
+    return V.get(mw, 99) <= V.get(X, 0)
+
+
+def _collect_entries_regge(blk, start_vs, start_es, cur_mode, edges, em, vm):
+    realV = {v for v in blk[0] if v != 'aux'}
+    tgt = {('v', v) for v in realV}
+    tgt |= {('e', ei) for ei in (blk[2] if len(blk) > 2 and blk[2] else [])}
+
+    def mode_of(el):
+        return vm.get(el[1], 'H') if el[0] == 'v' else em[el[1]]
+
+    def neighbors(el):
+        out = []
+        if el[0] == 'v':
+            v = el[1]
+            for ei, (a, b) in enumerate(edges):
+                if a == v:
+                    out.append(('e', ei)); out.append(('v', b))
+                elif b == v:
+                    out.append(('e', ei)); out.append(('v', a))
+        else:
+            a, b = edges[el[1]]
+            out.append(('v', a)); out.append(('v', b))
+        return out
+
+    start = [('v', v) for v in start_vs] + [('e', ei) for ei in start_es]
+    visited = set(start)
+    queue = [(el, cur_mode) for el in start]
+    hits = set()
+    while queue:
+        el, cur = queue.pop(0)
+        if el in tgt:
+            hits.add(el); continue
+        for nb in neighbors(el):
+            if nb in visited:
+                continue
+            m_nb = mode_of(nb)
+            if m_nb in ('G', 'sH'):
+                continue
+            if _harder_or_eq_regge(m_nb, cur):
+                visited.add(nb); queue.append((nb, m_nb))
+    ev = set()
+    for h in hits:
+        if h[0] == 'v':
+            if h[1] in realV:
+                ev.add(h[1])
+        else:
+            for w in edges[h[1]]:
+                if w in realV:
+                    ev.add(w)
+    return ev
+
+
+def _third_port_regge(blk, X, entry_vs, comps_same, vm, edges):
+    realV = {v for v in blk[0] if v != 'aux'}
+    for w in sorted(realV):
+        if w in entry_vs:
+            continue
+        if vm.get(w) != X:
+            continue
+        for c in comps_same:
+            if c is blk:
+                continue
+            if w in {v for v in c[0] if v != 'aux'}:
+                return ('A', w)
+    idxs = blk[2] if len(blk) > 2 and blk[2] else []
+    for ei in idxs:
+        a, b = edges[ei]
+        for w in (a, b):
+            if w in realV or w in entry_vs:
+                continue
+            mw = vm.get(w)
+            if mw is not None and mw != X and _harder_or_eq_regge(mw, X):
+                return ('B', w)
+    return None
+
+
+def _port_sources_regge(blk, X, edges, em, vm, ext_attach, ext_mode, confirmed, comps):
+    srcs = []
+    realV = {v for v in blk[0] if v != 'aux'}
+    for extn, v0 in ext_attach.items():
+        md = ext_mode_for(ext_attach, ext_mode, extn)
+        if v0 in realV:
+            srcs.append((extn, md, {v0}, {v0}))
+        else:
+            if md == X or marginally_softer(md, X):
+                c = _collect_entries_regge(blk, [v0], [], vm.get(v0, 'H'), edges, em, vm)
+                if c:
+                    srcs.append((extn, md, c, set()))
+    for (cm, ci) in list(confirmed.keys()):
+        if not marginally_softer(cm, X):
+            continue
+        sblk = comps[cm][ci]
+        sv = {v for v in sblk[0] if v != 'aux'}
+        se = sblk[2] if len(sblk) > 2 and sblk[2] else []
+        c = _collect_entries_regge(blk, sv, se, cm, edges, em, vm)
+        if c:
+            srcs.append(('%s#%d' % (cm, ci), cm, c, set()))
+    return srcs
+
+
+def _port_ok_regge(blk, X, edges, em, vm, ext_attach, ext_mode, confirmed, comps):
+    if not USE_THIRD_PORT:
+        return True
+    srcs = _port_sources_regge(blk, X, edges, em, vm, ext_attach, ext_mode, confirmed, comps)
+    comps_same = comps.get(X, [])
+    for (_tag, md, cands, att) in srcs:
+        if md == X:
+            for a in cands:
+                if _third_port_regge(blk, X, {a}, comps_same, vm, edges):
+                    return True
+    for i in range(len(srcs)):
+        for j in range(i + 1, len(srcs)):
+            md1, c1, a1 = srcs[i][1], srcs[i][2], srcs[i][3]
+            md2, c2, a2 = srcs[j][1], srcs[j][2], srcs[j][3]
+            try:
+                if join(md1, md2) != X:
+                    continue
+            except Exception:
+                continue
+            for a in c1:
+                for b in c2:
+                    if _third_port_regge(blk, X, {a, b}, comps_same, vm, edges):
+                        return True
+    return False
+
+
+# Hidden-path receiver port check: exclude the UNION of all source entries, then require a third port.  (cond1's _port_ok_regge only triggers the single-source test for FULL-mode sources; here a single marginally-softer source like C3∞C13 must also trigger it.  R068_v8 k3 / K33a3_1_pi, 2026-09-13)
+def _hp_receiver_port_ok(blk, X, edges, em, vm, ext_attach, ext_mode, confirmed, comps):
+    if not USE_THIRD_PORT:
+        return True
+    srcs = _port_sources_regge(blk, X, edges, em, vm, ext_attach, ext_mode, confirmed, comps)
+    entry = set()
+    for (_tag, md, cands, att) in srcs:
+        entry |= set(cands)
+    return _third_port_regge(blk, X, entry, comps.get(X, []), vm, edges) is not None
 
 
 # C13/C24 component confirmed by BOTH external momenta being relevant to it: p1/p3 (resp. p2/p4) as external subgraphs (mode from the input kinematics, not hard-coded ∞) reach the block via mode-monotone paths avoiding G/H/sH; ∨(ext modes) = C13/C24 gives the block its mode.
@@ -1461,6 +1620,93 @@ def ir_ok_region(edges, em, vm, ext_attach, ext_mode=None, sum_degrees=None):
     # H components: 1VI blocks like every other mode — each block needs its OWN confirming cut (a cut that confirms one block does not confirm another sharing a cut vertex with it).  aux-only blocks are contraction artifacts.
     comps['H'] = [b for b in mode_components('H', vm, em, edges, verts)
                 if any(v != 'aux' for v in b[0])]
+
+    # ---- tadpole gate (PROTOTYPE 2026-09-13; translated from fri23 _tadp / wide-angle primitives.py) ----
+    def _m_of(md):
+        if md == 'S':
+            return 1
+        if md.startswith('S^'):
+            num = ''
+            for ch in md[2:]:
+                if ch.isdigit():
+                    num += ch
+                else:
+                    break
+            return int(num) if num else 1
+        return 0
+
+    def _is_pure_soft(md):
+        return _m_of(md) >= 1 and 'C' not in md
+
+    def _tadp(md, blk):
+        if _m_of(md) < 1:
+            return False
+        realV = {v for v in blk[0] if v != 'aux'}
+        idxs = blk[2] if len(blk) > 2 and blk[2] else []
+        ends = set(realV)
+        for ei in idxs:
+            ends |= set(edges[ei])
+        for w in ends:
+            if vm.get(w) == 'H':
+                return False
+        def _adj(a_idxs, a_v, b_idxs, b_v):
+            for ei in a_idxs:
+                for w in edges[ei]:
+                    if w in b_v:
+                        return True
+            for ei in b_idxs:
+                for w in edges[ei]:
+                    if w in a_v:
+                        return True
+            return False
+        for m2, lst2 in comps.items():
+            if V.get(m2, 99) >= V.get(md, 0):
+                continue
+            for c2 in lst2:
+                c2v = {v for v in c2[0] if v != 'aux'}
+                c2i = c2[2] if len(c2) > 2 and c2[2] else []
+                if _adj(idxs, realV, c2i, c2v):
+                    return False
+        return True
+
+    def _vee_ok(md, blk):
+        realV = {v for v in blk[0] if v != 'aux'}
+        idxs = blk[2] if len(blk) > 2 and blk[2] else []
+        ends = set(realV)
+        for ei in idxs:
+            ends |= set(edges[ei])
+        pool = []
+        for i2 in range(len(edges)):
+            u, w = edges[i2]
+            if (u in ends or w in ends) and 'C' in em[i2]:
+                pool.append(em[i2])
+        for nm, v in ext_attach.items():
+            if v in ends:
+                pool.append(ext_mode_for(ext_attach, ext_mode, nm))
+        if len(pool) < 2:
+            return False
+        for ai in range(len(pool)):
+            for bi in range(ai + 1, len(pool)):
+                if join(pool[ai], pool[bi]) == md:
+                    return True
+        return False
+
+    _tad_cache, _vee_cache = {}, {}
+
+    def _cond_allowed(md, blk):
+        t = _tad_cache.get(id(blk))
+        if t is None:
+            t = _tadp(md, blk)
+            _tad_cache[id(blk)] = t
+        if not t:
+            return True
+        if not _is_pure_soft(md):
+            return False
+        ok = _vee_cache.get(id(blk))
+        if ok is None:
+            ok = _vee_ok(md, blk)
+            _vee_cache[id(blk)] = ok
+        return ok
     # (the "pure-aux carrier" check is a CONSEQUENCE of IR compatibility, not an independent constraint — a pure-aux SC component fails the relevance rules automatically; removing it changes nothing)
     confirmed = {}
     # initial round: C13/C24 by cond1 (cut-check).
@@ -1547,12 +1793,12 @@ def ir_ok_region(edges, em, vm, ext_attach, ext_mode=None, sum_degrees=None):
                                 ('S^1C24', ('C13', 'C2C24', 'C4C24'))):
             for i, blk in enumerate(comps[mode]):
                 if (mode, i) in confirmed: continue
-                if sc_confirmed_rule(blk, rel_modes, comps, confirmed,
+                if _cond_allowed(mode, blk) and sc_confirmed_rule(blk, rel_modes, comps, confirmed,
                                      edges, em, vm, mode):
                     confirmed[(mode, i)] = True
                     changed = True
                 elif sc_cond1_confirms(blk, mode, comps, confirmed,
-                                       edges, em, vm):
+                                       edges, em, vm, ext_attach, ext_mode):
                     # SC cond-1: momentum flow of confirmed components, ∨(inflows) == mode
                     confirmed[(mode, i)] = True
                     changed = True
@@ -1562,28 +1808,30 @@ def ir_ok_region(edges, em, vm, ext_attach, ext_mode=None, sum_degrees=None):
                 ('S^2C24', ('C2^2C24', 'C4^2C24'), ('S^1C13', 'C1C13', 'C3C13'))):
             for i, blk in enumerate(comps[mode]):
                 if (mode, i) in confirmed: continue
-                if s2c_confirmed_rule(blk, fam_modes, req_modes, comps,
-                                      confirmed, edges, em, vm, mode):
+                if _cond_allowed(mode, blk) and s2c_confirmed_rule(
+                        blk, fam_modes, req_modes, comps,
+                        confirmed, edges, em, vm, mode):
                     confirmed[(mode, i)] = True
                     changed = True
         # S² components: relevant to confirmed X1 (13-family) and X2 (24-family) with S² = X1 ∧ X2
         for i, blk in enumerate(comps['S^2']):
             if ('S^2', i) in confirmed: continue
-            if s2_comp_confirmed(blk, comps, confirmed, edges, em, vm):
+            if _cond_allowed('S^2', blk) and s2_comp_confirmed(
+                    blk, comps, confirmed, edges, em, vm):
                 confirmed[('S^2', i)] = True
                 changed = True
         # SC²-family components (S^m C_i^n C_ij, m,n>=1): generic meet-of-two rule
         for mode in ('S^1C1C13', 'S^1C3C13', 'S^1C2C24', 'S^1C4C24'):
             for i, blk in enumerate(comps[mode]):
                 if (mode, i) in confirmed: continue
-                if sc2_gen_confirmed(blk, comps, confirmed, edges, em, vm,
-                                     mode):
+                if _cond_allowed(mode, blk) and sc2_gen_confirmed(
+                        blk, comps, confirmed, edges, em, vm, mode):
                     confirmed[(mode, i)] = True
                     changed = True
         # S components: relevant to confirmed 13-family + 24-family
         for i, blk in enumerate(comps['S']):
             if ('S', i) in confirmed: continue
-            if s_comp_confirmed(blk, comps, confirmed, edges, em, vm):
+            if _cond_allowed('S', blk) and s_comp_confirmed(blk, comps, confirmed, edges, em, vm):
                 confirmed[('S', i)] = True
                 changed = True
         # H components: full cond1 — a cut of the component (not cutting the diagram) with a piece whose inflows ∨ to H
@@ -2095,7 +2343,7 @@ def glauber_vertex_mom_ok(inc):
 
 # Momentum conservation at each vertex (Regge version): incident momenta (edge modes + attached external) split into two nonempty groups with equal ∨-joins.
 # Adaptations: G/sH vertices and vertices touching a G/sH edge are skipped (transverse, does not mix with longitudinal); H is NOT skipped (an O(1) flow that must balance).
-# Both internal and external-momentum vertices are checked: n=2 same-family pairs balance pairwise; n>=3 via ∨-partition.  vee() is authoritative (regge_modes lattice).
+# Both internal and external-momentum vertices are checked: n>=2 via ∨-partition (for n=2 this reduces to equality of the two line modes).  vee() is authoritative (regge_modes lattice).
 def momentum_ok_regge(edges, em, vm, ext_attach, ext_mode=None):
     verts = set(v for e in edges for v in e) | set(ext_attach.values())
     for v in verts:
@@ -2117,7 +2365,7 @@ def momentum_ok_regge(edges, em, vm, ext_attach, ext_mode=None):
             return False
         if n == 2:
             a, b = inc
-            if _same_family(a, b):
+            if vee([a]) == vee([b]):
                 continue
             return False
         ok = False
