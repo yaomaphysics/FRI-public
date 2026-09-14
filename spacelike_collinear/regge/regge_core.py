@@ -506,133 +506,6 @@ def mode_components(mode, vm, em, edges, verts):
     return out
 
 
-# Position of external-momentum vertex pv w.r.t. component blk: pv itself if in blk; the shared REAL cut vertex if pv sits in another block of the same γ̃ ('aux' does not count); 'aux' if pv was absorbed (incl. via a refined-mode edge); None if pv is not connected to γ̃ at all (the cut-check cannot confirm this component).
-def _ext_pos(pv, blk_verts, blocks, blk_idx, gv, ge, edges=None, em=None,
-             vm=None):
-    if pv in blk_verts:
-        return pv
-    others = [(i, b) for i, b in enumerate(blocks) if i != blk_idx]
-    in_others = [b for (i, b) in others if pv in b[0]]
-    if in_others:
-        # only shared REAL (mode) vertices carry the flow (aux = absorbed non-mode vertices; H/G do not conduct)
-        shared = (blk_verts & set().union(*[b[0] for b in in_others])) \
-            - {'aux'}
-        if shared:
-            return next(iter(shared))
-        # same-mode flow may run along shared-cut-vertex CHAINS (one-step lookup misses it): BFS over the block graph
-        starts = [i for (i, b) in others if pv in b[0]]
-        n = len(blocks)
-        bg = [set() for _ in range(n)]
-        for i in range(n):
-            for j in range(i + 1, n):
-                if (blocks[i][0] & blocks[j][0]) - {'aux'}:
-                    bg[i].add(j); bg[j].add(i)
-        prev = {s: None for s in starts}
-        dq = list(starts)
-        seen = set(starts)
-        while dq:
-            i = dq.pop(0)
-            if i == blk_idx:
-                p = prev[i]
-                if p is not None:
-                    sh = (blocks[i][0] & blocks[p][0]) - {'aux'}
-                    if sh:
-                        return next(iter(sh))
-                return None
-            for j in bg[i]:
-                if j not in seen:
-                    seen.add(j); prev[j] = i; dq.append(j)
-        return None
-    if pv in gv or pv in ge:
-        if vm.get(pv) in ('H', 'G', 'sH'):  # an H/G/sH external vertex cannot deliver its momentum (no aux shortcut)
-            return None
-        return 'aux'
-    # may attach through refined-mode edges (refined subgraph inside the pair cut → pv in the aux region)
-    if edges is not None:
-        if vm.get(pv) in ('H', 'G', 'sH'):  # the H/G/sH guard applies to the refined-edge shortcut too
-            return None
-        refined_fams = ('C1C13', 'C3C13', 'C2C24', 'C4C24', 'C1^2C13', 'C3^2C13',
-                        'C2^2C24', 'C4^2C24')
-        reach = {pv}  # vertices reachable from pv via refined-mode edges (1 step)
-        for (a, b), m in zip(edges, em):
-            if m not in refined_fams:
-                continue
-            if a == pv and b not in reach:
-                reach.add(b)
-            if b == pv and a not in reach:
-                reach.add(a)
-        for (a, b), m in zip(edges, em):
-            if m not in refined_fams:
-                continue
-            if a in reach and b in blk_verts:
-                return 'aux'
-            if b in reach and a in blk_verts:
-                return 'aux'
-    return None
-
-# Exists a cut splitting the block into connected A ⊇ A_pts and B ⊇ B_pts (points resolved via _ext_pos; None entries filtered by the caller).
-def _cut_split(blk_verts, blk_edges, A_pts, B_pts):
-    vs = list(blk_verts)
-    n = len(vs)
-    for mask in range(1, 1 << n):
-        A = {vs[i] for i in range(n) if (mask >> i) & 1}
-        if not A_pts <= A:
-            continue
-        B = blk_verts - A
-        if not B:
-            continue
-        if not B_pts <= B:
-            continue
-        if not connected(A, blk_edges):
-            continue
-        if not connected(B, blk_edges):
-            continue
-        return True
-    return False
-
-
-# C13/C24 cut-check (external-momentum confirmation).  One of the following suffices:
-#   1. ext1 alone is the scale source (input mode == C13/C24): a cut with ext1 on one side, all other externals on the other;
-#   2. same for ext2;
-#   3. the partial sum ext1+ext2 has virtuality degree 1 (lightlike case): a cut with both on one side, the rest on the other.
-# Options 1/2 need `ext_mode`; option 3 uses `sum_degrees` (default 1, the Regge definition).  Sufficient, not necessary, for IR compatibility.
-def ir_jet_ok(blocks, blk_idx, mode, ext_attach, ext1, ext2, edges, em, vm,
-              ext_mode=None, sum_degrees=None):
-    blk_verts, blk_edges, *_ = blocks[blk_idx]
-    gv = {v for v in ext_attach.values() if False}  # placeholder, unused
-    ge_verts = set()
-    for (a, b), m in zip(edges, em):
-        if m == mode:
-            ge_verts.add(a); ge_verts.add(b)
-    gv = {v for v in vm if vm[v] == mode}
-    names = list(ext_attach)
-    pos = {n: _ext_pos(ext_attach[n], blk_verts, blocks, blk_idx, gv,
-                       ge_verts, edges, em, vm) for n in names}
-    e1 = pos.get(ext1)
-    e2 = pos.get(ext2)
-    side = {ext1, ext2}
-    others = [n for n in names if n not in side]
-    o_pts = {pos[n] for n in others if pos.get(n) is not None}
-    # option 1: ext1 alone is the scale source (input mode == block mode)
-    if e1 is not None and ext_mode is not None \
-            and ext_mode.get(ext1) == mode:
-        if _cut_split(blk_verts, blk_edges, {e1}, o_pts | ({e2} if e2 is not None else set())):
-            return True
-    # option 2: ext2 alone is the scale source
-    if e2 is not None and ext_mode is not None \
-            and ext_mode.get(ext2) == mode:
-        if _cut_split(blk_verts, blk_edges, {e2}, o_pts | ({e1} if e1 is not None else set())):
-            return True
-    # option 3: the partial sum ext1+ext2 has virtuality degree 1 (lightlike case, original rule; both externals on the block)
-    if e1 is None or e2 is None:
-        return False
-    deg = 1 if sum_degrees is None else sum_degrees.get(
-        frozenset((ext1, ext2)), 1)
-    if deg == 1:
-        if _cut_split(blk_verts, blk_edges, {e1, e2}, o_pts):
-            return True
-    return False
-
 # External momentum reaches the block ALONG ITS OWN MODE: BFS from v_ext through vm==mode vertices and em==mode edges to the block's real vertices.
 # The source must not be G/H/sH (same source filter as relevant(); intermediates are already restricted to vm==mode).
 def same_mode_reaches(vext, blk, mode, edges, em, vm):
@@ -826,14 +699,6 @@ def ir_glauber_ok(e, verts, edges, p1, p2, p3, p4):
         return True
     return False
 
-# S IR compatibility: every S edge must be adjacent to (receive scale from) a C13/C24-family vertex.
-def s_confirmed(edges, em, vm):
-    for (a, b), m in zip(edges, em):
-        if m == 'S':
-            if vm.get(a) in (J13_FAM | J24_FAM) or vm.get(b) in (J13_FAM | J24_FAM):
-                continue
-            return False
-    return True
 
 # γ1 (SC/S block) relevant to γ2 (C-mode component):
 #   (i) 𝒳(γ1) marginally softer than 𝒳(γ2): V[sc_mode] > V[dst_mode];
@@ -972,16 +837,6 @@ def sc_hidden_path_confirms(blk, i, comps, confirmed, edges, em, vm,
     return False
 
 
-def sc24_hidden_path_confirms(blk, i, comps, confirmed, edges, em, vm,
-                              ext_attach, ext_mode):
-    # SC24 -> C13 instance of sc_hidden_path_confirms (thin wrapper over the generic rule).
-    return sc_hidden_path_confirms(blk, i, comps, confirmed, edges, em, vm,
-                                   ext_attach, ext_mode, 'S^1C24', 'C13',
-                                   'p1', 'p3', ('C2C24', 'C4C24'),
-                                   ('C13', 'C1C13', 'C1^2C13', 'C1∞C13'),
-                                   ('C13', 'C3C13', 'C3^2C13', 'C3∞C13'))
-
-
 # SC block adjacent to a C-mode component: share a vertex, or an SC edge of this block (em == sc_mode) touches a component vertex.
 # Self-loop SC edges (both ends absorbed into aux) are matched via the contracted edge list.
 def adjacent(blk, comp, edges, em, vm, sc_mode):
@@ -1116,55 +971,6 @@ def s2c_confirmed_rule(blk, fam_modes, req_modes, comps, confirmed,
                    any(confirmed.get((m2, i)) for i in adj[m2]):
                     return True
     return False
-
-# C1C13-type component: attached by an SC line from a CONFIRMED SC component (the SC edge belongs to a confirmed SC block and touches blk).
-def adjacent_confirmed_sc_line(blk, sc_mode, comps, confirmed, edges, em, vm):
-    blk_verts = blk[0]
-    for i, (sv, se, *sidx) in enumerate(comps[sc_mode]):
-        if not confirmed.get((sc_mode, i)):
-            continue
-        for ei, e in enumerate(edges):
-            if em[ei] != sc_mode:
-                continue
-            if sidx:
-                if ei not in sidx[0]:
-                    continue
-            else:
-                a2 = e[0] if vm.get(e[0]) == sc_mode else 'aux'
-                b2 = e[1] if vm.get(e[1]) == sc_mode else 'aux'
-                if (a2, b2) not in se and (b2, a2) not in se:
-                    continue
-            if e[0] in blk_verts or e[1] in blk_verts:
-                return True
-    return False
-
-# Wide-angle IR condition 1 (momentum flow) for a C13/C24 component with NO external momentum inside (refined away into C1C13/C3C13 etc.): the entering flows of the CONFIRMED refined components must ∨ up to the component mode.
-# The ∨ is taken over the WHOLE component's inflow (all real vertices), not per-vertex: per-vertex each ∨ is only C1C13/C3C13 (≠ C13), but the component-level ∨(C1C13, C3C13) = C13.
-def refined_flow_confirms(mode, blk, comps, confirmed, edges, em, vm,
-                          refined_modes):
-    blk_verts = blk[0]
-    inflow = []
-    for v in blk_verts:
-        if v == 'aux':
-            continue
-        for ei, (a, b) in enumerate(edges):
-            m = em[ei]
-            if m not in refined_modes:
-                continue
-            if a != v and b != v:
-                continue
-            for i, (sv, se, *sidx) in enumerate(comps[m]):
-                if not confirmed.get((m, i)):
-                    continue
-                if sidx and ei in sidx[0]:
-                    inflow.append(m)
-                    break
-    if not inflow:
-        return False
-    acc = inflow[0]
-    for m2 in inflow[1:]:
-        acc = join(acc, m2)
-    return acc == mode
 
 
 # Relevance to an H block: like relevant(), but the path may START at an H/G vertex of the source (an external-momentum vertex can be H-mode) and may END at the H target.
@@ -1560,22 +1366,6 @@ def _rule3_gate_entry_walk(blk, start_vs, edges, em, vm):
     return touch
 
 
-def _rule3_gate_port_ok(blk, mode, vext, sblk, edges, em, vm, comps):
-    # port test for the "p-ext + confirmed SC relevant" channel: exclude the
-    # first-touch entry points of the ext and of the SC's lines; require a third port
-    realV = {v for v in blk[0] if v != 'aux'}
-    ent = set()
-    if vext in realV:
-        ent.add(vext)
-    else:
-        ent |= _rule3_gate_entry_walk(blk, [vext], edges, em, vm)
-    se = sblk[2] if len(sblk) > 2 and sblk[2] else []
-    for ei in se:
-        a, b = edges[ei]
-        ent |= _rule3_gate_entry_walk(blk, [a, b], edges, em, vm)
-    return _third_port_regge(blk, mode, ent, comps.get(mode, []), vm, edges) is not None
-
-
 def _refined_flow2_confirms(mode, blk, comps, confirmed, edges, em, vm,
                             ext_attach, ext_mode, ext):
     # cond1-skeleton flow for refined components (2026-09-14): the momenta that may
@@ -1697,18 +1487,6 @@ def _hp_receiver_port_ok(blk, X, edges, em, vm, ext_attach, ext_mode, confirmed,
     for (_tag, md, cands, att) in srcs:
         entry |= set(cands)
     return _third_port_regge(blk, X, entry, comps.get(X, []), vm, edges) is not None
-
-
-# C13/C24 component confirmed by BOTH external momenta being relevant to it: p1/p3 (resp. p2/p4) as external subgraphs (mode from the input kinematics, not hard-coded ∞) reach the block via mode-monotone paths avoiding G/H/sH; ∨(ext modes) = C13/C24 gives the block its mode.
-def ext_relevant_confirms(blk, mode, ext_attach, ext_names, edges, em, vm,
-                         ext_mode=None):
-    for n in ext_names:
-        vext = ext_attach[n]
-        ext_comp = ({vext, 'aux'}, [(vext, 'aux')])
-        if not relevant(ext_comp, blk, mode, edges, em, vm,
-                        ext_mode_for(ext_attach, ext_mode, n)):
-            return False
-    return True
 
 
 # Regge IR compatibility — fixpoint over 1VI components, each mode confirmed by its own rule:
@@ -2008,22 +1786,6 @@ def refined_opts(edges, root, S_base, forbid):
     for r in range(len(rest) + 1):
         for sub in combinations(rest, r):
             S = frozenset({root} | set(sub))
-            if ind_connected(S, edges): out.append(S)
-    return out
-
-# Second-power refinement candidates: connected subsets containing root AND all required vertices, inside S_base, avoiding forbidden vertices.
-# Empty required -> [empty] (no second-power cut); unsatisfiable required -> [] (no candidates).
-def refined_opts_req(edges, root, S_base, forbid, required):
-    allowed = {v for v in S_base if v not in forbid}
-    if not required:
-        return [frozenset()]
-    if not required <= allowed:
-        return []
-    out = []
-    rest = list(allowed - required - {root})
-    for r in range(len(rest) + 1):
-        for sub in combinations(rest, r):
-            S = frozenset({root} | required | set(sub))
             if ind_connected(S, edges): out.append(S)
     return out
 
@@ -2420,17 +2182,6 @@ def fri_regions_offshell(edges, verts, ext_attach, ext_mode, ms, verbose=False):
                                          set(cut3), set(cut2), set(cut4),
                                          reg[0], reg[1]))
     return regs
-
-
-# Same direction family: both 13-side (J13: C13, C1C13, C3C13, C1∞C13, ..., single C1/C3) or both 24-side (J24).  SC13/SC24, S, S², S²C are each their own family.
-def _same_family(a, b):
-    J13 = {'C13', 'C1C13', 'C3C13', 'C1^2C13', 'C3^2C13',
-           'C1∞C13', 'C3∞C13', 'C1', 'C3',
-           'S^1C1C13', 'S^1C3C13'}
-    J24 = {'C24', 'C2C24', 'C4C24', 'C2^2C24', 'C4^2C24',
-           'C2∞C24', 'C4∞C24', 'C2', 'C4',
-           'S^1C2C24', 'S^1C4C24'}
-    return (a in J13 and b in J13) or (a in J24 and b in J24) or a == b
 
 
 # Glauber/semihard-vertex momentum rule: at a G/sH vertex all components are small, so >=2 small line momenta + exactly one large (O(1)) one is unbalanced.
