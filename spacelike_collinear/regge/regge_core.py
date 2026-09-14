@@ -761,7 +761,10 @@ def sc_flow_confirms(mode, sc_mode, blk, comps, confirmed, edges, em, vm,
                         continue
                     if ext_names is not None and not _vee_ok(sc_mode):
                         continue
-                    return True
+                    if _scflow_gate_port_ok(blk, mode, v, sv, se, sidx,
+                                            edges, em, vm, comps):
+                        return True
+                    continue
         # legacy direct-contact fallback (relevant() already covers it; kept explicit for clarity)
         for ei, (a, b) in enumerate(edges):
             if em[ei] != sc_mode:
@@ -785,7 +788,10 @@ def sc_flow_confirms(mode, sc_mode, blk, comps, confirmed, edges, em, vm,
                         continue
                     if ext_names is not None and not _vee_ok(sc_mode):
                         continue
-                    return True
+                    if _scflow_gate_port_ok(blk, mode, v, sv, se, sidx,
+                                            edges, em, vm, comps):
+                        return True
+                    continue
     return False
 
 
@@ -1098,7 +1104,7 @@ def s2c_confirmed_rule(blk, fam_modes, req_modes, comps, confirmed,
         targets = [m for m in fam_modes + req_modes if m in adj]
         if any(confirmed.get((m, i)) for m in targets for i in adj[m]):
             return True
-    # (2) two confirmed target modes, not both from fam_modes
+    # (2) two target modes with >=1 confirmed relevant block each (per-family exists), not both from fam_modes
     all_modes = fam_modes + req_modes
     for i1 in range(len(all_modes)):
         for i2 in range(i1 + 1, len(all_modes)):
@@ -1106,8 +1112,8 @@ def s2c_confirmed_rule(blk, fam_modes, req_modes, comps, confirmed,
             if m1 in fam_modes and m2 in fam_modes:
                 continue
             if m1 in adj and m2 in adj:
-                if all(confirmed.get((m1, i)) for i in adj[m1]) and \
-                   all(confirmed.get((m2, i)) for i in adj[m2]):
+                if any(confirmed.get((m1, i)) for i in adj[m1]) and \
+                   any(confirmed.get((m2, i)) for i in adj[m2]):
                     return True
     return False
 
@@ -1523,6 +1529,115 @@ def _third_port_regge(blk, X, entry_vs, comps_same, vm, edges):
     return None
 
 
+def _rule3_gate_entry_walk(blk, start_vs, edges, em, vm):
+    # strict monotone entry walk (edge modes checked at every step; first-touch stop)
+    realV = {v for v in blk[0] if v != 'aux'}
+    src = {v for v in start_vs if vm.get(v) not in ('G', 'H', 'sH')}
+    if not src:
+        return set()
+    adj = {v: [] for v in vm}
+    for i, (a, b) in enumerate(edges):
+        adj[a].append((b, i)); adj[b].append((a, i))
+    seen = set(src)
+    stack = [(v, V[vm.get(v, 'H')]) for v in src]
+    touch = set()
+    while stack:
+        v, last = stack.pop()
+        if v in realV:
+            touch.add(v); continue
+        for w, ei in adj[v]:
+            if w in seen:
+                continue
+            if vm.get(w) in ('G', 'H', 'sH'):
+                continue
+            eV = V[em[ei]]
+            if eV > last:
+                continue
+            wV = V[vm.get(w, 'H')]
+            if wV > eV:
+                continue
+            seen.add(w); stack.append((w, wV))
+    return touch
+
+
+def _rule3_gate_port_ok(blk, mode, vext, sblk, edges, em, vm, comps):
+    # port test for the "p-ext + confirmed SC relevant" channel: exclude the
+    # first-touch entry points of the ext and of the SC's lines; require a third port
+    realV = {v for v in blk[0] if v != 'aux'}
+    ent = set()
+    if vext in realV:
+        ent.add(vext)
+    else:
+        ent |= _rule3_gate_entry_walk(blk, [vext], edges, em, vm)
+    se = sblk[2] if len(sblk) > 2 and sblk[2] else []
+    for ei in se:
+        a, b = edges[ei]
+        ent |= _rule3_gate_entry_walk(blk, [a, b], edges, em, vm)
+    return _third_port_regge(blk, mode, ent, comps.get(mode, []), vm, edges) is not None
+
+
+def _refined_flow2_confirms(mode, blk, comps, confirmed, edges, em, vm,
+                            ext_attach, ext_mode, ext):
+    # cond1-skeleton flow for refined components (2026-09-14): the momenta that may
+    # enter the block are the associated external and/or lines of already-confirmed
+    # components (SC lines included, per-line not per-component), entering via strict
+    # monotone first-touch walks; join == mode; ONE admissible combo must leave a
+    # third port.  Replaces the old component-level Rule 3 (p-ext + relevant SC).
+    realV = {v for v in blk[0] if v != 'aux'}
+    cands = []
+    v0 = ext_attach[ext]
+    md0 = ext_mode_for(ext_attach, ext_mode, ext)
+    if v0 in realV:
+        cands.append((ext, md0, {v0}))
+    elif md0 == mode or marginally_softer(md0, mode):
+        t = _rule3_gate_entry_walk(blk, [v0], edges, em, vm)
+        if t:
+            cands.append((ext, md0, t))
+    for (cm, ci) in list(confirmed.keys()):
+        if cm != mode and not marginally_softer(cm, mode):
+            continue
+        sblk = comps[cm][ci]
+        se = sblk[2] if len(sblk) > 2 and sblk[2] else []
+        for ei in se:
+            a, b = edges[ei]
+            t = _rule3_gate_entry_walk(blk, [a, b], edges, em, vm)
+            if t:
+                cands.append(('%s#%d' % (cm, ci), em[ei], t))
+    if not cands:
+        return False
+    comps_same = comps.get(mode, [])
+    for (_tag, md, ent) in cands:
+        if md == mode:
+            for a2 in sorted(ent):
+                if _third_port_regge(blk, mode, {a2}, comps_same, vm, edges):
+                    return True
+    for i in range(len(cands)):
+        for j in range(i + 1, len(cands)):
+            m1, e1 = cands[i][1], cands[i][2]
+            m2, e2 = cands[j][1], cands[j][2]
+            try:
+                if join(m1, m2) != mode:
+                    continue
+            except Exception:
+                continue
+            for a2 in e1:
+                for b2 in e2:
+                    if _third_port_regge(blk, mode, {a2, b2}, comps_same, vm, edges):
+                        return True
+    return False
+
+
+def _scflow_gate_port_ok(blk, mode, v, sv, se, sidx, edges, em, vm, comps):
+    # port test for the SC-flow channel: exclude the identity vertex v and the
+    # SC's first-touch entry points; require a third port
+    ent = {v}
+    idx_list = sidx[0] if sidx else []
+    for ei in idx_list:
+        a, b = edges[ei]
+        ent |= _rule3_gate_entry_walk(blk, [a, b], edges, em, vm)
+    return _third_port_regge(blk, mode, ent, comps.get(mode, []), vm, edges) is not None
+
+
 def _port_sources_regge(blk, X, edges, em, vm, ext_attach, ext_mode, confirmed, comps):
     srcs = []
     realV = {v for v in blk[0] if v != 'aux'}
@@ -1742,15 +1857,11 @@ def ir_ok_region(edges, em, vm, ext_attach, ext_mode=None, sum_degrees=None):
                                       edges, em, vm):
                     ok = True
                 if not ok:
-                    # Rule 3: p_ext relevant to the block AND a confirmed SC component relevant to the block
-                    ext_comp = ({vext, 'aux'}, [(vext, 'aux')])
-                    if relevant(ext_comp, blk, mode, edges, em, vm,
-                                ext_mode_for(ext_attach, ext_mode, ext)):
-                        for j, sblk in enumerate(comps[sc_mode]):
-                            if confirmed.get((sc_mode, j)) and relevant(
-                                    sblk, blk, mode, edges, em, vm, sc_mode):
-                                ok = True
-                                break
+                    # Rule 3 (cond1 skeleton, per-line; 2026-09-14): associated p-ext + a
+                    # line of an already-confirmed component (SC lines included), entries =
+                    # strict first-touch walks, third port required for one admissible combo.
+                    ok = _refined_flow2_confirms(mode, blk, comps, confirmed, edges,
+                                                 em, vm, ext_attach, ext_mode, ext)
                 if ok:
                     confirmed[(mode, i)] = True
                     changed = True
@@ -1776,15 +1887,9 @@ def ir_ok_region(edges, em, vm, ext_attach, ext_mode=None, sum_degrees=None):
                                     edges, em, vm):
                     ok = True
                 if not ok:
-                    vext = ext_attach[ext]
-                    ext_comp = ({vext, 'aux'}, [(vext, 'aux')])
-                    if relevant(ext_comp, blk, mode, edges, em, vm,
-                                ext_mode_for(ext_attach, ext_mode, ext)):
-                        for j, sblk in enumerate(comps[s2c_mode]):
-                            if confirmed.get((s2c_mode, j)) and relevant(
-                                    sblk, blk, mode, edges, em, vm, s2c_mode):
-                                ok = True
-                                break
+                    # Rule 3 (cond1 skeleton, per-line; 2026-09-14) — as above, for C³ blocks.
+                    ok = _refined_flow2_confirms(mode, blk, comps, confirmed, edges,
+                                                 em, vm, ext_attach, ext_mode, ext)
                 if ok:
                     confirmed[(mode, i)] = True
                     changed = True
