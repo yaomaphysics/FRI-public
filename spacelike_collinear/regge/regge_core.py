@@ -2284,25 +2284,15 @@ def _build_region(edges, verts, ext_attach, ext_mode, cut13, cut24, cut1, cut3,
     if cut3sq: cuts.append(('C3^2C13', cut3sq))
     if cut2sq: cuts.append(('C2^2C24', cut2sq))
     if cut4sq: cuts.append(('C4^2C24', cut4sq))
-    # edge modes: ∧ over covering cuts
-    em = []
-    for (a, b) in edges:
-        cov = [m for (m, S) in cuts if a in S or b in S]
-        if cov:
-            acc = cov[0]
-            for m in cov[1:]: acc = meet(acc, m)
-            em.append(acc)
-        else:
-            em.append('H')
-    # vertex modes: join-mode
+    # VM-FIRST EXPERIMENT (fri23-style): vm = ∧ of cuts containing v; then em = vm_u ∧ vm_v
     vm = {}
     for v in verts:
-        accs = []
-        for i, (a, b) in enumerate(edges):
-            if a == v or b == v: accs.append(em[i])
-        for n, vv in ext_attach.items():
-            if vv == v: accs.append(ext_mode_for(ext_attach, ext_mode, n))
-        vm[v] = vee(accs) if accs else 'H'
+        acc = None
+        for (m, S) in cuts:
+            if v in S:
+                acc = m if acc is None else meet(acc, m)
+        vm[v] = acc if acc is not None else 'H'
+    em = [meet(vm[a], vm[b]) for (a, b) in edges]
     # edge-mode self-consistency: em[e] must equal vm[u] ∧ vm[v] (checked BEFORE glauber_adjust — G is an adjustment product)
     for (a, b), m in zip(edges, em):
         if meet(vm[a], vm[b]) != m:
