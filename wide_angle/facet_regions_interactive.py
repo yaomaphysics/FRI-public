@@ -23,8 +23,9 @@ internal — the user never touches cuts).  The script:
           v_e = -(2m+n), edge order),
        3) Classify these regions based on their characteristic modes —
           per region its softest-mode class + by-type counts,
-       4) Visualize the selected regions as PNG figures — per-mode
-          colours (region_plot_wa.py; saved under fri_out/regions_*/),
+       4) Visualize the selected regions — per-mode colours; choose
+          [a] a single PDF atlas (default) or [p] one PNG per region
+          (region_plot_wa.py; saved under fri_out/regions_*/),
    and loops until the user quits (empty or q).
 
 Usage: python3 facet_regions_interactive.py
@@ -547,13 +548,15 @@ def inspect_regions(edges, regs, ext_attach):
 
 
 def visualize_regions(edges, regs, extmode, ext_attach):
-    """Option 4: render the selected regions as mode-coloured PNG figures."""
+    """Option 4: visualize the selected regions — PDF atlas or PNG files."""
     n = len(regs)
     line = input('Region numbers (e.g. "3, 8--10" represents regions '
                  '3, 8, 9, and 10; empty = all) > ').strip()
     sel = parse_region_select(line, n) if line else list(range(1, n + 1))
     if sel is None:
         return
+    fmt = input('Output: [a] single PDF atlas (default) / '
+                '[p] individual PNG files > ').strip().lower()
     try:
         import region_plot_wa
     except Exception as e:
@@ -562,16 +565,29 @@ def visualize_regions(edges, regs, extmode, ext_attach):
     outdir = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                           'fri_out',
                           'regions_' + time.strftime('%Y%m%d-%H%M%S'))
-    print(f'  rendering {len(sel)} region figure(s) via wolframscript ...')
-    try:
-        paths = region_plot_wa.render_regions(
-            edges, sorted({v for e in edges for v in e}),
-            [(i, regs[i - 1]) for i in sel],
-            ext_mode=extmode, ext_attach=ext_attach, outdir=outdir)
-    except Exception as e:
-        print(f'  ! region rendering failed: {e}')
-        return
-    print(f'  saved {len(paths)} region PNG(s) to: {outdir}')
+    if fmt in ('p', 'png', 'files'):
+        print(f'  rendering {len(sel)} region figure(s) via wolframscript ...')
+        try:
+            paths = region_plot_wa.render_regions(
+                edges, sorted({v for e in edges for v in e}),
+                [(i, regs[i - 1]) for i in sel],
+                ext_mode=extmode, ext_attach=ext_attach, outdir=outdir)
+        except Exception as e:
+            print(f'  ! region rendering failed: {e}')
+            return
+        print(f'  saved {len(paths)} region PNG(s) to: {outdir}')
+    else:
+        print(f'  building the PDF atlas for {len(sel)} region(s) '
+              f'via wolframscript ...')
+        try:
+            path = region_plot_wa.render_atlas(
+                edges, sorted({v for e in edges for v in e}),
+                [(i, regs[i - 1]) for i in sel],
+                ext_mode=extmode, ext_attach=ext_attach, outdir=outdir)
+        except Exception as e:
+            print(f'  ! atlas rendering failed: {e}')
+            return
+        print(f'  saved atlas PDF to: {path}')
 
 
 # ---------------------------------------------------------------- main loop
@@ -612,7 +628,7 @@ def main():
             print('    2) Show Lee-Pomeransky parametric representation')
             print('    3) Classify these regions based on their '
                   'characteristic modes')
-            print('    4) Visualize these regions (PNG figures)')
+            print('    4) Visualize these regions (PDF atlas / PNGs)')
             opt = input('  (1/2/3/4; empty or q = done with this graph) > ')\
                 .strip().lower()
             if opt in ('', 'q', 'quit'):
