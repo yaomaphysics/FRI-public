@@ -594,6 +594,24 @@ def main():
                 show_classify(regs, edges, kappa)
             else:
                 print('  ! enter 1, 2, 3, or q')
+        # save
+        fdir = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                            'fri_out')
+        os.makedirs(fdir, exist_ok=True)
+        fname = os.path.join(fdir, time.strftime('%Y%m%d-%H%M%S') + '.txt')
+        with open(fname, 'w') as f:
+            f.write(f'# wide-angle FRI regions - '
+                    f'{time.strftime("%Y-%m-%d %H:%M:%S")}\n')
+            f.write(f'# internal lines: {internal_lines}\n')
+            f.write(f'# externals: {externals}\n')
+            f.write(f'# regions: {len(regs)} ({dt:.1f}s)\n\n')
+            for i, (vm, em) in enumerate(regs, 1):
+                sc = ', '.join(map(str, [scaling_of(m) for m in em]))
+                f.write(f'R{i:3d}: scaling ({sc}, 1)\n')
+                f.write(f'      em: {[ms(m) for m in em]}\n')
+                vmtxt = ', '.join(f'{v}: {ms(vm[v])}' for v in sorted(vm))
+                f.write(f'      vm: {{{vmtxt}}}\n')
+        print(f'  saved to: {fname}')
         print('=' * 72)
         if input('Another graph? (y/n) [n] > ').strip().lower() != 'y':
             break
