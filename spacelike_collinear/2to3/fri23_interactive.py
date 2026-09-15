@@ -22,8 +22,8 @@ at vertices 1,2,3,4,5.  The script:
           pySecDec style, same as the verified region files),
        3) Classify these regions based on their characteristic modes —
           per region its softest-mode class + by-type counts,
-       4) Visualize the selected regions as PNG figures (per-mode colours;
-          saved under fri_out/regions_*/),
+       4) Visualize the selected regions: one PDF atlas (default) or PNG
+          figures (per-mode colours; saved under fri_out/regions_*/),
    and loops until the user quits (empty or q).
 
 Kinematics: k0..k4 (defined in kin23.py; default k1).  Commands inside
@@ -546,13 +546,15 @@ def show_classify(regs):
 
 
 def visualize_regions(edges, regs, ext_mode):
-    """Option 4: render the selected regions as mode-coloured PNG figures."""
+    """Option 4: visualize the selected regions — PDF atlas or PNG files."""
     n = len(regs)
     line = input('Region numbers (e.g. "3, 8--10" represents regions '
                  '3, 8, 9, and 10; empty = all) > ').strip()
     sel = parse_region_select(line, n) if line else list(range(1, n + 1))
     if sel is None:
         return
+    fmt = input('Output: [a] single PDF atlas (default) / '
+                '[p] individual PNG files > ').strip().lower()
     try:
         import region_plot23
     except Exception as e:
@@ -560,16 +562,29 @@ def visualize_regions(edges, regs, ext_mode):
         return
     outdir = os.path.join(BASE, 'fri_out',
                           'regions_' + time.strftime('%Y%m%d-%H%M%S'))
-    print(f'  rendering {len(sel)} region figure(s) via wolframscript ...')
-    try:
-        paths = region_plot23.render_regions(
-            edges, sorted({v for e in edges for v in e}),
-            [(i, regs[i - 1]) for i in sel],
-            ext_mode=ext_mode, outdir=outdir)
-    except Exception as e:
-        print(f'  ! region rendering failed: {e}')
-        return
-    print(f'  saved {len(paths)} region PNG(s) to: {outdir}')
+    if fmt in ('p', 'png', 'files'):
+        print(f'  rendering {len(sel)} region figure(s) via wolframscript ...')
+        try:
+            paths = region_plot23.render_regions(
+                edges, sorted({v for e in edges for v in e}),
+                [(i, regs[i - 1]) for i in sel],
+                ext_mode=ext_mode, outdir=outdir)
+        except Exception as e:
+            print(f'  ! region rendering failed: {e}')
+            return
+        print(f'  saved {len(paths)} region PNG(s) to: {outdir}')
+    else:
+        print(f'  building the PDF atlas for {len(sel)} region(s) '
+              f'via wolframscript ...')
+        try:
+            path = region_plot23.render_atlas(
+                edges, sorted({v for e in edges for v in e}),
+                [(i, regs[i - 1]) for i in sel],
+                ext_mode=ext_mode, outdir=outdir)
+        except Exception as e:
+            print(f'  ! atlas rendering failed: {e}')
+            return
+        print(f'  saved atlas PDF to: {path}')
 
 
 def print_kin_menu():
@@ -635,7 +650,7 @@ def run_graph(edges_raw, kin_name, verbose=False):
         print('    2) Show Lee-Pomeransky parametric representation')
         print('    3) Classify these regions based on their '
               'characteristic modes')
-        print('    4) Visualize these regions (PNG figures)')
+        print('    4) Visualize these regions (PDF atlas / PNGs)')
         opt = input('  (1/2/3/4; empty or q = done with this graph) > ')\
             .strip().lower()
         if opt in ('', 'q', 'quit'):
