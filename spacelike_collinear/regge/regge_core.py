@@ -2284,6 +2284,14 @@ def _build_region(edges, verts, ext_attach, ext_mode, cut13, cut24, cut1, cut3,
     if cut3sq: cuts.append(('C3^2C13', cut3sq))
     if cut2sq: cuts.append(('C2^2C24', cut2sq))
     if cut4sq: cuts.append(('C4^2C24', cut4sq))
+
+    # subgraph not in any cut: nonempty and connected (hoisted 2026-09-15 — depends only on
+    # the cuts; was checked after glauber/momentum/jets: pure reorder, survivors unchanged)
+    covered_v = set().union(*[S for (m, S) in cuts]) if cuts else set()
+    hv = set(verts) - covered_v
+    if not hv: return None
+    he = {e for e in edges if e[0] not in covered_v and e[1] not in covered_v}
+    if not connected(hv, he): return None
     # VM-FIRST EXPERIMENT (fri23-style): vm = ∧ of cuts containing v; then em = vm_u ∧ vm_v
     vm = {}
     for v in verts:
@@ -2313,11 +2321,6 @@ def _build_region(edges, verts, ext_attach, ext_mode, cut13, cut24, cut1, cut3,
     # (0) family-separating cut vertices must be G (else hard momentum would be forced through a jet line)
     if not family_cut_vertex_ok(edges, verts, vm, ext_attach):
         return None
-    covered_v = set().union(*[S for (m, S) in cuts]) if cuts else set()
-    covered_e = set()
-    for (m, S) in cuts:
-        for e in edges:
-            if e[0] in S or e[1] in S: covered_e.add(e)
     # (1) jets: every connected component contains its external vertices (legs may be bridged by soft·collinear lines)
     je13 = {e for e, m in zip(edges, em) if m in J13_FAM}
     jv13 = ({v for v in verts if vm[v] in J13_FAM}
@@ -2329,11 +2332,6 @@ def _build_region(edges, verts, ext_attach, ext_mode, cut13, cut24, cut1, cut3,
         return None
     if not jet_components_ok(jv24, je24, {ext_attach['p2'], ext_attach['p4']}):
         return None
-    # (2) subgraph not in any cut: nonempty and connected
-    hv = set(verts) - covered_v
-    he = {e for e in edges if e[0] not in covered_v and e[1] not in covered_v}
-    if not hv: return None
-    if not connected(hv, he): return None
     # (3) mojetic (REGGE_NO_MOJETIC=1 disables, for tests)
     if os.environ.get('REGGE_NO_MOJETIC') != '1':
         # k0 (all externals finite C13/C24): each contracted jet 1VI, each H component needs jet edges of BOTH families adjacent

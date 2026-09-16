@@ -1496,6 +1496,10 @@ def enumerate_regions(edges, verts, ext_attach, ext_mode, restrict=True, verbose
                                         covered = set(c23) | set(c1) | set(c4) | set(c5) | set(r1) | set(r4) | set(r5) | set(r2) | set(r3)
                                         if covered >= set(verts):
                                             stats['H-prune'] = stats.get('H-prune', 0) + 1; continue
+                                        # uncovered-subgraph prune (HOISTED 2026-09-15: cut-only check; was after
+                                        # build_overlay/momentum/jets — pure reorder, survivors/combos unchanged)
+                                        if not uncovered_ok(edges, verts, cuts):
+                                            stats['H'] = stats.get('H', 0) + 1; continue
                                         res, why = build_overlay(edges, verts, ext_attach, ext_mode, cuts)
                                         if res is None:
                                             k = why.split(':')[0]
@@ -1509,8 +1513,6 @@ def enumerate_regions(edges, verts, ext_attach, ext_mode, restrict=True, verbose
                                         if not ok:
                                             stats['jets'] = stats.get('jets', 0) + 1; continue
                                         jvje = info
-                                        if not uncovered_ok(edges, verts, cuts):
-                                            stats['H'] = stats.get('H', 0) + 1; continue
                                         if not mojetic_all_ok(edges, verts, vm, em, ext_attach, jvje):
                                             stats['mojetic'] = stats.get('mojetic', 0) + 1; continue
                                         if not island_ok(edges, verts, em, vm):
