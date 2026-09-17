@@ -122,6 +122,76 @@ def _decode_wide(m, sig, leg):
         return S(m) if m >= 1 else H()
     return W(leg, n, m)
 
+
+def _wide23_join_meet(a, b):
+    # wide×wide carrier vee/wedge for finite carrier powers — translated from
+    # wide_angle/region_checker._join_meet (aligned 2026-09-16; keep the two in sync).
+    # tuple view: (m, n, i) = (soft index, carrier power, direction).
+    def _norm(t):
+        m, n, i = t
+        if n == 0:
+            i = 0
+        return (m, n, i)
+
+    def _eq(X, Y):
+        X, Y = _norm(X), _norm(Y)
+        return X[0] == Y[0] and X[1] == Y[1] and (X[2] == Y[2] or X[1] == 0 or Y[1] == 0)
+
+    def _harder_or_eq(X, Y):
+        X, Y = _norm(X), _norm(Y)
+        if _eq(X, Y):
+            return True
+        if X[2] == Y[2]:
+            return X[0] <= Y[0] and X[0] + X[1] <= Y[0] + Y[1]
+        return X[0] + X[1] <= Y[0]
+
+    X, Y = _norm((a[4], a[2], a[1])), _norm((b[4], b[2], b[1]))
+    if _eq(X, Y):
+        vt = wt = X
+    else:
+        iX = X[2] if X[1] != 0 else (Y[2] if Y[1] != 0 else 0)
+        iY = Y[2] if Y[1] != 0 else iX
+        if iX == iY:
+            A, B = _norm((X[0], X[1], iX)), _norm((Y[0], Y[1], iX))
+            vt = wt = None
+            for (P, Q) in ((A, B), (B, A)):
+                m1, n1, _ = P
+                m2, n2, _ = Q
+                if m2 < m1 <= m1 + n1 < m2 + n2:
+                    vt = _norm((m2, m1 + n1 - m2, iX))
+                    wt = _norm((m1, m2 + n2 - m1, iX))
+                    break
+            if vt is None:
+                if _harder_or_eq(A, B) and not _harder_or_eq(B, A):
+                    vt, wt = A, B
+                elif _harder_or_eq(B, A) and not _harder_or_eq(A, B):
+                    vt, wt = B, A
+                else:
+                    vt, wt = A, B
+        else:
+            if _harder_or_eq(X, Y) and not _harder_or_eq(Y, X):
+                vt, wt = X, Y
+            elif _harder_or_eq(Y, X) and not _harder_or_eq(X, Y):
+                vt, wt = Y, X
+            else:
+                P, Q = (X, Y) if X[0] + X[1] <= Y[0] + Y[1] else (Y, X)
+                m1, n1, i = P
+                m2, n2, j = Q
+                if m1 <= m2:
+                    jn = _norm((m1, m2 - m1, i))
+                else:
+                    jn = _norm((m2, m1 - m2, j))
+                mt = _norm((m1 + n1, m2 + n2 - m1 - n1, j))
+                vt, wt = jn, mt
+
+    def _back(t):
+        m, n, i = t
+        if n <= 0:
+            return S(m) if m >= 1 else H()
+        return W(i, n, m)
+
+    return _back(vt), _back(wt)
+
 # ---------- pair-family algebra (meet/join in the C23 family) ----------
 # Our pair tuple P(k, mem, m): soft index m = x[4]; refinement level n = x[2] (INF allowed);
 # member leg = x[3] when meaningful (None for base C23 / n = 0).
@@ -436,6 +506,10 @@ def meet23(a, b):
         return S(mm)
     # C x C
     if wide_like(a) and wide_like(b):
+        if n_of(a) != INF and n_of(b) != INF:
+            # carrier wedge — same rules as wide_angle/_join_meet (aligned 2026-09-16).
+            return _wide23_join_meet(a, b)[1]
+        # n = INF keeps the previous handling:
         if same_dir(a, b):
             d_ = d_of(a)
             # Same-direction special case: S^1C_i ∧ C_i^2 = S^1C_i  (SC5)
@@ -444,16 +518,6 @@ def meet23(a, b):
             m = max(m_of(a), m_of(b))
             sig = max(V(a), V(b))
             return _decode_wide(m, sig, d_of(a))
-        # cross-direction: D = n + m arithmetic
-        na, nb = n_of(a), n_of(b)
-        if na != INF and nb != INF:
-            Da = na + m_of(a)
-            Db = nb + m_of(b)
-            if Da == Db:
-                return S(Da)
-            if Da > Db:
-                return W(d_of(a), Da - Db, Db)
-            return W(d_of(b), Db - Da, Da)
         sig1, sig2 = V(a), V(b)
         m = min(sig1, sig2)
         sig = max(sig1, sig2)
@@ -509,9 +573,10 @@ def join23(a, b):
             return P(0, 0, mm)
         return P(nu2, mem_of(c_), mm)
     if wide_like(a) and wide_like(b):
-        # special case: C1 ∨ S^1C5 = C1
-        if {a, b} == {W(1, 1), W(5, 1, 1)}:
-            return W(1, 1)
+        if n_of(a) != INF and n_of(b) != INF:
+            # carrier vee — same rules as wide_angle/_join_meet (aligned 2026-09-16).
+            return _wide23_join_meet(a, b)[0]
+        # n = INF keeps the previous handling:
         if same_dir(a, b):
             # S^1C_i^n ∨ C_i^∞ = C_i^{n+1}
             for x, y in ((a, b), (b, a)):
