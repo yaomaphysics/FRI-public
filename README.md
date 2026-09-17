@@ -179,3 +179,19 @@ exactly.
 ## Status
 
 Research-grade, version 0.1.0.  License: TBD.
+
+**Open items — spacelike-collinear 2→3 (`fri23`), 2026-09-17.**  The recently
+enabled 4-loop scans exposed two work items:
+
+1. **Complete the generated cut structure.**  Some regions (found so far in
+   `k2`) require refinement levels of the cut chains (e.g. `C4R1`/`C5R1`-type
+   levels) that the current chain construction does not generate.  The gap
+   lies in the cut generation itself and is *not* caused by the recent pruning
+   optimizations — it became visible only now that the 4-loop scans run to
+   completion.  Extend the cut families for the affected kinematics, together
+   with additional strong restrictions to keep the combinatorial growth in
+   check.
+2. **Per-kinematics pruning for `k3`/`k4`.**  Enumerations in `k3`/`k4`
+   remain slow — some graphs do not finish within ~10 minutes — and need
+   further pruning conditions matched to each individual kinematics.
+
