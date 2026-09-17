@@ -26,7 +26,9 @@ Arbitrary external modes (H / S^m / C_i^n / SC_i) and external-leg
 multiplicity; cross-validated against pySecDec on ~830 configurations
 covering 45+ topologies (3–5 loops, planar and nonplanar, including
 soft-emission families); interactive browser with region visualisation
-(figures or a single-PDF atlas).
+(figures or a single-PDF atlas).  Graphs with p_i/q_j externals only are
+enumerated by the pruned *skeleton* cut enumerator (`skeleton.py`); soft
+externals fall back to the layered enumerator.
 
 ### `spacelike_collinear/` — spacelike-collinear kinematics
 
@@ -130,6 +132,7 @@ FRI-project/
 │   ├── fri_demo.py                    #   built-in demonstrations
 │   ├── region_checker.py              #   mode algebra, components, IR compat, messengers
 │   ├── truncation_check.py            #   layered enumerator (C/H in layer 0)
+│   ├── skeleton.py                    #   pruned skeleton cut enumerator (p_i,q_j externals)
 │   ├── mojetic_check.py               #   H∪J∖J_i mojetic (1VI) check
 │   ├── contracted_1vi.py              #   contracted-mode-component 1VI check
 │   ├── usable_modes.py                #   IR-compat mode closure (compression)
@@ -168,6 +171,8 @@ exactly.
 
 - **wide_angle**: ~830 configurations covering 45+ topologies (2→2 / 2→3 /
   1→3, 3–5 loops, planar and nonplanar, including soft-emission families).
+  The pruned skeleton enumerator (p_i/q_j externals) reproduces the layered
+  region sets on all 255 lightlike 2→2 configurations (~30× faster overall).
 - **spacelike_collinear — regge**: the region files of 50 graphs in the six
   kinematics k0–k5 (lightlike and off-shell external legs, λ²-suppressed
   virtualities).
@@ -195,3 +200,6 @@ enabled 4-loop scans exposed two work items:
    remain slow — some graphs do not finish within ~10 minutes — and need
    further pruning conditions matched to each individual kinematics.
 
+**Open items — wide-angle, 2026-09-18.** 
+
+1. **Extend the skeleton cut enumerator to soft emission.**  Currently the skeleton cut enumerator is applied to those graphs with only p_i, q_j externals. 
