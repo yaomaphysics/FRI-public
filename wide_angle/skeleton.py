@@ -19,6 +19,10 @@ Conditions (agreed with 小马):
   directions' same-level C^n cuts, unless the layer coincides with the leg's
   own C_i^m cut (m=∞: no exemption) — default ON.
 
+Validated domain (小马 2026-09-18): p_i q_j externals only.  Soft externals
+(S^mC^n / S^m, m>=1) are refused by default (allow_soft=True opts into the
+experimental, unvalidated path; revisit later).
+
 (v1/v2/v3/v3.2 development history preserved in
 private/skeleton_rules_history.md.)
 """
@@ -131,10 +135,22 @@ def _check_combo(verts, edges_t, g, ext_attach, ext_mode, combo):
     return vm, em
 
 
+def has_soft_externals(ext_mode):
+    """True iff any external has softness m >= 1 (S^mC^n / S^m).
+    Skeleton's validated domain is p_i q_j only (小马 2026-09-18)."""
+    return any(md[0] != 0 for md in ext_mode.values())
+
+
 def run(verts, edges, ext_attach, ext_mode, verbose=True, use_overlap=True,
         use_route=True, overlap_strict=True, overlap_strong=False,
-        overlap_level=True, cfg_out=None):
+        overlap_level=True, cfg_out=None, allow_soft=False):
     t0 = time.time()
+    if has_soft_externals(ext_mode) and not allow_soft:
+        raise ValueError(
+            'skeleton: soft externals (S^mC^n / S^m) present; the validated '
+            'domain is p_i q_j only (小马 2026-09-18) — soft-domain support '
+            'is deferred. Use the layered enumerator, or pass '
+            'allow_soft=True for the experimental (unvalidated) path.')
     kappa = TC.kappa_of(ext_mode)
     V = sorted(verts)
     Vset = set(V)
