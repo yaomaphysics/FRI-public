@@ -704,9 +704,13 @@ CUT_MODES = {'C23': P(0, 0), 'C1': W(1, 1), 'C4': W(4, 1), 'C5': W(5, 1),
              'C1R1': W(1, 2), 'C4R1': W(4, 2), 'C5R1': W(5, 2),
              'C2R1': P(1, 2), 'C3R1': P(1, 3), 'C2R2': P(2, 2), 'C3R2': P(2, 3)}
 
-def build_overlay(edges, verts, ext_attach, ext_mode, cuts):
+def build_overlay(edges, verts, ext_attach, ext_mode, cuts, vm_seen=None):
     # cuts: {name: frozenset}. Returns (em, vm) or (None, reason).
     # Vertex-first construction: vm(v) = meet of the modes of the nonempty cuts covering v (no covering cut -> H); then em(e) = vm(u) ∧ vm(w).
+    # vm_seen (optional, 2026-09-18): vm-level dedup.  em is a function of vm and
+    # every downstream check depends only on (em, vm) => the outcome is a
+    # function of vm alone; a repeated vm can return early (before the edge
+    # meets and all checks).  Callers pass a per-enumeration set.
     vm = {}
     for v in verts:
         acc = None
@@ -721,6 +725,11 @@ def build_overlay(edges, verts, ext_attach, ext_mode, cuts):
                     except ArithmeticError as e:
                         return None, f'meet23:{e}'
         vm[v] = acc if acc is not None else H()
+    if vm_seen is not None:
+        vkey = frozenset((v, vm[v]) for v in verts)
+        if vkey in vm_seen:
+            return None, 'vm-dup'
+        vm_seen.add(vkey)
     em = []
     for (a, b) in edges:
         try:
@@ -1529,6 +1538,7 @@ def enumerate_regions(edges, verts, ext_attach, ext_mode, restrict=True, verbose
     stats = {}
     survivors = []
     seen = set()
+    vm_seen = set()
     total = 0
     for c23 in O23:
         T2 = _refine_towers23(edges, verts, v2v, c23, forbid2, _L2)
@@ -1565,7 +1575,8 @@ def enumerate_regions(edges, verts, ext_attach, ext_mode, restrict=True, verbose
                                         # build_overlay/momentum/jets — pure reorder, survivors/combos unchanged)
                                         if not uncovered_ok(edges, verts, cuts):
                                             stats['H'] = stats.get('H', 0) + 1; continue
-                                        res, why = build_overlay(edges, verts, ext_attach, ext_mode, cuts)
+                                        res, why = build_overlay(edges, verts, ext_attach, ext_mode, cuts,
+                                                                 vm_seen=vm_seen)
                                         if res is None:
                                             k = why.split(':')[0]
                                             stats[k] = stats.get(k, 0) + 1

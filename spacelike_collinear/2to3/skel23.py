@@ -122,14 +122,16 @@ def enumerate_skel(edges, verts, ext_attach, kin='k1'):
     total_cand = 0
     dup_cuts = 0
     skip_emvm = 0
+    n_vmdup = 0
     n_wide = 0
     n_path = 0
     cuts_seen = set()
     emvm_seen = set()
+    vm_seen = set()   # vm-level dedup (2026-09-18)
     found = {}
 
     def run_checks(C1, C2, C3, C4, C5, C23, legreq):
-        nonlocal total_cand, dup_cuts, skip_emvm, n_wide, n_path
+        nonlocal total_cand, dup_cuts, skip_emvm, n_wide, n_path, n_vmdup
         total_cand += 1
         # acceptance filter + three symmetric pathways (2026-09-16):
         # (M) every i in 1,4,5 with nonempty P_i shares a vertex of
@@ -170,8 +172,10 @@ def enumerate_skel(edges, verts, ext_attach, kin='k1'):
             dup_cuts += 1
             return
         cuts_seen.add(ck)
-        res, why = build_overlay(edges, V, ext_attach, ext_mode, cuts)
+        res, why = build_overlay(edges, V, ext_attach, ext_mode, cuts, vm_seen=vm_seen)
         if res is None:
+            if why == 'vm-dup':
+                n_vmdup += 1
             return
         em, vm = res
         if not uncovered_ok(edges, V, cuts):
@@ -319,5 +323,5 @@ def enumerate_skel(edges, verts, ext_attach, kin='k1'):
                                 run_checks(C1, frozenset(), frozenset(),
                                            C4, C5, frozenset(), legreq)
 
-    info = {'dup_cuts': dup_cuts, 'skip_emvm': skip_emvm, 'wide_kill': n_wide, 'pathway': n_path}
+    info = {'dup_cuts': dup_cuts, 'skip_emvm': skip_emvm, 'wide_kill': n_wide, 'pathway': n_path, 'vm_dup': n_vmdup}
     return sorted(found.values()), total_cand, info

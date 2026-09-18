@@ -17,7 +17,8 @@ Conditions (agreed with 小马):
   (S_k^(i) ∩ P_j = ∅ for i≠j) — default ON;
 * overlap (C_i^m legs, layer n<m): a vertex shared by this cut and >=2 other
   directions' same-level C^n cuts, unless the layer coincides with the leg's
-  own C_i^m cut (m=∞: no exemption) — default ON.
+  own C_i^m cut (m=∞: no exemption) — default ON (overlap_strong=True since 2026-09-18 evening;
+  pass overlap_strong=False for the old shared-vertex-only form, e.g. A/B runs).
 
 Validated domain (小马 2026-09-18): p_i q_j externals only.  Soft externals
 (S^mC^n / S^m, m>=1) are refused by default (allow_soft=True opts into the
@@ -96,8 +97,14 @@ def _paths_to_H(root, Hset, allowed, adj):
     return list(sets)
 
 
-def _check_combo(verts, edges_t, g, ext_attach, ext_mode, combo):
-    """copy of the enumerator's check chain (Step1 / FC / jet / mojetic / IR)."""
+def _check_combo(verts, edges_t, g, ext_attach, ext_mode, combo, seen_vm=None):
+    """copy of the enumerator's check chain (Step1 / FC / jet / mojetic / IR).
+
+    seen_vm: optional set for vm-level dedup (2026-09-18).  em = meet(vm[u],
+    vm[v]) and every check depends only on (vm, em): the outcome is a
+    function of vm alone, so a repeated vm is skipped outright (the region
+    key is vm-based anyway).  Behaviour-preserving; big speedup.
+    """
     vm = {}
     for v in verts:
         incuts = [cut.mode for (cut, S) in combo if v in S]
@@ -108,6 +115,11 @@ def _check_combo(verts, edges_t, g, ext_attach, ext_mode, combo):
             for md in incuts[1:]:
                 acc = rc.meet(acc, md)
             vm[v] = rc.norm(acc)
+    if seen_vm is not None:
+        key_m = frozenset((v, vm[v]) for v in verts)
+        if key_m in seen_vm:
+            return None
+        seen_vm.add(key_m)
     em = [rc.meet(vm[u], vm[v]) for (u, v) in edges_t]
     for v in verts:
         accs = []
@@ -142,8 +154,8 @@ def has_soft_externals(ext_mode):
 
 
 def run(verts, edges, ext_attach, ext_mode, verbose=True, use_overlap=True,
-        use_route=True, overlap_strict=True, overlap_strong=False,
-        overlap_level=True, cfg_out=None, allow_soft=False):
+        use_route=True, overlap_strict=True, overlap_strong=True,
+        overlap_level=True, cfg_out=None, allow_soft=False, vm_dedup=True):
     t0 = time.time()
     if has_soft_externals(ext_mode) and not allow_soft:
         raise ValueError(
@@ -211,6 +223,7 @@ def run(verts, edges, ext_attach, ext_mode, verbose=True, use_overlap=True,
     n_ov_kill = 0
     n_route_kill = 0
     seen_ck = set()
+    seen_vm = set()
     tH0 = time.time()
     for iH, H0 in enumerate(Hs):
         Hset = set(H0)
@@ -382,7 +395,8 @@ def run(verts, edges, ext_attach, ext_mode, verbose=True, use_overlap=True,
                     continue
                 seen_ck.add(ck)
                 n_cand += 1
-                r = _check_combo(V, edges_t, g, ext_attach, ext_mode, assign)
+                r = _check_combo(V, edges_t, g, ext_attach, ext_mode, assign,
+                                 seen_vm if vm_dedup else None)
                 if r is None:
                     continue
                 vm, em = r
@@ -395,6 +409,6 @@ def run(verts, edges, ext_attach, ext_mode, verbose=True, use_overlap=True,
                     regions[key] = (vm, em)
     dt = time.time() - t0
     if verbose:
-        print('skeleton: candidates %d (dup-skipped %d, overlap-killed %d, route-killed %d), regions %d, %.1fs'
-              % (n_cand, n_skip, n_ov_kill, n_route_kill, len(regions), dt))
+        print('skeleton: candidates %d (dup-skipped %d, vm-unique %d, overlap-killed %d, route-killed %d), regions %d, %.1fs'
+              % (n_cand, n_skip, len(seen_vm), n_ov_kill, n_route_kill, len(regions), dt))
     return list(regions.values()), n_cand, dt
