@@ -406,7 +406,13 @@ def atlas_row_exprs(k, r, edges, ext_attach, font=None):
             if d['e'] else ''
         tail = ': ' + (vs + ' ' + es).strip()
         for j, piece in enumerate(fold_lines(tail)):
-            pre = ts_mode(md, font) if j == 0 else '"' + ' ' * 4 + '"'
+            if j == 0:
+                # Colour each mode name exactly like the mode is coloured
+                # in the figure (small change requested 2026-09-18).
+                pre = 'Style[%s, FontColor -> %s]' % (
+                    ts_mode(md, font), mode_color(md)[1])
+            else:
+                pre = '"' + ' ' * 4 + '"'
             out.append('Row[{%s, "%s"}]' % (pre, _esc(piece)))
     return out
 
