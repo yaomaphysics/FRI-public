@@ -44,7 +44,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import region_checker as rc
 from read_graph import parse_mode, mode_str, INF
 from primitives import Graph, vertex_mode, vee
-from mojetic_check import jet_connected_ok, cond1_ok
+from region_checker import jet_connected_ok, cond1_ok
 from contracted_1vi import mode_components_wa
 
 H = (0, 0, 0)
@@ -89,7 +89,7 @@ def momentum_fail_vertex(g, em, extmode):
 
 def disconnected_jet(vm, em, edges_in):
     """Direction of the first disconnected jet (same logic as
-    mojetic_check.jet_connected_ok, but reports the direction)."""
+    region_checker.jet_connected_ok, but reports the direction)."""
     dirs = set()
     for v, md in vm.items():
         m, n, i = md

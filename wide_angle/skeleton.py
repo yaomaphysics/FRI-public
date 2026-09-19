@@ -39,7 +39,7 @@ sys.path.insert(0, HERE)
 import truncation_check as TC
 import region_checker as rc
 from primitives import Graph, vee, check_fc, momentum_ok, ir_ok_blocks
-from mojetic_check import jet_connected_ok, cond1_ok
+from region_checker import jet_connected_ok, cond1_ok
 from usable_modes import derive_usable_modes, usable_layers
 
 H = (0, 0, 0)

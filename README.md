@@ -1,17 +1,12 @@
 # FRI — Facet Region Interpreter
 
-A graph-theoretic **region finder** for multiscale Feynman integrals.
-Given a graph (topology + external momenta), FRI constructs **all regions**
-of the asymptotic expansion directly from the graph — no Feynman-polynomial
-computation, no polytope geometry.  The construction implements the region
-conditions of *"All-order prescription for facet regions in massless
-wide-angle scattering"* (arXiv:2601.22144): fundamental pattern,
-connectivity, and infrared compatibility.
+A graph-theoretic **region finder** for multiscale Feynman integrals. Given a graph (topology + external momenta) in the context of **massless scattering**, which we classify into the **wide-angle** and **collinear** types based on their kinematics, FRI constructs **all facet regions** of the asymptotic expansion directly from the graph — the majority, and mostly the entire list of regions. The construction is based on understandings of the all-order region structures in momentum space, without any Feynman-polynomial computation or polytope geometry.
 
-Pure Python (>= 3.9), standard library only.  pySecDec is used *only* for
-off-line cross-validation, which is not part of this repository.  The
-optional region visualisation renders through the Wolfram Engine — see
-*Quick start* below.
+For the wide-angle kinematics, the knowledge is based on the paper *"All-order prescription for facet regions in massless wide-angle scattering"* (arXiv:2601.22144): fundamental pattern, connectivity, and infrared compatibility.
+
+For the collinear kinematics, ....
+
+Pure Python (>= 3.9), standard library only. pySecDec is used *only* for off-line cross-validation, which is not part of this repository. The optional region visualisation renders through the Wolfram Engine — see *Quick start* below.
 
 ---
 
@@ -26,7 +21,7 @@ Arbitrary external modes (H / S^m / C_i^n / SC_i) and external-leg
 multiplicity; cross-validated against pySecDec on ~830 configurations
 covering 45+ topologies (3–5 loops, planar and nonplanar, including
 soft-emission families); interactive browser with region visualisation
-(figures or a single-PDF atlas).  Graphs with p_i/q_j externals only are
+(figures or a single-PDF atlas). Graphs with p_i/q_j externals only are
 enumerated by the pruned *skeleton* cut enumerator (`skeleton.py`), which
 supports general n-leg graphs with all external virtualities scaling as a
 single small parameter (the 4-leg and 5-leg wide-angle classes are
@@ -37,16 +32,8 @@ validated); soft externals fall back to the layered enumerator.
 Kinematics with a pair of spacelike-collinear external momenta, in two
 variants:
 
-- **`regge/`** — Regge limit of 2→2 scattering (small t-channel
-  invariant): Glauber and semihard modes.  Interactive enumerator for an
-  arbitrary 2→2 graph, an example graph library with the six kinematics
-  k0–k5, and region visualisation (figures or a single-PDF atlas).
-- **`2to3/`** — five-point 2→3 scattering with a small spacelike pair
-  invariant (s23 ~ λ).  Enumerator with a built-in example graph, an
-  interactive browser, and region visualisation (five kinematics k0–k4);
-  cut enumeration is pruned by a skeleton construction, extended in
-  2026-09 with a strengthened overlap condition (two partner directions of
-  matching total C-power).
+- **`regge/`** — Regge limit of 2→2 scattering (small t-channel invariant): Glauber and semihard modes. Interactive enumerator for an arbitrary 2→2 graph, an example graph library with the six kinematics k0–k5, and region visualisation (figures or a single-PDF atlas).
+- **`2to3/`** — five-point 2→3 scattering with a small spacelike pair invariant (s23 ~ λ). Enumerator with a built-in example graph, an interactive browser, and region visualisation (five kinematics k0–k4); cut enumeration is pruned by a skeleton construction, extended in 2026-09 with a strengthened overlap condition (two partner directions of matching total C-power).
 
 ---
 
@@ -55,9 +42,6 @@ variants:
 ```bash
 # unified entry: [1] wide-angle / [2] spacelike-collinear (regge 2->2 / fri23 2->3)
 python3 facet_regions_interactive.py
-
-# wide-angle: interactive region browser
-python3 wide_angle/fri.py
 
 # wide-angle: built-in demonstrations on four graphs (full pipeline live)
 python3 wide_angle/fri_demo.py          # or: python3 wide_angle/fri_demo.py 1
@@ -133,12 +117,10 @@ instead of producing silent glyph errors.
 FRI-project/
 ├── facet_regions_interactive.py       # unified entry: [1] wide-angle / [2] spacelike-collinear
 ├── wide_angle/                        # class 1: wide-angle scattering (canonical)
-│   ├── fri.py                         #   interactive region browser (entry)
 │   ├── fri_demo.py                    #   built-in demonstrations
-│   ├── region_checker.py              #   mode algebra, components, IR compat, messengers
+│   ├── region_checker.py              #   mode algebra, components, mojetic (1VI) checks, IR compat, messengers
 │   ├── truncation_check.py            #   layered enumerator (C/H in layer 0)
 │   ├── skeleton.py                    #   pruned skeleton cut enumerator (p_i,q_j externals; n-leg)
-│   ├── mojetic_check.py               #   H∪J∖J_i mojetic (1VI) check
 │   ├── contracted_1vi.py              #   contracted-mode-component 1VI check
 │   ├── usable_modes.py                #   IR-compat mode closure (compression)
 │   ├── primitives.py                  #   Step1 / first-connectivity / IR-primitive checks
@@ -213,7 +195,15 @@ enabled 4-loop scans exposed two work items:
    implemented in the skeleton engine; it cuts the `k3`/`k4` skeleton
    times by a factor of ≈4 on a 100-graph 4-loop batch (e.g. `k4` total
    1181 s → 273 s; up to ~11× per graph), with no new losses on the
-   regression suites; rollout pending.)
+   regression suites; rollout done — it is the default in the skeleton
+   engine.)
+
+**Update 2026-09-19 — hidden path.**  The infrared-compatibility check of
+`fri23` now includes the *hidden-path* rules (full messenger + `S^m C_i /
+C23` conduction).  The three residual 4-loop mismatches — `R099_v10` k2,
+`R013_v11` k3, `R071_v11` k4 — are resolved and match pySecDec exactly,
+with no extra regions; the full sweeps re-run clean (1000-graph 3-loop
+and 100-graph 4-loop batches, all five kinematics).
 
 **Open items — wide-angle, 2026-09-18.** 
 

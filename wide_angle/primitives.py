@@ -26,7 +26,7 @@ import sys, os, re, time, itertools
 from collections import defaultdict
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import region_checker as rc
-from mojetic_check import cond1_ok
+from region_checker import cond1_ok
 
 INF = 10**9
 H = (0, 0, 0)

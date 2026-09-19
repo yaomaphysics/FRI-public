@@ -396,7 +396,7 @@ def run_layered(verts, edges, ext_attach, ext_mode, maxk=None, brief=False,
             return None
         # Fundamental pattern: each jet connected (before FC/IR compat;
         # 2026-08-11 — same check as region_checker).
-        from mojetic_check import jet_connected_ok
+        from region_checker import jet_connected_ok
         if not jet_connected_ok(vm, em, edges_t):
             return None
         # IR compatibility (2026-08-21 Regge-style rewrite): mode
@@ -410,7 +410,7 @@ def run_layered(verts, edges, ext_attach, ext_mode, maxk=None, brief=False,
         # conservation). Same check as region_checker
         # — MUST be here too (layered path; missing it allowed 2 extra
         # regions on DoubleMothT k2, 2026-08-10).
-        from mojetic_check import cond1_ok
+        from region_checker import cond1_ok
         ok_mj, _ = cond1_ok(edges_t, em, ext_attach, ext_mode)
         if not ok_mj:
             return None
