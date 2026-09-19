@@ -19,6 +19,10 @@ Conditions (agreed with 小马):
   directions' same-level C^n cuts, unless the layer coincides with the leg's
   own C_i^m cut (m=∞: no exemption) — default ON (overlap_strong=True since 2026-09-18 evening;
   pass overlap_strong=False for the old shared-vertex-only form, e.g. A/B runs).
+* k0 (all externals C_i^1 or H): enumerated via the union construction —
+  H + P_i = connected touch-H sets; every vertex of V∖(H∪P's) must lie
+  in >=2 cuts; corner closure.  Region-identical to the old path
+  (validated 2026-09-18); run(..., k0_union=False) reverts.
 
 Validated domain (小马 2026-09-18): p_i q_j externals only.  Soft externals
 (S^mC^n / S^m, m>=1) are refused by default (allow_soft=True opts into the
@@ -153,9 +157,205 @@ def has_soft_externals(ext_mode):
     return any(md[0] != 0 for md in ext_mode.values())
 
 
+def _comps(sub, adj):
+    """connected components of the induced subgraph on `sub`."""
+    sub = set(sub); seen = set(); out = []
+    for s in sorted(sub):
+        if s in seen:
+            continue
+        stack = [s]; comp = set()
+        while stack:
+            u = stack.pop()
+            if u in comp:
+                continue
+            comp.add(u)
+            for w in adj[u]:
+                if w in sub and w not in comp:
+                    stack.append(w)
+        seen |= comp
+        out.append(comp)
+    return out
+
+
+def _k0_union_domain(ext_mode):
+    """k0: every external is H or C_i^1 (no soft, no refined C_i^m)."""
+    for md in ext_mode.values():
+        if md[0] != 0:
+            return False
+        if md != H and md[1] != 1:
+            return False
+    return True
+
+
+def _run_k0_union(verts, edges, ext_attach, ext_mode, verbose=True, vm_dedup=True):
+    """k0 enumeration — union construction + the ">=2 cuts" rule (2026-09-18).
+
+    Port of private/wide_angle_dev/dev_wa_skel0.py (validated region-identical
+    to the old path on the full k0 corpus + random graphs):
+      * H connected;  corner closure (no NON-root v∉H with all edges into H);
+      * per leg: P_i = connected set ⊆ V∖H, containing root_i, touching H
+        (= union of possibly-overlapping paths);  P_i = ∅ iff root_i ∈ H;
+      * P_i pairwise disjoint;
+      * remaining = V∖(H∪P's): every component adjacent to >=2 P's
+        (startpoints counted as part of their P);
+      * C_i = connected ⊇ P_i within (V∖H) ∩ allowed − (other P's);
+      * every vertex of the remaining set must lie in >=2 cuts;
+      * combo -> (vm, em) -> the unchanged check chain (with vm-level dedup).
+    Returns None when the input is outside this sub-domain (old path handles it).
+    """
+    if not _k0_union_domain(ext_mode):
+        return None
+    V = sorted(verts); Vset = set(V)
+    adj = defaultdict(set)
+    for a, b in edges:
+        adj[a].add(b); adj[b].add(a)
+    edges_t = [tuple(sorted(e, key=str)) for e in edges]
+    extv = set(ext_attach.values())
+    g = Graph(V, edges_t, ext_attach)
+    kappa = TC.kappa_of(ext_mode)
+    usable = derive_usable_modes(ext_mode, kappa)
+    layers_by_ext = usable_layers(ext_mode, kappa, usable)
+    ext_cuts = {}
+    allowed_by_cut = {}
+    for name in ext_mode:
+        md = ext_mode[name]
+        if md == H:
+            continue
+        ext_cuts[name] = TC.cuts_for_external(name, ext_attach[name], md, kappa,
+                                              layers_by_ext.get(name))
+        allowed_by_cut[name] = [TC.cut_allowed_vertices(verts, edges, ext_attach,
+                                                        ext_mode, name, c.mode)
+                                for c in ext_cuts[name]]
+    legs = sorted(ext_cuts.keys())
+    for n in legs:
+        if len(ext_cuts[n]) != 1:
+            return None          # not plain single-level C_i^1 -> old path
+    Hs = [frozenset(S) for r in range(1, len(V) + 1)
+          for S in itertools.combinations(V, r) if _connected(S, adj)]
+    n_corner = 0
+    Hs2 = []
+    for H0 in Hs:
+        bad = False
+        for v in V:
+            if v in H0 or v in extv:
+                continue
+            if adj[v] and adj[v] <= set(H0):
+                bad = True
+                break
+        if bad:
+            n_corner += 1
+        else:
+            Hs2.append(H0)
+    Hs = Hs2
+    regions = {}
+    n_cand = n_dup = n_left_kill = n_pass = n_rule_kill = 0
+    seen_ck = set()
+    seen_vm = set() if vm_dedup else None
+    t0 = time.time()
+    for H0 in Hs:
+        Hset = set(H0)
+        alw = {n: set(allowed_by_cut[n][0]) & (Vset - Hset) for n in legs}
+        pops = {}
+        okH = True
+        for n in legs:
+            root = ext_attach[n]
+            if root in Hset:
+                pops[n] = [frozenset()]
+                continue
+            allowed = {w for w in Vset if w not in Hset and
+                       (w == root or w not in extv)}
+            opts = [S for S in _conn_sets(root, allowed, adj)
+                    if any(adj[u] & Hset for u in S) and set(S) <= alw[n]]
+            if not opts:
+                okH = False
+                break
+            pops[n] = opts
+        if not okH:
+            continue
+        for Ps in itertools.product(*[pops[n] for n in legs]):
+            u = set()
+            ok = True
+            for S in Ps:
+                if S & u:
+                    ok = False
+                    break
+                u |= S
+            if not ok:
+                continue
+            Pmap = dict(zip(legs, Ps))
+            lf = (Vset - u) - Hset
+            groups = [(n, Pmap[n]) for n in legs if Pmap[n]]
+            if len(groups) >= 2:
+                gg = []
+                for n, P in groups:
+                    gg.append(P | {h for h in Hset if adj[h] & P})
+                good = True
+                for K in _comps(lf, adj):
+                    cnt = 0
+                    for gset in gg:
+                        if any(adj[uu] & gset for uu in K):
+                            cnt += 1
+                    if cnt < 2:
+                        good = False
+                        break
+                if not good:
+                    n_left_kill += 1
+                    continue
+            n_pass += 1
+            Csets = {}
+            okc = True
+            for n in legs:
+                P = Pmap[n]
+                if not P:
+                    Csets[n] = [frozenset()]
+                    continue
+                dom = alw[n] - (u - set(P))
+                opts = _conn_supersets(P, dom, adj)
+                if not opts:
+                    okc = False
+                    break
+                Csets[n] = opts
+            if not okc:
+                continue
+            for Ccomb in itertools.product(*[Csets[n] for n in legs]):
+                if lf:
+                    viol = False
+                    for v in lf:
+                        cntc = sum(1 for Cc in Ccomb if v in Cc)
+                        if cntc < 2:
+                            viol = True
+                            break
+                    if viol:
+                        n_rule_kill += 1
+                        continue
+                assign = [(ext_cuts[n][0], Cc) for n, Cc in zip(legs, Ccomb) if Cc]
+                ck = tuple(sorted((c.name, tuple(sorted(S))) for c, S in assign))
+                if ck in seen_ck:
+                    n_dup += 1
+                    continue
+                seen_ck.add(ck)
+                n_cand += 1
+                r = _check_combo(V, edges_t, g, ext_attach, ext_mode, assign,
+                                 seen_vm)
+                if r is None:
+                    continue
+                vm, em = r
+                key = frozenset((v, vm[v]) for v in V)
+                if key not in regions:
+                    regions[key] = (vm, em)
+    dt = time.time() - t0
+    if verbose:
+        print('skeleton k0-union: candidates %d (dup %d, leftover-filter %d, '
+              '>=2-cut killed %d, corner-skipped H %d, vm-unique %d), regions %d, %.1fs'
+              % (n_cand, n_dup, n_left_kill, n_rule_kill, n_corner,
+                 len(seen_vm) if seen_vm is not None else 0, len(regions), dt))
+    return list(regions.values()), n_cand, dt
+
+
 def run(verts, edges, ext_attach, ext_mode, verbose=True, use_overlap=True,
         use_route=True, overlap_strict=True, overlap_strong=True,
-        overlap_level=True, cfg_out=None, allow_soft=False, vm_dedup=True):
+        overlap_level=True, cfg_out=None, allow_soft=False, vm_dedup=True,
+        k0_union=True):
     t0 = time.time()
     if has_soft_externals(ext_mode) and not allow_soft:
         raise ValueError(
@@ -163,6 +363,11 @@ def run(verts, edges, ext_attach, ext_mode, verbose=True, use_overlap=True,
             'domain is p_i q_j only (小马 2026-09-18) — soft-domain support '
             'is deferred. Use the layered enumerator, or pass '
             'allow_soft=True for the experimental (unvalidated) path.')
+    if k0_union and cfg_out is None and use_route:
+        r = _run_k0_union(verts, edges, ext_attach, ext_mode,
+                          verbose=verbose, vm_dedup=vm_dedup)
+        if r is not None:
+            return r
     kappa = TC.kappa_of(ext_mode)
     V = sorted(verts)
     Vset = set(V)
