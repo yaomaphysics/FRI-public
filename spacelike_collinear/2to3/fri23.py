@@ -587,6 +587,11 @@ def join23(a, b):
             m = min(m_of(a), m_of(b))
             sig = min(V(a), V(b))
             return _decode_wide(m, sig, d_of(a))
+        # 小马 2026-09-19: soft-wide (S^mC_i, m>=1) ∨ C_j^∞ (j != i) = C_j^m
+        # (aligned with the pair-type route; fixes the R046-class v11 block).
+        for x, y in ((a, b), (b, a)):
+            if x[4] >= 1 and y[4] == 0 and n_of(y) == INF:
+                return W(d_of(y), x[4], 0)
         return H()
     if pair_like(a) and pair_like(b):
         return _pair_join23(a, b)
@@ -796,6 +801,32 @@ def jet_components_ok(jv, je, ext_verts):
         if not (g & ext_verts): return False
     return True
 
+# tightened connectivity for jet pieces (小马 2026-09-19): pieces connect only
+# through a vertex that is itself of the same family; every resulting component
+# must touch the family's external leg(s).  (Replaces the looser any-endpoint
+# connectivity, which merged pieces through far/ H vertices — k3 trio fix.)
+def _tight_jet_ok(je, vm, tag, extvs):
+    if not je: return True
+    n = len(je); adj = {i: set() for i in range(n)}
+    for i in range(n):
+        for j in range(i + 1, n):
+            shared = set(je[i]) & set(je[j])
+            if any(fam_tag(vm[v]) == tag for v in shared):
+                adj[i].add(j); adj[j].add(i)
+    seen = set()
+    for i in range(n):
+        if i in seen: continue
+        comp = [i]; st = [i]; seen.add(i)
+        while st:
+            u = st.pop()
+            for w in adj[u]:
+                if w not in seen:
+                    seen.add(w); comp.append(w); st.append(w)
+        vs = set()
+        for k in comp: vs |= set(je[k])
+        if not (vs & extvs): return False
+    return True
+
 # jet structure per family; returns (ok, jvje).
 def jets_ok(edges, verts, vm, em, ext_attach):
     jvje = {}
@@ -805,7 +836,7 @@ def jets_ok(edges, verts, vm, em, ext_attach):
         jvje[tag] = (jv, je)
         names = FAM_EXT[tag]
         extvs = {ext_attach[n] for n in names}
-        if not jet_components_ok(jv, je, extvs):
+        if not _tight_jet_ok(je, vm, tag, extvs):
             return False, (tag, 'jet')
     return True, jvje
 
@@ -1428,7 +1459,8 @@ def ir_ok(edges, verts, em, vm, ext_attach, ext_mode, dbg=None):
         # [hidden path — approved 2026-09-19 15:15; (二) restated 17:06 (v-E)]
         # S^m C_i conduction (m >= 1):
         #   conductor X = S^m C_i, i in {1,4,5,23};
-        #   - SC23-type (i = 23): X relevant to >=1 C2^m C23 + two wide C_j^m targets
+        #   - SC23-type (i = 23): X relevant to >=1 C2^m C23 or C3^m C23 + two wide C_j^m targets
+        #     [小马 2026-09-19: anchor extended to C2/C3 (fixes the R442-class k2 misses)]
         #     (distinct directions); any one confirmed conducts the other wide(s).  [unchanged form]
         #   - wide-type (i in 1,4,5): (1) X relevant to one C_i^2 target (own direction);
         #     (2) X relevant to one C_j^1 & one C_k^1 target (i,j,k pairwise distinct; j,k in {1,23,4,5});
@@ -1448,9 +1480,11 @@ def ir_ok(edges, verts, em, vm, ext_attach, ext_mode, dbg=None):
                     # SC23-type (form unchanged): anchor >=1 C2^m C23; two wide C_j^m targets
                     # in distinct directions; conduct among the wide targets.
                     _anchor = False
-                    for _j2, _comp in enumerate(comps.get(P(_cm, 2), [])):
-                        if relevant23(_blk, _comp, P(_cm, 2), edges, em, vm, _scm):
-                            _anchor = True; break
+                    for _am in (P(_cm, 2), P(_cm, 3)):
+                        for _j2, _comp in enumerate(comps.get(_am, [])):
+                            if relevant23(_blk, _comp, _am, edges, em, vm, _scm):
+                                _anchor = True; break
+                        if _anchor: break
                     if not _anchor:
                         continue
                     _dirs = set(); _cand = []

@@ -69,6 +69,16 @@ def _chain_tops(ext_mode):
     M = {l: _top(l) for l in ('p1', 'p2', 'p3', 'p4', 'p5')}
     levels = {'p1': M['p1'] - 1, 'p4': M['p4'] - 1, 'p5': M['p5'] - 1,
               'p2': max(M['p2'] - 1, 1), 'p3': max(M['p3'] - 1, 1)}
+    # 小马 2026-09-19: open wide-leg refinement level 1 — k2 gets C1^2/C4^2/C5^2,
+    # k3 gets C1^2 (aligning with k4; k0 untouched).
+    if (ext_mode['p1'][2] == 1 and ext_mode['p2'][2] == INF
+            and ext_mode['p3'][2] == INF and ext_mode['p4'][2] == INF
+            and ext_mode['p5'][2] == INF):          # k2 ladder
+        levels['p1'] = levels['p4'] = levels['p5'] = 1
+    if (ext_mode['p1'][2] == 1 and ext_mode['p2'][2] == 1
+            and ext_mode['p3'][2] == INF and ext_mode['p4'][2] == INF
+            and ext_mode['p5'][2] == INF):          # k3 ladder
+        levels['p1'] = 1
     return M, levels
 
 
@@ -186,7 +196,7 @@ def enumerate_skelg(edges, verts, ext_attach, kin, use_overlap=True,
                 subs.append((4, 1, C4))
             if C5 and 1 < m5:
                 subs.append((5, 1, C5))
-            if C1R1 and 2 < m1:
+            if C1R1:  # 小马 2026-09-19: C1^2 also in the overlap list (三等价 with C4^2/C5^2)
                 subs.append((1, 2, C1R1))
             if C4R1 and 2 < m4:
                 subs.append((4, 2, C4R1))

@@ -176,35 +176,20 @@ exactly.
 
 Research-grade, version 0.1.0.  License: TBD.
 
-**Open items — spacelike-collinear 2→3 (`fri23`), 2026-09-17.**  The recently
-enabled 4-loop scans exposed two work items:
+**Open items — general**
 
-1. **Complete the generated cut structure.**  Some regions (found so far in
-   `k2`) require refinement levels of the cut chains (e.g. `C4R1`/`C5R1`-type
-   levels) that the current chain construction does not generate.  The gap
-   lies in the cut generation itself and is *not* caused by the recent pruning
-   optimizations — it became visible only now that the 4-loop scans run to
-   completion.  Extend the cut families for the affected kinematics, together
-   with additional strong restrictions to keep the combinatorial growth in
-   check.
-2. **Per-kinematics pruning for `k3`/`k4`.**  Enumerations in `k3`/`k4`
-   remain slow — some graphs do not finish within ~10 minutes — and need
-   further pruning conditions matched to each individual kinematics.
-   (A strengthened overlap condition — a vertex shared with two partner
-   cuts from two distinct directions of matching total C-power — is
-   implemented in the skeleton engine; it cuts the `k3`/`k4` skeleton
-   times by a factor of ≈4 on a 100-graph 4-loop batch (e.g. `k4` total
-   1181 s → 273 s; up to ~11× per graph), with no new losses on the
-   regression suites; rollout done — it is the default in the skeleton
-   engine.)
+1. **The cut structure should be derived.** In most of these kinematics, the cuts are imposed at the beginning. Actually they should be derived: given the external kinematics and loop number, I should have given a way to output all the possible modes at this level, based on which the cuts are natural to see. This would need a major upgrade of usable_modes.py which is currently in the wide-angle branch.
 
-**Update 2026-09-19 — hidden path.**  The infrared-compatibility check of
-`fri23` now includes the *hidden-path* rules (full messenger + `S^m C_i /
-C23` conduction).  The three residual 4-loop mismatches — `R099_v10` k2,
-`R013_v11` k3, `R071_v11` k4 — are resolved and match pySecDec exactly,
-with no extra regions; the full sweeps re-run clean (1000-graph 3-loop
-and 100-graph 4-loop batches, all five kinematics).
-
-**Open items — wide-angle, 2026-09-18.** 
+**Open items — wide-angle.** 
 
 1. **Extend the skeleton cut enumerator to soft emission.**  Currently the skeleton cut enumerator is applied to those graphs with only p_i, q_j externals. 
+
+**Open items — spacelike-collinear 2→3 (`fri23`).**
+
+1. **Some remaining issues at 4 loops for k2--k4** Some (although very few) mismatches still exist.  — 2026-09-19: k2/k3 wide-leg refinement levels opened (`C1^2`/`C4^2`/`C5^2` in k2; adds `C1^2` in k3), the SC23 anchor extended to C2/C3, the wide soft×∞ join gap fixed, and the jet connectivity tightened (fri23) — resolving all currently known k2–k4 misses (R172/R277/R442/R046/R075 classes + the k3 trio R013_v10/R254_v10/R288_v10).  Full regression sweep pending.
+
+**Open items — regge.** 
+
+1. **Skeleton pruning method not yet implemented here.**
+
+2. **The treatments for k2--k4 should be more unified so that users can understand better.**
