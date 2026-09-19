@@ -27,8 +27,10 @@ multiplicity; cross-validated against pySecDec on ~830 configurations
 covering 45+ topologies (3–5 loops, planar and nonplanar, including
 soft-emission families); interactive browser with region visualisation
 (figures or a single-PDF atlas).  Graphs with p_i/q_j externals only are
-enumerated by the pruned *skeleton* cut enumerator (`skeleton.py`); soft
-externals fall back to the layered enumerator.
+enumerated by the pruned *skeleton* cut enumerator (`skeleton.py`), which
+supports general n-leg graphs with all external virtualities scaling as a
+single small parameter (the 4-leg and 5-leg wide-angle classes are
+validated); soft externals fall back to the layered enumerator.
 
 ### `spacelike_collinear/` — spacelike-collinear kinematics
 
@@ -41,7 +43,10 @@ variants:
   k0–k5, and region visualisation (figures or a single-PDF atlas).
 - **`2to3/`** — five-point 2→3 scattering with a small spacelike pair
   invariant (s23 ~ λ).  Enumerator with a built-in example graph, an
-  interactive browser, and region visualisation (five kinematics k0–k4).
+  interactive browser, and region visualisation (five kinematics k0–k4);
+  cut enumeration is pruned by a skeleton construction, extended in
+  2026-09 with a strengthened overlap condition (two partner directions of
+  matching total C-power).
 
 ---
 
@@ -132,7 +137,7 @@ FRI-project/
 │   ├── fri_demo.py                    #   built-in demonstrations
 │   ├── region_checker.py              #   mode algebra, components, IR compat, messengers
 │   ├── truncation_check.py            #   layered enumerator (C/H in layer 0)
-│   ├── skeleton.py                    #   pruned skeleton cut enumerator (p_i,q_j externals)
+│   ├── skeleton.py                    #   pruned skeleton cut enumerator (p_i,q_j externals; n-leg)
 │   ├── mojetic_check.py               #   H∪J∖J_i mojetic (1VI) check
 │   ├── contracted_1vi.py              #   contracted-mode-component 1VI check
 │   ├── usable_modes.py                #   IR-compat mode closure (compression)
@@ -155,6 +160,8 @@ FRI-project/
     └── 2to3/                          #   part 2: five-point 2->3
         ├── fri23.py                   #     enumerator (+ built-in example graph)
         ├── fri23_interactive.py       #     interactive enumerator for a new graph
+        ├── skel23.py                  #     skeleton cut enumerator (k1)
+        ├── skeleton23.py              #     skeleton cut enumerator (k2–k4; strengthened overlap)
         ├── kin23.py                   #     k0..k4 external-virtuality kinematics table
         └── region_plot23.py           #     region figures + PDF atlas
 ```
@@ -172,7 +179,9 @@ exactly.
 - **wide_angle**: ~830 configurations covering 45+ topologies (2→2 / 2→3 /
   1→3, 3–5 loops, planar and nonplanar, including soft-emission families).
   The pruned skeleton enumerator (p_i/q_j externals) reproduces the layered
-  region sets on all 255 lightlike 2→2 configurations (~30× faster overall).
+  region sets on all 255 lightlike 2→2 configurations (~30× faster overall),
+  and matches pySecDec on the five-point (2→3) wide-angle class at k0 (the
+  Frog family and a 500-graph random 4-loop batch).
 - **spacelike_collinear — regge**: the region files of 50 graphs in the six
   kinematics k0–k5 (lightlike and off-shell external legs, λ²-suppressed
   virtualities).
@@ -199,6 +208,12 @@ enabled 4-loop scans exposed two work items:
 2. **Per-kinematics pruning for `k3`/`k4`.**  Enumerations in `k3`/`k4`
    remain slow — some graphs do not finish within ~10 minutes — and need
    further pruning conditions matched to each individual kinematics.
+   (A strengthened overlap condition — a vertex shared with two partner
+   cuts from two distinct directions of matching total C-power — is
+   implemented in the skeleton engine; it cuts the `k3`/`k4` skeleton
+   times by a factor of ≈4 on a 100-graph 4-loop batch (e.g. `k4` total
+   1181 s → 273 s; up to ~11× per graph), with no new losses on the
+   regression suites; rollout pending.)
 
 **Open items — wide-angle, 2026-09-18.** 
 
