@@ -14,6 +14,8 @@ import sys, os, re, time
 from itertools import combinations
 
 INF = float('inf')
+_DBG = False
+CONDUCT23 = True  # S^mC23 hidden-path conduction (general m; approved 2026-09-19 15:15; supersedes the 03:30 bridge prototype).  Set False to disable.
 
 # ============================ mode algebra ============================
 # canonical mode tuple:
@@ -1196,22 +1198,77 @@ def depth_of(x):
         return INF if n == INF else n
     return INF if n == INF else (n + 1)
 
-def messenger_targets(blk, mode, comps, edges, em, vm, ext_attach, ext_mode):
-    # Collect (dirs, targets) for the messenger check of S^m comp blk.
+def _real_verts(blk):
+    return {v for v in blk[0] if v != 'aux'}
+
+def _comp_adjacent(a_blk, b_blk, edges):
+    # vertex-contact adjacency (WA `adjacent` semantics): an edge of one block has an endpoint
+    # that is an OWN (real) vertex of the other block.  This is what blocks BORROWING (e.g. a
+    # member hanging on a third component's cut vertex does not attach).
+    bv = _real_verts(b_blk)
+    if bv:
+        for ei in (a_blk[2] if len(a_blk) > 2 else []):
+            u, w = edges[ei]
+            if u in bv or w in bv: return True
+    av = _real_verts(a_blk)
+    if av:
+        for ei in (b_blk[2] if len(b_blk) > 2 else []):
+            u, w = edges[ei]
+            if u in av or w in av: return True
+    return False
+
+def messenger_targets(blk, mode, comps, edges, em, vm, ext_attach, ext_mode, debug=None):
+    # Collect (dirs, targets) for the messenger check of the S^m block blk — FULL version
+    # (2026-09-19, WA-aligned).
+    #   Gamma^[m] = connected closure (vertex-contact) of all soft-power-m components around
+    #   the kernel block blk (S^m and S^m C^n members alike).
+    #   A target gamma_i counts iff the n_i-matched Gamma member is relevant to it:
+    #     n_i = 0  -> the KERNEL itself (only the checked block; no borrowing from other S blocks);
+    #     n_i >= 1 -> an S^m C_i^{n_i} member ADJACENT to the kernel.
     m = mode[1]
+    pool = []
+    for md, lst in comps.items():
+        if m_of(md) != m: continue
+        for i, b in enumerate(lst):
+            pool.append((md, i, b))
+    gmemb = [False] * len(pool)
+    for j in range(len(pool)):
+        if pool[j][2] is blk: gmemb[j] = True
+    changed = True
+    while changed:
+        changed = False
+        for j in range(len(pool)):
+            if gmemb[j]: continue
+            for k in range(len(pool)):
+                if gmemb[k] and _comp_adjacent(pool[j][2], pool[k][2], edges):
+                    gmemb[j] = True; changed = True; break
+    gids = {id(pool[j][2]) for j in range(len(pool)) if gmemb[j]}
     dirs = set()
     targets = []
     for md, lst in comps.items():
-        if md[0] == 'S': continue
         for i, d in enumerate(lst):
-            mi = m - 0
+            if id(d) in gids: continue
+            mi = m - m_of(md)
             if not (1 <= mi <= m): continue
             depth = depth_of(md)
             if depth == INF: continue
             n_i = depth - mi
             if n_i < 0: continue
-            if n_i > 0: continue  # needs an S^m C_i^{n_i} member: not at k1
-            if not relevant23(blk, d, md, edges, em, vm, mode): continue
+            via = None
+            if n_i == 0:
+                if relevant23(blk, d, md, edges, em, vm, mode):
+                    via = 'kernel'
+            else:
+                for j in range(len(pool)):
+                    if not gmemb[j]: continue
+                    md2, i2, b2 = pool[j]
+                    if depth_of(md2) != n_i: continue
+                    if d_of(md2) != d_of(md): continue
+                    if not _comp_adjacent(b2, blk, edges): continue
+                    if relevant23(b2, d, md, edges, em, vm, md2):
+                        via = name(md2)
+                        break
+            if via is None: continue
             ok_ext = True
             for extn, vv in ext_attach.items():
                 if vv in {v for v in d[0] if v != 'aux'}:
@@ -1229,10 +1286,13 @@ def messenger_targets(blk, mode, comps, edges, em, vm, ext_attach, ext_mode):
             targets.append((md, i))
             if d_of(md) is not None:
                 dirs.add(d_of(md))
+            if debug is not None:
+                debug.append((name(md), i, n_i, via))
     return dirs, targets
 
 def messenger_ok(blk, mode, comps, confirmed, edges, em, vm, ext_attach, ext_mode, info=None):
-    # S^m messenger check (single-kernel simplified form).
+    # S^m messenger check — full Gamma^[m] form (WA-aligned; kernel + n_i-matched members,
+    # connected closure; >=3 distinct directions; >=1 confirmed-relevant).
     dirs, targets = messenger_targets(blk, mode, comps, edges, em, vm, ext_attach, ext_mode)
     if info is not None:
         info.setdefault('messenger', []).append((name(mode), sorted(dirs)))
@@ -1339,7 +1399,9 @@ def ir_ok(edges, verts, em, vm, ext_attach, ext_mode, dbg=None):
     def try_confirm(mode, i):
         if (mode, i) in confirmed: return False
         confirmed[(mode, i)] = True
+        if _DBG: print('   CONFIRM %s#%d' % (name(mode), i))
         return True
+    if _DBG: print('-- initial cond1 --')
     # initial: condition 1 for every block (vee of inflows == mode; the C23 blocks also require third-port).
     for md, lst in comps.items():
         if md[0] == 'H': continue
@@ -1351,6 +1413,8 @@ def ir_ok(edges, verts, em, vm, ext_attach, ext_mode, dbg=None):
     guard = 0
     while changed and guard < 40:
         changed = False; guard += 1
+        if _DBG: print('== iter %d ==' % guard)
+        if _DBG: print('  -- cond2 S-messenger --')
         # [condition 2] S messengers.
         for sm, lst in comps.items():
             if sm[0] != 'S': continue
@@ -1359,26 +1423,110 @@ def ir_ok(edges, verts, em, vm, ext_attach, ext_mode, dbg=None):
                 if not _cond_allowed(sm, blk): continue
                 if messenger_ok(blk, sm, comps, confirmed, edges, em, vm, ext_attach, ext_mode, dbg):
                     changed |= try_confirm(sm, i)
+        if _DBG: print('  -- cond2 special-messenger --')
         # [condition 2] special messenger for the 23-collinear kinematics: simultaneously relevant to a C2C23 component, a C3C23 component, and a C_i component (i in 1,4,5), with >=1 of those confirmed.
-        scm = P(0, 0, 1)
-        sc_cats = ((P(1, 2),), (P(1, 3),), (W(1, 1), W(4, 1), W(5, 1)))
-        for i, blk in enumerate(comps.get(scm, [])):
-            if (scm, i) in confirmed: continue
-            if not _cond_allowed(scm, blk): continue
-            adj = []
-            ok_all = True
-            for cat in sc_cats:
-                found = False
-                for md in cat:
-                    for j, comp in enumerate(comps.get(md, [])):
-                        if relevant23(blk, comp, md, edges, em, vm, scm):
-                            found = True
-                            adj.append((md, j))
-                if not found:
-                    ok_all = False
-                    break
-            if ok_all and any(confirmed.get((md, j)) for (md, j) in adj):
-                changed |= try_confirm(scm, i)
+        # [hidden path — approved 2026-09-19 15:15; (二) restated 17:06 (v-E)]
+        # S^m C_i conduction (m >= 1):
+        #   conductor X = S^m C_i, i in {1,4,5,23};
+        #   - SC23-type (i = 23): X relevant to >=1 C2^m C23 + two wide C_j^m targets
+        #     (distinct directions); any one confirmed conducts the other wide(s).  [unchanged form]
+        #   - wide-type (i in 1,4,5): (1) X relevant to one C_i^2 target (own direction);
+        #     (2) X relevant to one C_j^1 & one C_k^1 target (i,j,k pairwise distinct; j,k in {1,23,4,5});
+        #     conduction within the (2)-pair: one confirmed => the other confirmed.
+        #   X itself is NOT confirmed by this rule.
+        def _is_cond_mode(md):
+            if md[0] != 'C' or md[4] < 1: return False
+            if md[1] == 23: return md[2] == 0 and md[3] == 0
+            if md[1] in (1, 4, 5): return md[2] == 1 and md[3] is None
+            return False
+        for _scm in sorted((md for md in comps if _is_cond_mode(md)),
+                           key=lambda x: (x[1], x[4])):
+            _cm = _scm[4]
+            for _i, _blk in enumerate(comps.get(_scm, [])):
+                if not CONDUCT23: continue
+                if _scm[1] == 23:
+                    # SC23-type (form unchanged): anchor >=1 C2^m C23; two wide C_j^m targets
+                    # in distinct directions; conduct among the wide targets.
+                    _anchor = False
+                    for _j2, _comp in enumerate(comps.get(P(_cm, 2), [])):
+                        if relevant23(_blk, _comp, P(_cm, 2), edges, em, vm, _scm):
+                            _anchor = True; break
+                    if not _anchor:
+                        continue
+                    _dirs = set(); _cand = []
+                    for _md in (W(1, _cm), W(4, _cm), W(5, _cm)):
+                        for _j2, _comp in enumerate(comps.get(_md, [])):
+                            if relevant23(_blk, _comp, _md, edges, em, vm, _scm):
+                                _cand.append((_md, _j2)); _dirs.add(d_of(_md))
+                    if len(_dirs) < 2:
+                        continue
+                    if not any(confirmed.get(t) for t in _cand):
+                        continue
+                    for (_md, _j2) in _cand:
+                        if (_md, _j2) not in confirmed:
+                            if _DBG: print('   conduct23-fire: %s#%d -> conduct to %s#%d'
+                                  % (name(_scm), _i, name(_md), _j2))
+                            changed |= try_confirm(_md, _j2)
+                else:
+                    # wide-type (2026-09-19 17:06 form / v-E):
+                    # (1) X relevant to one C_i^2 target (own direction i);
+                    # (2) X relevant to one C_j^1 & one C_k^1 target (i,j,k pairwise distinct; j,k in {1,23,4,5});
+                    # conduction within the (2)-pair: one confirmed => the other confirmed.
+                    _A = []
+                    for _j2, _comp in enumerate(comps.get(W(_scm[1], 2), [])):
+                        if relevant23(_blk, _comp, W(_scm[1], 2), edges, em, vm, _scm):
+                            _A.append((W(_scm[1], 2), _j2))
+                    if not _A:
+                        continue
+                    _D = {}
+                    for _dd in (1, 23, 4, 5):
+                        if _dd == _scm[1]: continue
+                        _md1 = P(0, 0, 0) if _dd == 23 else W(_dd, 1)
+                        _lst = []
+                        for _j2, _comp in enumerate(comps.get(_md1, [])):
+                            if relevant23(_blk, _comp, _md1, edges, em, vm, _scm):
+                                _lst.append((_md1, _j2))
+                        if _lst:
+                            _D[_dd] = _lst
+                    _dks = sorted(_D.keys())
+                    for _a1 in range(len(_dks)):
+                        for _a2 in range(_a1 + 1, len(_dks)):
+                            for (_am, _aj) in _D[_dks[_a1]]:
+                                for (_bm, _bj) in _D[_dks[_a2]]:
+                                    if confirmed.get((_am, _aj)) and (_bm, _bj) not in confirmed:
+                                        if _DBG: print('   conduct23-fire: %s#%d -> conduct to %s#%d'
+                                              % (name(_scm), _i, name(_bm), _bj))
+                                        changed |= try_confirm(_bm, _bj)
+                                    elif confirmed.get((_bm, _bj)) and (_am, _aj) not in confirmed:
+                                        if _DBG: print('   conduct23-fire: %s#%d -> conduct to %s#%d'
+                                              % (name(_scm), _i, name(_am), _aj))
+                                        changed |= try_confirm(_am, _aj)
+        # [generalized 2026-09-19] S^m C23 (m >= 1): relevant to a C2^m C23 component, a C3^m C23
+        # component, and a C_i^m component (i in 1,4,5) — each category nonempty, >=1 confirmed overall
+        # -> the S^m C23 component is confirmed itself.  (Only m = 1 occurs on the current corpus.)
+        for scm_m in sorted((md for md in comps if md[0] == 'C' and md[1] == 23
+                             and md[2] == 0 and md[3] == 0 and md[4] >= 1),
+                            key=lambda x: x[4]):
+            _m = scm_m[4]
+            sc_cats = ((P(_m, 2),), (P(_m, 3),), (W(1, _m), W(4, _m), W(5, _m)))
+            for i, blk in enumerate(comps.get(scm_m, [])):
+                if (scm_m, i) in confirmed: continue
+                if not _cond_allowed(scm_m, blk): continue
+                adj = []
+                ok_all = True
+                for cat in sc_cats:
+                    found = False
+                    for md in cat:
+                        for j, comp in enumerate(comps.get(md, [])):
+                            if relevant23(blk, comp, md, edges, em, vm, scm_m):
+                                found = True
+                                adj.append((md, j))
+                    if not found:
+                        ok_all = False
+                        break
+                if ok_all and any(confirmed.get((md, j)) for (md, j) in adj):
+                    changed |= try_confirm(scm_m, i)
+        if _DBG: print('  -- cond3 --')
         # [condition 3] meet of two confirmed relevant components.
         for md, lst in comps.items():
             for i, blk in enumerate(lst):
@@ -1399,6 +1547,7 @@ def ir_ok(edges, verts, em, vm, ext_attach, ext_mode, dbg=None):
                     if done: break
                 if done:
                     changed |= try_confirm(md, i)
+        if _DBG: print('  -- cond1 --')
         # [condition 1] for every unconfirmed block, we need (1) vee of inflows == mode (2) the C23 blocks also require third-port.
         for md, lst in comps.items():
             if md[0] == 'H': continue
