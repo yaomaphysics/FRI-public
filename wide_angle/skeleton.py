@@ -22,7 +22,7 @@ Conditions (agreed with 小马):
 * k0 (all externals C_i^1 or H): enumerated via the union construction —
   H + P_i = connected touch-H sets; every vertex of V∖(H∪P's) must lie
   in >=2 cuts; corner closure.  Region-identical to the old path
-  (validated 2026-09-18); run(..., k0_union=False) reverts.
+  (validated 2026-09-18).
 
 Validated domain (小马 2026-09-18): p_i q_j externals only.  Soft externals
 (S^mC^n / S^m, m>=1) are refused by default (allow_soft=True opts into the
@@ -354,8 +354,7 @@ def _run_k0_union(verts, edges, ext_attach, ext_mode, verbose=True, vm_dedup=Tru
 
 def run(verts, edges, ext_attach, ext_mode, verbose=True, use_overlap=True,
         use_route=True, overlap_strict=True, overlap_strong=True,
-        overlap_level=True, cfg_out=None, allow_soft=False, vm_dedup=True,
-        k0_union=True):
+        overlap_level=True, cfg_out=None, allow_soft=False, vm_dedup=True):
     t0 = time.time()
     if has_soft_externals(ext_mode) and not allow_soft:
         raise ValueError(
@@ -363,11 +362,11 @@ def run(verts, edges, ext_attach, ext_mode, verbose=True, use_overlap=True,
             'domain is p_i q_j only (小马 2026-09-18) — soft-domain support '
             'is deferred. Use the layered enumerator, or pass '
             'allow_soft=True for the experimental (unvalidated) path.')
-    if k0_union and cfg_out is None and use_route:
-        r = _run_k0_union(verts, edges, ext_attach, ext_mode,
-                          verbose=verbose, vm_dedup=vm_dedup)
-        if r is not None:
-            return r
+    # k0: always the union construction (single-path route removed 2026-09-20).
+    r = _run_k0_union(verts, edges, ext_attach, ext_mode,
+                      verbose=verbose, vm_dedup=vm_dedup)
+    if r is not None:
+        return r
     kappa = TC.kappa_of(ext_mode)
     V = sorted(verts)
     Vset = set(V)

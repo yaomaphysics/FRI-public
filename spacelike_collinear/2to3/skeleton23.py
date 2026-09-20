@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """skeleton23.py — skeleton-based cut enumeration for the spacelike-collinear
 2->3 kinematics k2-k4 (k1 lives in `skel23.py`; k0 runs through the union
-construction, merged from `dev_skel0` on 2026-09-20 — pass k0_union=False
-for the original single-path k0).  Promoted from the private prototype
+construction, merged from `dev_skel0` on 2026-09-20).  Promoted from the
+private prototype
 `dev_skelg.py` (2026-09-19).
 
 Model (agreed with 小马, 2026-09-16):
@@ -33,8 +33,7 @@ Model (agreed with 小马, 2026-09-16):
         for the current k-ladder - subjects only occur for m=INF.)
 
 Use:  enumerate_skelg(edges, verts, ext_attach, kin, use_overlap=True,
-                      overlap_strict=False, overlap_strong=True,
-                      k0_union=True)
+                      overlap_strict=False, overlap_strong=True)
 """
 import os, sys
 from itertools import combinations, product
@@ -146,11 +145,10 @@ def _overlap_pair(A, B, adj, strict=False):
 
 
 def enumerate_skelg(edges, verts, ext_attach, kin, use_overlap=True,
-                    overlap_strict=False, overlap_strong=True,
-                    k0_union=True):
+                    overlap_strict=False, overlap_strong=True):
     if kin == 'k1':
         raise NotImplementedError('k1 lives in skel23')
-    if kin == 'k0' and k0_union:
+    if kin == 'k0':
         return _k0_union(edges, verts, ext_attach)
     ext_mode = K.ext_modes(kin)
     m1, m2, m3, m4, m5 = K.KIN[kin]['ms']
