@@ -207,7 +207,7 @@ Research-grade, version 0.1.0.  License: TBD.
 
 **Open items — spacelike-collinear 2→3 (`fri23`).**
 
-1. **Some remaining issues at 4 loops for k2--k4** Some (although very few) mismatches still exist.  — 2026-09-19: k2/k3 wide-leg refinement levels opened (`C1^2`/`C4^2`/`C5^2` in k2; adds `C1^2` in k3), the SC23 anchor extended to C2/C3, the wide soft×∞ join gap fixed, and the jet connectivity tightened (fri23) — resolving all currently known k2–k4 misses (R172/R277/R442/R046/R075 classes + the k3 trio R013_v10/R254_v10/R288_v10).  Full regression sweep pending.
+1. **5-loop graphs remain untested for k2--k4** Under the current enumeration method, it may be time-consuming. I will do it once more optimizations are made.
 
 **Open items — regge.** 
 

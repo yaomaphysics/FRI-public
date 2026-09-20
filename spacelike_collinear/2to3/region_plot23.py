@@ -15,6 +15,10 @@ Style spec (final, 2026-09-15) — fri23 edition:
                                                  — direction-blind (by design)
   (there is no G / sH in the 2->3 case)
 
+  caption words (display only; colours unchanged):  D12 -> "Teal",
+      D6 -> "Olive", Green -> "LightGreen";  each colour word is
+      bold and printed in the colour of its modes.
+
   geometry & captions: identical to the regge edition (region_plot.py):
       solid edge thickness 0.0055; vertex radius 0.010, no outlines; vertex
       numbers grey (FontSize 11) offset 0.026 outward; external legs
@@ -58,6 +62,8 @@ EXT_LABEL_BLUE = 'RGBColor[0.02, 0.25, 0.7]'
 COLOR_ORDER = ['Blue', 'Green', 'DarkGreen', 'D12', 'D6', 'Magenta',
                'Orange', 'Red', 'Pink', 'DarkYellow', 'DarkRed']
 
+DISPLAY_NAME = {'D12': 'Teal', 'D6': 'Olive', 'Green': 'LightGreen'}   # caption words (display only; figures keep their colours)
+
 
 def mode_color(x):
     """(color-name, wl-directive) for one fri23 mode tuple."""
@@ -90,25 +96,31 @@ def vertex_directive(x):
 
 
 def make_caption_lines(em, vm):
-    """Caption block: one line per colour, listing all modes it covers."""
+    """Caption block: one line per colour, listing all modes it covers.
+
+    Returns lines; each line is a list of (word, wl-colour, modes-text)
+    parts.  The word is the display name (cf. DISPLAY_NAME), printed bold
+    and in the colour of its modes."""
     by = {}
+    dirs = {}
     for m in sorted(set(em) | set(vm.values()), key=mode_name):
-        c, _ = mode_color(m)
+        c, d = mode_color(m)
         by.setdefault(c, []).append(m)
+        dirs.setdefault(c, d)
     parts = []
     for c in COLOR_ORDER:
         if c in by:
-            parts.append('%s: %s'
-                         % (c, ', '.join(mode_name(m) for m in by[c])))
-    lines, cur = [], ''
+            parts.append((DISPLAY_NAME.get(c, c), dirs[c],
+                          ', '.join(mode_name(m) for m in by[c])))
+    lines, cur, curlen = [], [], 0
     for p in parts:
+        plen = len(p[0]) + 2 + len(p[2])
         if not cur:
-            cur = p
-        elif len(cur) + len(p) + 3 <= 78:
-            cur = cur + ' | ' + p
+            cur, curlen = [p], plen
+        elif curlen + plen + 3 <= 78:
+            cur.append(p); curlen += plen + 3
         else:
-            lines.append(cur)
-            cur = p
+            lines.append(cur); cur, curlen = [p], plen
     if cur:
         lines.append(cur)
     return lines
@@ -200,8 +212,15 @@ def panel_lines(pos, label, vec, em, vm, edges, outpath, ext_attach,
     items.append('{GrayLevel[0.1], Text[Style["%s", FontSize -> 11.5], '
                  '{0.020, 0.105}, {-1, 0}]}' % _esc(cap1))
     for j, ln in enumerate(caplines[:3]):
-        items.append('{GrayLevel[0.3], Text[Style["%s", FontSize -> 9.5], '
-                     '{0.020, %s}, {-1, 0}]}' % (_esc(ln), 0.070 - j * 0.032))
+        pieces = []
+        for k, (word, wcol, txt) in enumerate(ln):
+            pieces.append('Style["%s", Bold, %s, FontSize -> 9.5]'
+                          % (_esc(word), wcol))
+            tail = ': ' + txt + (' | ' if k < len(ln) - 1 else '')
+            pieces.append('Style["%s", GrayLevel[0.3], FontSize -> 9.5]'
+                          % _esc(tail))
+        items.append('{GrayLevel[0.3], Text[Row[{%s}], {0.020, %s}, {-1, 0}]}'
+                     % (', '.join(pieces), 0.070 - j * 0.032))
     return ['panel%d = Graphics[{%s}, PlotRange -> {{0, 1}, {0, 1}}, '
             'AspectRatio -> 1, ImageSize -> %d];'
             % (pos, ', '.join(items), image_size),

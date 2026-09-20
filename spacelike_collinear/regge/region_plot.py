@@ -15,6 +15,10 @@ Style spec (final, 2026-09-15):
       S^2C     Pink         (S^k x carrier, k >= 2)
       G        DarkYellow   |   sH   DarkRed
 
+  caption words (display only; colours unchanged):  D12 -> "Teal",
+      D6 -> "Olive", Green -> "LightGreen";  each colour word is
+      bold and printed in the colour of its modes.
+
   G (Glauber) specials
       vertices: black ring, Thickness 0.0045, DarkYellow fill
       edges:    Dashing[{0.007, 0.0125}]   ->  dot ~6.7 px, gap ~12 px at 960 px
@@ -68,6 +72,8 @@ EXT_LABEL_BLUE = 'RGBColor[0.02, 0.25, 0.7]'
 COLOR_ORDER = ['Blue', 'Green', 'DarkGreen', 'D12', 'D6', 'Magenta',
                'Orange', 'Red', 'Pink', 'DarkYellow', 'DarkRed']
 
+DISPLAY_NAME = {'D12': 'Teal', 'D6': 'Olive', 'Green': 'LightGreen'}   # caption words (display only; figures keep their colours)
+
 
 def mode_color(m):
     """(color-name, wl-directive) for one mode string (regge vocabulary)."""
@@ -109,24 +115,30 @@ def vertex_directive(m):
 
 
 def make_caption_lines(em, vm):
-    """Caption block: one line per colour, listing all modes it covers."""
+    """Caption block: one line per colour, listing all modes it covers.
+
+    Returns lines; each line is a list of (word, wl-colour, modes-text)
+    parts.  The word is the display name (cf. DISPLAY_NAME), printed bold
+    and in the colour of its modes."""
     by = {}
+    dirs = {}
     for m in sorted(set(em) | set(vm.values())):
-        c, _ = mode_color(m)
+        c, d = mode_color(m)
         by.setdefault(c, []).append(m)
+        dirs.setdefault(c, d)
     parts = []
     for c in COLOR_ORDER:
         if c in by:
-            parts.append('%s: %s' % (c, ', '.join(by[c])))
-    lines, cur = [], ''
+            parts.append((DISPLAY_NAME.get(c, c), dirs[c], ', '.join(by[c])))
+    lines, cur, curlen = [], [], 0
     for p in parts:
+        plen = len(p[0]) + 2 + len(p[2])
         if not cur:
-            cur = p
-        elif len(cur) + len(p) + 3 <= 78:
-            cur = cur + ' | ' + p
+            cur, curlen = [p], plen
+        elif curlen + plen + 3 <= 78:
+            cur.append(p); curlen += plen + 3
         else:
-            lines.append(cur)
-            cur = p
+            lines.append(cur); cur, curlen = [p], plen
     if cur:
         lines.append(cur)
     return lines
@@ -221,8 +233,15 @@ def panel_lines(pos, label, vec, em, vm, edges, outpath, ext_attach,
     items.append('{GrayLevel[0.1], Text[Style["%s", FontSize -> 11.5], '
                  '{0.020, 0.105}, {-1, 0}]}' % _esc(cap1))
     for j, ln in enumerate(caplines[:3]):
-        items.append('{GrayLevel[0.3], Text[Style["%s", FontSize -> 9.5], '
-                     '{0.020, %s}, {-1, 0}]}' % (_esc(ln), 0.070 - j * 0.032))
+        pieces = []
+        for k, (word, wcol, txt) in enumerate(ln):
+            pieces.append('Style["%s", Bold, %s, FontSize -> 9.5]'
+                          % (_esc(word), wcol))
+            tail = ': ' + txt + (' | ' if k < len(ln) - 1 else '')
+            pieces.append('Style["%s", GrayLevel[0.3], FontSize -> 9.5]'
+                          % _esc(tail))
+        items.append('{GrayLevel[0.3], Text[Row[{%s}], {0.020, %s}, {-1, 0}]}'
+                     % (', '.join(pieces), 0.070 - j * 0.032))
     return ['panel%d = Graphics[{%s}, PlotRange -> {{0, 1}, {0, 1}}, '
             'AspectRatio -> 1, ImageSize -> %d];'
             % (pos, ', '.join(items), image_size),
