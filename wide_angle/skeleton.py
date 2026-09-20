@@ -7,7 +7,9 @@ Conditions (agreed with 小马):
   * H connected (enumerated explicitly);
   * for every C_i^m-type external (mode (0,n,i), n>=1) whose root is not in H:
     a path P_i from the root that touches H (inside V\\H, avoiding other
-    external vertices); paths of different externals pairwise disjoint;
+    p/q attachment vertices; soft (l, m>=1) attachment vertices are NOT
+    restricted — 小马 2026-09-20); paths of different externals pairwise
+    disjoint;
   * base cut (largest chain level, paired with the least-soft cut) ⊇ P_i;
     chain levels S_1 ⊇ S_2 ⊇ ... : each connected containing root, within its
     own per-level allowed set, inside V\\H; partial chains (prefix nonempty);
@@ -15,18 +17,27 @@ Conditions (agreed with 小马):
 
 * route-exclusivity: no leg's cut layers may touch another leg's route
   (S_k^(i) ∩ P_j = ∅ for i≠j) — default ON;
-* overlap (C_i^m legs, layer n<m): a vertex shared by this cut and >=2 other
-  directions' same-level C^n cuts, unless the layer coincides with the leg's
-  own C_i^m cut (m=∞: no exemption) — default ON (overlap_strong=True since 2026-09-18 evening;
-  pass overlap_strong=False for the old shared-vertex-only form, e.g. A/B runs).
+* overlap (C_i^m legs, layer n<m): either option (1) a vertex shared by
+  this cut and the same-sigma (sigma = n) S^{n'}C_j^{n-n'} cuts (n'=0..n;
+  n'=0 reduces to C_j^n) of >=2 other directions j, or (2) soft support —
+  an external of soft power exactly n (S^nC_j^k / S^n) whose incident
+  vertex is contained in this layer — unless the layer coincides with a
+  deeper same-leg C_i^N cut (N > n) [exemption relaxed 2026-09-20].
+  Default ON (overlap_strong=True since 2026-09-18 evening; pass
+  overlap_strong=False for the old shared-vertex-only form, e.g. A/B
+  runs).  [(1) relaxed + exemption: 小马 2026-09-20]
+* soft externals (S^mC^n / S^m, m>=1; 小马 2026-09-20): nested cut chains
+  S^mC_i^1..S^mC_i^N (N = n for finite n, κ−m for n=∞; a single S^m cut
+  when n=0), confined to V∖H and avoiding ALL route paths P_j; no root->H
+  path requirement (2026-09-17).
 * k0 (all externals C_i^1 or H): enumerated via the union construction —
   H + P_i = connected touch-H sets; every vertex of V∖(H∪P's) must lie
   in >=2 cuts; corner closure.  Region-identical to the old path
   (validated 2026-09-18).
 
-Validated domain (小马 2026-09-18): p_i q_j externals only.  Soft externals
-(S^mC^n / S^m, m>=1) are refused by default (allow_soft=True opts into the
-experimental, unvalidated path; revisit later).
+Validated domain: p_i q_j externals (2026-09-18).  Soft externals
+(S^mC^n / S^m, m>=1): the 2026-09-20 extended spec is implemented but
+still under validation — refused by default; pass allow_soft=True to run.
 
 (v1/v2/v3/v3.2 development history preserved in
 private/skeleton_rules_history.md.)
@@ -153,7 +164,8 @@ def _check_combo(verts, edges_t, g, ext_attach, ext_mode, combo, seen_vm=None):
 
 def has_soft_externals(ext_mode):
     """True iff any external has softness m >= 1 (S^mC^n / S^m).
-    Skeleton's validated domain is p_i q_j only (小马 2026-09-18)."""
+    p_i q_j is the fully validated domain (小马 2026-09-18); the soft-domain
+    spec (2026-09-20) is implemented but still pending validation."""
     return any(md[0] != 0 for md in ext_mode.values())
 
 
@@ -357,10 +369,10 @@ def run(verts, edges, ext_attach, ext_mode, verbose=True, use_overlap=True,
     t0 = time.time()
     if has_soft_externals(ext_mode) and not allow_soft:
         raise ValueError(
-            'skeleton: soft externals (S^mC^n / S^m) present; the validated '
-            'domain is p_i q_j only (小马 2026-09-18) — soft-domain support '
-            'is deferred. Use the layered enumerator, or pass '
-            'allow_soft=True for the experimental (unvalidated) path.')
+            'skeleton: soft externals (S^mC^n / S^m) present; the p_i q_j '
+            'domain is fully validated, and soft support (小马 2026-09-20 '
+            'spec) is implemented but still under validation. Pass '
+            'allow_soft=True to run it (or use the layered enumerator).')
     # k0: always the union construction (single-path route removed 2026-09-20).
     r = _run_k0_union(verts, edges, ext_attach, ext_mode,
                       verbose=verbose, vm_dedup=vm_dedup)
@@ -374,6 +386,9 @@ def run(verts, edges, ext_attach, ext_mode, verbose=True, use_overlap=True,
         adj[a].add(b); adj[b].add(a)
     edges_t = [tuple(sorted(e, key=str)) for e in edges]
     extv = set(ext_attach.values())
+    # 小马 2026-09-20: routes avoid OTHER p/q attachment vertices (m=0);
+    # soft (l, m>=1) attachment vertices are NOT restricted.
+    hard_extv = {ext_attach[n] for n in ext_mode if ext_mode[n][0] == 0}
     g = Graph(V, edges_t, ext_attach)
 
     def _overlap(S1, S2):
@@ -408,6 +423,22 @@ def run(verts, edges, ext_attach, ext_mode, verbose=True, use_overlap=True,
         allowed_by_cut[name] = [TC.cut_allowed_vertices(verts, edges, ext_attach,
                                                         ext_mode, name, c.mode)
                                 for c in cs]
+    # 小马 2026-09-20: a C_i^a cut may not contain the incident vertex of a
+    # soft leg (S^mC_j^n / S^m, m>=1) when a > m (paths may; cuts may not).
+    # [A/B escape: FRI_NO_SOFTCUT_RESTRICTION=1]
+    if not os.environ.get('FRI_NO_SOFTCUT_RESTRICTION'):
+        for name in allowed_by_cut:
+            md0 = ext_mode[name]
+            if md0[0] != 0:
+                continue
+            for idx, cut in enumerate(ext_cuts[name]):
+                a = cut.mode[1]
+                for ln_ in ext_mode:
+                    md2 = ext_mode[ln_]
+                    if ln_ == name or md2[0] < 1:
+                        continue
+                    if a > md2[0]:
+                        allowed_by_cut[name][idx].discard(ext_attach[ln_])
     ctype = [n for n in ext_cuts if ext_mode[n][0] == 0]
     stype = [n for n in ext_cuts if ext_mode[n][0] != 0]   # S^mC^n / S^m, m>=1
     if verbose:
@@ -435,7 +466,8 @@ def run(verts, edges, ext_attach, ext_mode, verbose=True, use_overlap=True,
         ok = True
         for n in need:
             root = ext_attach[n]
-            allowed = {w for w in Vset if w not in Hset and (w == root or w not in extv)}
+            allowed = {w for w in Vset if w not in Hset and
+                       (w == root or w not in hard_extv)}
             ps = _paths_to_H(root, Hset, allowed, adj)
             if not ps:
                 ok = False
@@ -473,8 +505,13 @@ def run(verts, edges, ext_attach, ext_mode, verbose=True, use_overlap=True,
                 alw = [set(a) & (Vset - Hset) for a in allowed_by_cut[n]]
                 if ext_mode[n][0] != 0:
                     # S^mC^n / S^m (m>=1): nested cut chains confined to
-                    # V\H — the cut may not contain any H point (小马
-                    # 2026-09-17); no root->H path requirement.
+                    # V\H and avoiding ALL routes P_j (小马 2026-09-20) —
+                    # the soft cuts touch neither H nor any P-path vertex.
+                    # No root->H path requirement (小马 2026-09-17).
+                    blocked = set()
+                    for P in path_assign.values():
+                        blocked |= P
+                    alw = [a - blocked for a in alw]
                     chain_opts[n] = TC.nested_chains(verts, edges, root,
                                                      len(cs), alw)
                     continue
@@ -527,9 +564,12 @@ def run(verts, edges, ext_attach, ext_mode, verbose=True, use_overlap=True,
                         if md[0] != 0:
                             continue          # only C_i^m-type externals
                         if cut.mode[1] < md[1]:  # n < m
-                            if any(c2.ext == nm and c2.mode[1] == md[1]
+                            if any(c2.ext == nm and c2.mode[1] > cut.mode[1]
                                    and S2 == S for c2, S2 in assign):
-                                continue      # coincides with the C_i^m cut
+                                continue      # coincides with a deeper
+                                # same-leg C_i^N cut (N > n) — 小马
+                                # 2026-09-20 (former rule: only the m-level
+                                # cut, impossible for m = inf)
                             if overlap_strong:
                                 # 小马 2026-09-17 pm: "strong overlap" — the
                                 # layer must contain a vertex v shared with
@@ -542,17 +582,40 @@ def run(verts, edges, ext_attach, ext_mode, verbose=True, use_overlap=True,
                                 # n as this layer.  Default ON since
                                 # 2026-09-18 (pass False for the older
                                 # any-level strong overlap).
+                                # (1) 小马 2026-09-20 relaxed: shares a vertex
+                                # with same-level partners of the form
+                                # S^{n'}C_j^{n-n'} (sigma = n; n'=0 gives
+                                # C_j^n) from >= 2 other directions j.
+                                sig = cut.mode[0] + cut.mode[1]
                                 by_dir = {}
                                 for c2, S2 in assign:
-                                    if c2.ext != nm:
-                                        if overlap_level and c2.mode[1] != cut.mode[1]:
-                                            continue
-                                        by_dir.setdefault(c2.ext, set()).update(S2)
+                                    if c2.ext == nm:
+                                        continue
+                                    j2 = c2.mode[2]
+                                    if j2 == 0 or j2 == cut.mode[2]:
+                                        continue
+                                    if overlap_level and (c2.mode[0] + c2.mode[1]) != sig:
+                                        continue
+                                    by_dir.setdefault(j2, set()).update(S2)
                                 ok_st = False
                                 for v in S:
                                     if sum(1 for vs in by_dir.values() if v in vs) >= 2:
                                         ok_st = True
                                         break
+                                if not ok_st:
+                                    # (2) 小马 2026-09-20 (amended 14:52):
+                                    # soft support — an external of soft
+                                    # power exactly n (S^nC_j^k or S^n)
+                                    # whose incident vertex lies in this
+                                    # layer.
+                                    n_lv = cut.mode[1]
+                                    for ln_ in ext_mode:
+                                        md2 = ext_mode[ln_]
+                                        if ln_ == nm or md2[0] != n_lv:
+                                            continue
+                                        if ext_attach[ln_] in S:
+                                            ok_st = True
+                                            break
                                 if not ok_st:
                                     ok_ov = False
                                     if os.environ.get('FRI_DEBUG_OVL'):
