@@ -469,8 +469,7 @@ def enumerate_skelg(edges, verts, ext_attach, kin, use_overlap=True,
 #   * leftover = V − (P_1∪P_23∪P_4∪P_5).
 #     cond3 (comp_adj2): every component of the leftover subgraph must be
 #       adjacent to ≥2 of the four groups;
-#     cond5 variants: 'vert_adj2' (every leftover vertex adjacent to ≥2
-#       groups) / 'cut_mem2' (every leftover vertex contained in ≥2 cuts).
+#     cond5 (cut_mem2): every leftover vertex must be contained in ≥2 cuts.
 #   * cuts: C_g connected ⊇ P_g inside (V∖H) minus the other groups' P's;
 #     C_g = ∅ iff P_g = ∅; every component of C23 contains v2 or v3.
 #
@@ -517,12 +516,10 @@ def _c23_sets(req, dom, v2, v3, adj):
 
 
 def _k0_union(edges, verts, ext_attach,
-                    comp_adj2=True, vert_adj2=False, cut_mem2=True,
-                    excl_h=True, skip_if_lt2=True, kill_exact1_only=False,
-                    count_startpoints=True, keepP=False, cap=2000000,
-                    corner_prune=True):
-    # defaults = the blessed k0 config (2026-09-18): comp_adj2 + excl_h +
-    # skip_if_lt2 + startpoints + corner_prune; dedup key includes H.
+              comp_adj2=True, cut_mem2=True, excl_h=True, skip_if_lt2=True,
+              count_startpoints=True, cap=2000000, corner_prune=True):
+    # defaults = the blessed k0 config (2026-09-18): comp_adj2 + cut_mem2 +
+    # excl_h + skip_if_lt2 + startpoints + corner_prune; dedup key includes H.
     edges = [tuple(e) for e in edges]
     V = sorted(verts)
     adj = {v: set() for v in V}
@@ -623,10 +620,7 @@ def _k0_union(edges, verts, ext_attach,
         if not ir_ok(edges, V, em, vm, ext_attach, ext_mode, {}):
             return
         vec = tuple(-F.V(m) if F.V(m) != F.INF else 'inf' for m in em) + (1,)
-        if keepP:
-            found[(ek, vk)] = (vec, cuts, em, vm, (H, P1, a23, P4, P5))
-        else:
-            found[(ek, vk)] = (vec, cuts, em, vm)
+        found[(ek, vk)] = (vec, cuts, em, vm)
 
     seenP = set()
     for H in Hs:
@@ -691,7 +685,7 @@ def _k0_union(edges, verts, ext_attach,
                             leftover = Vset - P1 - a23 - P4 - P5
                             lf = (leftover - Hset) if excl_h else leftover
                             groups = [g for g in (P1, a23, P4, P5) if g]
-                            do_filter = (comp_adj2 or vert_adj2)
+                            do_filter = comp_adj2
                             if do_filter and skip_if_lt2 and len(groups) < 2:
                                 do_filter = False
                             if do_filter:
@@ -709,17 +703,6 @@ def _k0_union(edges, verts, ext_attach,
                                         for g in gg:
                                             if any((adj[uu] & g) for uu in K_):
                                                 cnt += 1
-                                        if kill_exact1_only:
-                                            if cnt == 1:
-                                                good = False
-                                                break
-                                        elif cnt < 2:
-                                            good = False
-                                            break
-                                if good and vert_adj2:
-                                    for z in lf:
-                                        cnt = sum(1 for g in gg
-                                                  if (adj[z] & g))
                                         if cnt < 2:
                                             good = False
                                             break

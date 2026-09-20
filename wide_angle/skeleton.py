@@ -248,7 +248,7 @@ def _run_k0_union(verts, edges, ext_attach, ext_mode, verbose=True, vm_dedup=Tru
             Hs2.append(H0)
     Hs = Hs2
     regions = {}
-    n_cand = n_dup = n_left_kill = n_pass = n_rule_kill = 0
+    n_cand = n_dup = n_left_kill = n_rule_kill = 0
     seen_ck = set()
     seen_vm = set() if vm_dedup else None
     t0 = time.time()
@@ -301,7 +301,6 @@ def _run_k0_union(verts, edges, ext_attach, ext_mode, verbose=True, vm_dedup=Tru
                 if not good:
                     n_left_kill += 1
                     continue
-            n_pass += 1
             Csets = {}
             okc = True
             for n in legs:
