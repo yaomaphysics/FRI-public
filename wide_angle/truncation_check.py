@@ -258,6 +258,59 @@ def case_hypercrown(k):
         raise SystemExit(f'unknown hypercrown case {k}')
     return verts, edges, ext_attach, ext_mode
 
+# ---- shared-vertex prefilter (was shared_prefilter.py; merged here 2026-09-20)
+# For each layer k >= 2, before enumerating cuts:
+#   - candidate shared-vertex sets S = k-subsets of V_verts (vertices NOT
+#     attached by large-component externals, i.e. m==0 modes; SC/S externals
+#     shareable);
+#   - keep only S such that G - S (remove S and their incident edges) is
+#     still CONNECTED.  Physical meaning: shared vertices carry no large
+#     momentum (vmode = meet of >=2 different-direction cuts = SC/S), so the
+#     large-momentum flow (H∪C skeleton + external points) must remain
+#     connected after removing them.  This is a NECESSARY condition — safe.
+#   - If layer k has no surviving S, layers k+1, k+2, ... are provably empty
+#     (removing more vertices cannot reconnect a disconnected graph), so the
+#     layered enumeration terminates.
+
+def is_connected(verts, adj, alive):
+    """True if the induced subgraph on `alive` (vertex set) is connected.
+    Single-vertex / empty sets count as connected (trivially)."""
+    if len(alive) <= 1:
+        return True
+    start = next(iter(alive))
+    seen = {start}
+    stack = [start]
+    while stack:
+        v = stack.pop()
+        for w in adj.get(v, ()):
+            if w in alive and w not in seen:
+                seen.add(w)
+                stack.append(w)
+    return len(seen) == len(alive)
+
+
+def is_connected_after_removal(verts, adj, S):
+    """G - S connected?  Remove vertices in S and all their incident edges,
+    then check connectivity of the remaining induced subgraph (NO aux vertex
+    — 2026-08-10: an isolated external point means its large momentum
+    cannot flow into the graph, momentum conservation already violated)."""
+    alive = set(verts) - set(S)
+    return is_connected(verts, adj, alive)
+
+
+def shared_sets_for_k(verts, adj, V_verts, k):
+    """All k-subsets S ⊆ V_verts with G-S connected.  V_verts = vertices
+    NOT attached by large-component externals (m==0); SC/S-external
+    attachment points are shareable and therefore included in V_verts."""
+    if k == 0:
+        return [frozenset()] if is_connected_after_removal(verts, adj, ()) else []
+    out = []
+    for S in itertools.combinations(sorted(V_verts), k):
+        if is_connected_after_removal(verts, adj, S):
+            out.append(frozenset(S))
+    return out
+
+
 # ---------------- layered enumeration ----------------
 def run_layered(verts, edges, ext_attach, ext_mode, maxk=None, brief=False,
                 no_ext_attach=False, use_compression=False, on_region=None,
@@ -530,7 +583,6 @@ def run_layered(verts, edges, ext_attach, ext_mode, maxk=None, brief=False,
     V_verts = [v for v in verts
                if not any(vv == v and ext_mode[nm][0] == 0
                           for nm, vv in ext_attach.items())]
-    from shared_prefilter import shared_sets_for_k
     global_seen = set()   # cross-layer dedup: region keys already reported
     prefilter = {}   # k -> list of surviving shared-vertex sets (k >= 2)
     layers = []

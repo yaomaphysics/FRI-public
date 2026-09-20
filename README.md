@@ -2,9 +2,18 @@
 
 A graph-theoretic **region finder** for multiscale Feynman integrals. Given a graph (topology + external momenta) in the context of **massless scattering**, which we classify into the **wide-angle** and **collinear** types based on their kinematics, FRI constructs **all facet regions** of the asymptotic expansion directly from the graph — the majority, and mostly the entire list of regions. The construction is based on understandings of the all-order region structures in momentum space, without any Feynman-polynomial computation or polytope geometry.
 
-For the wide-angle kinematics, the knowledge is based on the paper *"All-order prescription for facet regions in massless wide-angle scattering"* (arXiv:2601.22144): fundamental pattern, connectivity, and infrared compatibility.
+For the wide-angle kinematics, the region-structure understanding is from the paper *"All-order prescription for facet regions in massless wide-angle scattering"* (arXiv:2601.22144). FRI is supposed to enumerate the whole list of facet regions for any Feynman graph under the following conditions.
+1. The external momenta are within the following three types:
+    (1) the "on-shell momenta" p_i, each close to a lightcone (p_i^2 small or 0);
+    (2) the "off-shell momenta" q_j, each with q_j^2 ~ 1 (not small);
+    (3) the "soft momenta" l_k, each has all components being small (but can approach zero at distinct speed).
+2. No two external momenta are close to the same lightcone.
+3. There are no massive propagators in the graph.
 
-For the collinear kinematics, ....
+For the collinear kinematics, the region-structure understanding is from the author's knowledge which has not yet been published. At this moment, only two kinematics are available in FRI:
+1. Five-point scattering with two particles collinear to each other (which we denote by partons 2 and 3, either timelike- or spacelike-collinear).
+2. Four-point scattering in the Regge limit (1+2\to 3+4, with 1 and 3 spacelike-collinear while 2 and 4 spacelike-collinear).
+It is worth noting that in the second case above, Glauber-mode propagators can emerge.
 
 Pure Python (>= 3.9), standard library only. pySecDec is used *only* for off-line cross-validation, which is not part of this repository. The optional region visualisation renders through the Wolfram Engine — see *Quick start* below.
 
@@ -119,14 +128,12 @@ FRI-project/
 ├── wide_angle/                        # class 1: wide-angle scattering (canonical)
 │   ├── fri_demo.py                    #   built-in demonstrations
 │   ├── region_checker.py              #   mode algebra, components, mojetic (1VI) checks, IR compat, messengers
-│   ├── truncation_check.py            #   layered enumerator (C/H in layer 0)
+│   ├── truncation_check.py            #   layered enumerator (C/H in layer 0; incl. layer prefilter)
 │   ├── skeleton.py                    #   pruned skeleton cut enumerator (p_i,q_j externals; n-leg)
-│   ├── contracted_1vi.py              #   contracted-mode-component 1VI check
 │   ├── usable_modes.py                #   IR-compat mode closure (compression)
-│   ├── primitives.py                  #   Step1 / first-connectivity / IR-primitive checks
+│   ├── primitives.py                  #   graph primitives + shared checks (incl. contracted-1VI)
 │   ├── read_graph.py                  #   input parsing
 │   ├── indep_loops.py                 #   independent loop momenta per region
-│   ├── shared_prefilter.py            #   shared-vertex prefilter
 │   ├── facet_regions_interactive.py   #   interactive browser (enumerate + menu)
 │   ├── region_plot_wa.py              #   region figures + PDF atlas
 │   ├── scaleless_diagnosis.py         #   why a non-region is scaleless
@@ -142,10 +149,24 @@ FRI-project/
     └── 2to3/                          #   part 2: five-point 2->3
         ├── fri23.py                   #     enumerator (+ built-in example graph)
         ├── fri23_interactive.py       #     interactive enumerator for a new graph
-        ├── skel23.py                  #     skeleton cut enumerator (k1)
-        ├── skeleton23.py              #     skeleton cut enumerator (k2–k4; strengthened overlap)
+        ├── skeleton23.py              #     skeleton cut enumerators (k0–k4; strengthened overlap)
         ├── kin23.py                   #     k0..k4 external-virtuality kinematics table
         └── region_plot23.py           #     region figures + PDF atlas
+```
+
+Dependency ladder (each layer uses only the ones below):
+
+```text
+wide_angle/
+  skeleton.py           skeleton enumerator (fast path; p_i/q_j domain)
+  truncation_check.py   layered enumerator (all domains; soft-external fallback)
+  primitives.py         graph primitives + shared checks (incl. contracted-1VI)
+  region_checker.py     mode algebra + region checks (base; no local deps)
+
+spacelike_collinear/2to3/
+  skeleton23.py         skeleton enumerators (k0-k4)
+  fri23.py              cut construction + check chain
+  kin23.py              kinematics table
 ```
 
 ---

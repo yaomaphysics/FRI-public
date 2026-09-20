@@ -45,7 +45,7 @@ import region_checker as rc
 from read_graph import parse_mode, mode_str, INF
 from primitives import Graph, vertex_mode, vee
 from region_checker import jet_connected_ok, cond1_ok
-from contracted_1vi import mode_components_wa
+from primitives import mode_components_wa
 
 H = (0, 0, 0)
 
