@@ -32,6 +32,11 @@ Model (agreed with 小马, 2026-09-16):
         vertex only.  (The "unless it equals C_i^m" exemption is vacuous
         for the current k-ladder - subjects only occur for m=INF.)
 
+Cut-chain levels (2026-09-21): derived per graph from the mode first-
+appearance table — LEVELS = mode_levels.cut_chain_levels(ext_mode, L) with
+L = E - V + 1 (the needed refinement level of each chain is a function of the
+graph's loop count).  k1 engine: not wired (levels fixed); k0 union: none.
+
 Use:  enumerate_skelg(edges, verts, ext_attach, kin, use_overlap=True,
                       overlap_strict=False, overlap_strong=True)  # k0,k2,k3,k4
       enumerate_skel(edges, verts, ext_attach, kin='k1')          # k1
@@ -42,6 +47,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 import fri23 as F
 import kin23 as K
+import mode_levels as ML
 from fri23 import (build_overlay, momentum_ok, jets_ok, uncovered_ok,
                    mojetic_all_ok, island_ok, ir_ok, INF)
 # ---- shared helpers (moved from skel23.py, 2026-09-20; that file was
@@ -101,7 +107,9 @@ def _compat(seq2, seq3):
 
 
 def _chain_tops(ext_mode):
-    """fri23's M_i / tower levels (non-k1 branch)."""
+    """LEGACY (pre-L-wire formula + 09-19/09-21 patches).  Kept for dev tools
+    and pre-wire A/B comparisons (dev_ab_lwire.py); the engines now use
+    mode_levels.cut_chain_levels(ext_mode, L) instead.  [2026-09-21]"""
     def _mf(leg):
         x = ext_mode[leg][2]
         if x == INF:
@@ -121,14 +129,18 @@ def _chain_tops(ext_mode):
               'p2': max(M['p2'] - 1, 1), 'p3': max(M['p3'] - 1, 1)}
     # 小马 2026-09-19: open wide-leg refinement level 1 — k2 gets C1^2/C4^2/C5^2,
     # k3 gets C1^2 (aligning with k4; k0 untouched).
+    # 2026-09-21: p1 of both ladders CLOSED per A/B (dev_ab_cutlevels.py —
+    # C1^2 not needed for k2/k3; sets equal; k3 3L/4L speedup ~1.4x,
+    # R013 canary 2.5x).  Re-open by restoring `levels['p1'] = 1` below.
     if (ext_mode['p1'][2] == 1 and ext_mode['p2'][2] == INF
             and ext_mode['p3'][2] == INF and ext_mode['p4'][2] == INF
             and ext_mode['p5'][2] == INF):          # k2 ladder
-        levels['p1'] = levels['p4'] = levels['p5'] = 1
+        levels['p4'] = levels['p5'] = 1
     if (ext_mode['p1'][2] == 1 and ext_mode['p2'][2] == 1
             and ext_mode['p3'][2] == INF and ext_mode['p4'][2] == INF
             and ext_mode['p5'][2] == INF):          # k3 ladder
-        levels['p1'] = 1
+        # p1 closed 2026-09-21 (see A/B note above).
+        pass
     return M, levels
 
 
@@ -194,14 +206,24 @@ def _overlap_pair(A, B, adj, strict=False):
 
 
 def enumerate_skelg(edges, verts, ext_attach, kin, use_overlap=True,
-                    overlap_strict=False, overlap_strong=True):
+                    overlap_strict=False, overlap_strong=True,
+                    collect=False):
     if kin == 'k1':
+        # k1: separate engine (enumerate_skel); not wired to the derived
+        # levels yet (to do later).  [小马 2026-09-21: leave aside for now]
         raise NotImplementedError('k1 is handled by enumerate_skel')
     if kin == 'k0':
+        # k0: union construction.  No cut-chain refinement levels exist at
+        # any loop count (mode table has no fine structure; derived levels
+        # are all zero) -- nothing to gate.  [2026-09-21]
         return _k0_union(edges, verts, ext_attach)
     ext_mode = K.ext_modes(kin)
     m1, m2, m3, m4, m5 = K.KIN[kin]['ms']
-    M, LEVELS = _chain_tops(ext_mode)
+    # Cut-chain levels, derived per graph (2026-09-21): the refinement level
+    # of each chain is a function of the graph's loop count L, read off the
+    # mode first-appearance table.
+    L = len(edges) - len(verts) + 1
+    LEVELS = ML.cut_chain_levels(ext_mode, L)
     if max(LEVELS['p1'], LEVELS['p4'], LEVELS['p5'], LEVELS['p2'], LEVELS['p3']) > 1:
         raise NotImplementedError('deeper chains not implemented yet (levels > 1)')
     edges = [tuple(e) for e in edges]
@@ -225,6 +247,7 @@ def enumerate_skelg(edges, verts, ext_attach, kin, use_overlap=True,
     emvm_seen = set()
     vm_seen = set()   # vm-level dedup (2026-09-18)
     found = {}
+    SURV = {}   # collect=True: (ek, vk) -> (cuts, em, vm)
 
     def run_checks(C1, C1R1, C4, C4R1, C5, C5R1, C2, C3, C23):
         nonlocal total_cand, dup_cuts, skip_emvm, n_overlap, n_vmdup
@@ -340,6 +363,9 @@ def enumerate_skelg(edges, verts, ext_attach, kin, use_overlap=True,
             return
         vec = tuple(-F.V(m) if F.V(m) != F.INF else 'inf' for m in em) + (1,)
         found[(ek, vk)] = vec
+        if collect:
+            SURV[(ek, vk)] = (dict((kk, set(vv)) for kk, vv in cuts.items()),
+                              em, vm)
 
     for H in Hs:
         Hset = set(H)
@@ -500,6 +526,9 @@ def enumerate_skelg(edges, verts, ext_attach, kin, use_overlap=True,
                                                        frozenset())
 
     info = {'dup_cuts': dup_cuts, 'skip_emvm': skip_emvm, 'overlap_kill': n_overlap, 'vm_dup': n_vmdup}
+    if collect:
+        info['survivors'] = [(vv,) + sv for vv, sv in sorted(
+            ((vv, SURV[k]) for k, vv in found.items()), key=lambda t: t[0])]
     return sorted(found.values()), total_cand, info
 
 
@@ -566,7 +595,8 @@ def _c23_sets(req, dom, v2, v3, adj):
 
 def _k0_union(edges, verts, ext_attach,
               comp_adj2=True, cut_mem2=True, excl_h=True, skip_if_lt2=True,
-              count_startpoints=True, cap=2000000, corner_prune=True):
+              count_startpoints=True, cap=2000000, corner_prune=True,
+              collect=False):
     # defaults = the blessed k0 config (2026-09-18): comp_adj2 + cut_mem2 +
     # excl_h + skip_if_lt2 + startpoints + corner_prune; dedup key includes H.
     edges = [tuple(e) for e in edges]
@@ -784,6 +814,8 @@ def _k0_union(edges, verts, ext_attach,
             'filt_kill': n_filt, 'n_combo': n_combo, 'filtF_kill': n_filtF,
             'corner_skip': n_corner_skip, 'vm_dup': n_vmdup}
     reps = list(found.values())
+    if collect:
+        info['survivors'] = sorted(reps, key=lambda r: r[0])
     return sorted(v[0] for v in reps), total_cand, info
 
 
@@ -818,7 +850,7 @@ def _k0_union(edges, verts, ext_attach,
 # ---------------------------------------------------------------------------
 
 
-def enumerate_skel(edges, verts, ext_attach, kin='k1'):
+def enumerate_skel(edges, verts, ext_attach, kin='k1', collect=False):
     if kin != 'k1':
         raise NotImplementedError('enumerate_skel supports k1 only')
     edges = [tuple(e) for e in edges]
@@ -843,6 +875,7 @@ def enumerate_skel(edges, verts, ext_attach, kin='k1'):
     emvm_seen = set()
     vm_seen = set()   # vm-level dedup (2026-09-18)
     found = {}
+    SURV = {}   # collect=True: (ek, vk) -> (cuts, em, vm)
 
     def run_checks(C1, C2, C3, C4, C5, C23, legreq):
         nonlocal total_cand, dup_cuts, skip_emvm, n_wide, n_path, n_vmdup
@@ -913,6 +946,9 @@ def enumerate_skel(edges, verts, ext_attach, kin='k1'):
             return
         vec = tuple(-F.V(m) if F.V(m) != F.INF else 'inf' for m in em) + (1,)
         found[(ek, vk)] = vec
+        if collect:
+            SURV[(ek, vk)] = (dict((kk, set(vv)) for kk, vv in cuts.items()),
+                              em, vm)
 
     for H in Hs:
         Hset = set(H)
@@ -1038,4 +1074,21 @@ def enumerate_skel(edges, verts, ext_attach, kin='k1'):
                                            C4, C5, frozenset(), legreq)
 
     info = {'dup_cuts': dup_cuts, 'skip_emvm': skip_emvm, 'wide_kill': n_wide, 'pathway': n_path, 'vm_dup': n_vmdup}
+    if collect:
+        info['survivors'] = [(vv,) + sv for vv, sv in sorted(
+            ((vv, SURV[k]) for k, vv in found.items()), key=lambda t: t[0])]
     return sorted(found.values()), total_cand, info
+
+# ---------------------------------------------------------------------------
+# unified entry with full records (interactive browser / plotting)
+def enumerate_surv(edges, verts, ext_attach, kin):
+    """k0 union / k1 engine / k2-k4 chain, returning full region records.
+    Returns (vecs, total, info); additionally
+    info['survivors'] = [(vec, cuts, em, vm), ...] sorted by vec —
+    the survivor shape the interactive browser and region_plot23 use.
+    [2026-09-21: takes over this role from fri23.enumerate_regions.]"""
+    if kin == 'k0':
+        return _k0_union(edges, verts, ext_attach, collect=True)
+    if kin == 'k1':
+        return enumerate_skel(edges, verts, ext_attach, kin, collect=True)
+    return enumerate_skelg(edges, verts, ext_attach, kin, collect=True)

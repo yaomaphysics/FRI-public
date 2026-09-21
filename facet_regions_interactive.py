@@ -8,6 +8,7 @@ runs (all paths relative to this project root):
     [2] spacelike-collinear
           [1] 2->2 (Regge)   -> spacelike_collinear/regge/fri_interactive.py
           [2] 2->3           -> spacelike_collinear/2to3/fri23_interactive.py
+          [3] mode stepper   -> spacelike_collinear/2to3/mode_level_interactive.py
 
 Every browser shares the same workflow: give a graph (topology + external
 kinematics ONLY — the cut formalism stays internal), enumerate ALL its
@@ -16,6 +17,9 @@ regions, list them, then
        (+ a concrete independent-loop-momentum basis with forced lines),
     2) Lee-Pomeransky parametric representation (scaling vectors),
     3) classification by characteristic (softest) mode.
+
+([3] is the exception: a stepper for the mode first-appearance ladder — no
+graph needed, just the five external-momentum modes.)
 
 Usage:
     python3 facet_regions_interactive.py
@@ -76,6 +80,12 @@ def run_fri23():
                 'fri_fri23_interactive', 'spacelike-collinear 2->3')
 
 
+def run_mode_ladder():
+    run_backend(os.path.join(HERE, 'spacelike_collinear', '2to3',
+                             'mode_level_interactive.py'),
+                'fri_mode_ladder', 'mode first-appearance ladder')
+
+
 def main():
     print('=' * 72)
     print('Facet Region Interpreter (FRI)')
@@ -97,14 +107,17 @@ def main():
             print('  spacelike-collinear:')
             print('    [1] 2->2 (Regge)')
             print('    [2] 2->3')
+            print('    [3] 2->3: mode first-appearance stepper')
             print('    [b] back')
-            s = _ask('sub-framework [1/2/b] > ', ('1', '2', 'b'))
+            s = _ask('sub-framework [1/2/3/b] > ', ('1', '2', '3', 'b'))
             if s == 'b':
                 break
             if s == '1':
                 run_regge()
             elif s == '2':
                 run_fri23()
+            elif s == '3':
+                run_mode_ladder()
     print('bye!')
 
 

@@ -211,6 +211,4 @@ Research-grade, version 0.1.0.  License: TBD.
 
 **Open items — regge.** 
 
-1. **Skeleton pruning method not yet implemented here.**
-
-2. **The treatments for k2--k4 should be more unified so that users can understand better.**
+1. **The treatments for k2--k4 should be more unified so that users can understand better.** I suppose this can be done once I finalize the "the cut structure should be derived" task.

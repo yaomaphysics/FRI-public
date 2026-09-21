@@ -5,7 +5,8 @@ Input: graph topology + external kinematics ONLY (the cut formalism is
 internal — the user never touches cuts).  External momenta p1..p5 attach
 at vertices 1,2,3,4,5.  The script:
 
-  1. enumerates ALL regions of the graph (fri23.enumerate_regions),
+  1. enumerates ALL regions of the graph (skeleton23: k0 union /
+     k1 engine / k2-k4 chain; the fri enumerator was retired 2026-09-21),
   2. lists them with numbers (scaling vector + non-empty cuts + edge-mode
      sequence), then offers a menu:
        1) Inspect specific regions — pick a subset ("3, 8--10" = regions
@@ -46,6 +47,7 @@ BASE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, BASE)
 import fri23
 import kin23
+import skeleton23
 from fri23 import INF, V, m_of, name, n_of
 
 EXT_ATTACH = {'p1': 1, 'p2': 2, 'p3': 3, 'p4': 4, 'p5': 5}
@@ -627,16 +629,22 @@ def run_graph(edges_raw, kin_name, verbose=False):
     if L >= 5:
         print('  [warning] L >= 5 may be slow')
     t0 = time.time()
-    surv, stats, total = fri23.enumerate_regions(edges, verts, EXT_ATTACH,
-                                                 ext_mode)
+    try:
+        _vecs, total, stats = skeleton23.enumerate_surv(edges, verts,
+                                                        EXT_ATTACH, kin_name)
+        surv = stats['survivors']
+    except Exception as e:
+        print(f'  [error] skeleton engine could not handle this input: {e}')
+        return
     dt = time.time() - t0
     regs = sorted(surv, key=lambda s: (tuple(float(x) for x in s[0]),
                                        tuple(name(m) for m in s[2])))
     print(f'  FRI regions: {len(regs)}  ({dt:.1f}s)')
     if verbose:
-        rej = ', '.join(f'{k}={v}' for k, v in sorted(stats.items()))
+        rej = ', '.join(f'{k}={v}' for k, v in sorted(stats.items())
+                        if k != 'survivors')
         print(f'  [stats] combos={total}  kept={len(regs)}  '
-              f'rejected: {rej or "none"}')
+              f'counters: {rej or "none"}')
     scal = set()
     for i, (vec, cuts, em, vm) in enumerate(regs, 1):
         scal.add(vec)

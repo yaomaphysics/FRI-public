@@ -32,8 +32,8 @@ API:
     render_regions(edges, verts, items, ext_mode=None, ext_attach=None,
                    outdir=None, image_size=720) -> [png paths]
         items = [(label, region), ...] with region = (vec, cuts, em, vm)
-        (the fri23.enumerate_regions survivor format); em/vm entries are
-        fri23 mode tuples.
+        (the survivors format: skeleton23.enumerate_surv, formerly
+        fri23.enumerate_regions); em/vm entries are fri23 mode tuples.
     render_atlas(edges, verts, items, ext_mode=None, ext_attach=None,
                  outdir=None, nrows=None, font=None) -> atlas PDF path
         Single A4 PDF atlas; rows/page auto (5-7, by the drawn content's
