@@ -78,7 +78,7 @@ Two kinematics classes are implemented — **wide-angle** and **collinear** (tim
   - *chain-level early kills* (Regge skeleton): most candidates are rejected by count/level conditions before the full overlap test (validated against the overlap condition in shadow mode — zero mis-kills);
   - *deduplication*: candidates are deduplicated by cut set and by vertex-mode assignment; the verdict depends only on the vertex modes, so repeats are skipped cheaply.
 
-In code: the pruned skeleton enumerators live in `wide_angle/skeleton.py` (the canonical implementation; `truncation_check.py` is the layered fallback for soft-external domains), `spacelike_collinear/regge/skeleton.py` and `spacelike_collinear/2to3/skeleton23.py`.
+In code: the pruned skeleton enumerators live in `wide_angle/skeleton.py` (the canonical implementation; soft externals included), `spacelike_collinear/regge/skeleton.py` and `spacelike_collinear/2to3/skeleton23.py`.
 
 ### Checks (subgraph requirements)
 
@@ -145,7 +145,6 @@ FRI-project/
 ├── wide_angle/                        # class 1: wide-angle scattering (canonical)
 │   ├── fri_demo.py                    #   built-in demonstrations
 │   ├── region_checker.py              #   mode algebra, components, mojetic (1VI) checks, IR compat, messengers
-│   ├── truncation_check.py            #   layered enumerator (C/H in layer 0; incl. layer prefilter)
 │   ├── skeleton.py                    #   pruned skeleton cut enumerator (p_i,q_j externals; n-leg)
 │   ├── usable_modes.py                #   IR-compat mode closure (compression)
 │   ├── primitives.py                  #   graph primitives + shared checks (incl. contracted-1VI)
@@ -180,8 +179,7 @@ Dependency ladder (each layer uses only the ones below):
 
 ```text
 wide_angle/
-  skeleton.py           skeleton enumerator (fast path; p_i/q_j domain)
-  truncation_check.py   layered enumerator (all domains; soft-external fallback)
+  skeleton.py           skeleton enumerator (all domains incl. soft externals)
   primitives.py         graph primitives + shared checks (incl. contracted-1VI)
   region_checker.py     mode algebra + region checks (base; no local deps)
 
@@ -202,23 +200,12 @@ spacelike_collinear/2to3/
 
 ## Validation
 
-Every implementation has been cross-checked against the region finder of
-[pySecDec](https://github.com/gudrunhe/secdec) (`find_regions`): the two
-region sets are compared as **sets of scaling vectors** (one entry per
-internal line, plus the smallness parameter).  All comparisons agree
-exactly.
+Every implementation has been cross-checked against the region finder of [pySecDec](https://github.com/gudrunhe/secdec) (`find_regions`): the two region sets are compared as **sets of scaling vectors** (one entry per internal line, plus the smallness parameter).  All comparisons agree exactly.  Each kinematics class is checked on **two complementary sets of graphs** — (1) hand-built diagrams that target specific region structures, and (2) random batches of 1000+ graphs that probe for unexpected ones — the two catch different kinds of mistakes.
 
-- **wide_angle**: ~830 configurations covering 45+ topologies (2→2 / 2→3 /
-  1→3, 3–5 loops, planar and nonplanar, including soft-emission families).
-  The pruned skeleton enumerator (p_i/q_j externals) reproduces the layered
-  region sets on all 255 lightlike 2→2 configurations (~30× faster overall),
-  and matches pySecDec on the five-point (2→3) wide-angle class at k0 (the
-  Frog family and a 500-graph random 4-loop batch).
-- **spacelike_collinear — regge**: the region files of 50 graphs in the six
-  kinematics k0–k5 (lightlike and off-shell external legs, $\lambda^2$-suppressed
-  virtualities).
-- **spacelike_collinear — 2to3**: ~1500 randomly generated 3-/4-loop graphs
-  in the five kinematics k0–k4, plus the 11-graph Frog family.
+- **wide_angle**: ~830 configurations covering 45+ topologies (2→2 / 2→3 / 1→3, 3–5 loops, planar and nonplanar, including soft-emission families).
+  The skeleton enumerator matches pySecDec on all 255 lightlike 2→2 configurations, and on random samples of 1,200 four-leg + 600 five-leg cases (on top of ~19,000 earlier random cases).
+- **spacelike_collinear — regge**: the region files of 56 graphs in the six kinematics k0–k5 (lightlike and off-shell external legs, $\lambda^2$-suppressed virtualities); random batches of 1000 + 1000 (3-loop) and 100 + 200 (4-loop) graphs over k0–k5 — all matching.
+- **spacelike_collinear — 2to3**: the 11-graph Frog family and 394 variants obtained by attaching a fifth external leg to the 2→2 topologies; random batches of 1000 3-loop, 500 4-loop, and 100 5-loop graphs in the five kinematics k0–k4 — all matching.
 
 ---
 

@@ -20,8 +20,8 @@ Usage:
 """
 import sys, os, time
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from read_graph import mode_str
-from truncation_check import kappa_of, run_layered
+from read_graph import mode_str, INF
+from skeleton import kappa_of, run as skeleton_run
 from facet_regions_interactive import (group_by_type,
                                   type_order, sc_short)
 
@@ -55,13 +55,11 @@ def run_graph(title, blurb, verts, edges, ext_attach, ext_mode, max_show=12):
     print()
 
     t0 = time.time()
-    layers = run_layered(verts, edges, ext_attach, ext_mode, brief=True,
-                         use_compression=True)
+    allr, _nc, _ = skeleton_run(verts, edges, ext_attach, ext_mode,
+                                verbose=False, overlap_strong=True)
     t_all = time.time() - t0
-    allr = [r for L in layers for r in L['regions']]
 
-    print(f'  regions     : {len(allr)} total (layered '
-          f'{[f"k={L['k']}:{L['ir']}" for L in layers]}; {t_all:.1f}s)')
+    print(f'  regions     : {len(allr)} total (skeleton; {t_all:.1f}s)')
     print(f'  TOTAL       : {len(allr)} regions')
     print()
 
@@ -84,26 +82,23 @@ def run_graph(title, blurb, verts, edges, ext_attach, ext_mode, max_show=12):
 
 # ---------------------------------------------------------------- demos
 def demo1():
-    from truncation_check import case_4pt3loop
     v, e, ea, em = case_4pt3loop()
     run_graph(
         'Demo 1 — 4-point 3-loop (paper §7.1 example)',
         'A textbook 8-vertex / 10-edge graph with p1=C1, p2=C2^2, p3=C3^inf, '
         'p4=C4^inf.  Known result (paper + pySecDec): 81 regions = '
-        '16 C/H + 65 other (S^2, SC, S types); layer 0 holds the 31 '
-        'no-shared-vertex regions (C/H merged into layer 0, 2026-09-09). ',
+        '16 C/H + 65 other (S^2, SC, S types). ',
         v, e, ea, em)
 
 
 def demo2():
-    from truncation_check import case_hypercrown
     v, e, ea, em = case_hypercrown('k1')
     run_graph(
         'Demo 2 — HyperCrown k1',
         'A 9-vertex ring graph (central vertex 5 attached to all 4 externals, '
         'ring 6-7-8-9).  Naive enumeration of cut combinations is huge, but '
-        'the layered construction + shared-vertex prefilter + mode '
-        'compression keeps it exact: pySecDec 71 = 71 regions.',
+        'the pruned skeleton + mode compression keeps it exact: '
+        'pySecDec 71 = 71 regions.',
         v, e, ea, em, max_show=8)
 
 
@@ -137,6 +132,46 @@ def demo4():
         '(2026-08-14).  pySecDec: 45 regions.  Scaling vectors show the '
         'full soft/collinear structure.',
         verts, edges, ext_attach, ext_mode)
+
+
+def case_4pt3loop():
+    """7.1 example: 8 vertices / 10 edges, p1=C1, p2=C2^2, p3=C3^inf, p4=C4^inf.
+    Known: 81 regions total = 16 C/H + 65 other."""
+    verts = [1, 2, 3, 4, 5, 6, 7, 8]
+    edges = [(1, 5), (1, 8), (2, 5), (2, 7), (3, 6), (3, 8), (4, 6), (4, 7),
+             (5, 6), (7, 8)]
+    ext_attach = {'p1': 1, 'p2': 2, 'p3': 3, 'p4': 4}
+    ext_mode = {'p1': (0, 1, 1), 'p2': (0, 2, 2), 'p3': (0, INF, 3),
+                'p4': (0, INF, 4)}
+    return verts, edges, ext_attach, ext_mode
+
+
+def case_hypercrown(k):
+    """12-propagator graph: central vertex 5 attached to all 4 externals,
+    ring 6-7-8-9-6 with one external each (6-p2, 7-p1, 8-p3, 9-p4).
+    Kinematics from verification/gen_hypercrown.py:
+      k1: p1^2~t1,   p2^2~t1,   p3^2=0, p4^2=0   (pySecDec 71, verified)
+      k2: p1^2~t1,   p2^2~t1^2, p3^2=0, p4^2=0   (pySecDec 130)
+      k3: p1^2~t1,   p2^2~t1^2, p3^2=m3s, p4^2=0 (pySecDec 82, verified)
+      k4: p1^2~t1,   p2^2~t1^2, p3^2~t1, p4^2=0
+      k5: p1^2~t1^2, p2^2~t1^3, p3^2=0, p4^2=0"""
+    verts = [1, 2, 3, 4, 5, 6, 7, 8, 9]
+    edges = [(1, 5), (1, 7), (2, 5), (2, 6), (3, 5), (3, 8), (4, 5), (4, 9),
+             (6, 7), (7, 8), (8, 9), (9, 6)]
+    ext_attach = {'p1': 1, 'p2': 2, 'p3': 3, 'p4': 4}
+    if k == 'k1':
+        ext_mode = {'p1': (0, 1, 1), 'p2': (0, 1, 2), 'p3': (0, INF, 3), 'p4': (0, INF, 4)}
+    elif k == 'k2':
+        ext_mode = {'p1': (0, 1, 1), 'p2': (0, 2, 2), 'p3': (0, INF, 3), 'p4': (0, INF, 4)}
+    elif k == 'k3':
+        ext_mode = {'p1': (0, 1, 1), 'p2': (0, 2, 2), 'p3': (0, 0, 0), 'p4': (0, INF, 4)}
+    elif k == 'k4':
+        ext_mode = {'p1': (0, 1, 1), 'p2': (0, 2, 2), 'p3': (0, 1, 3), 'p4': (0, INF, 4)}
+    elif k == 'k5':
+        ext_mode = {'p1': (0, 2, 1), 'p2': (0, 3, 2), 'p3': (0, INF, 3), 'p4': (0, INF, 4)}
+    else:
+        raise SystemExit(f'unknown hypercrown case {k}')
+    return verts, edges, ext_attach, ext_mode
 
 
 def main():

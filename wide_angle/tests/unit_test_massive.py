@@ -41,7 +41,7 @@ check(rc.massive_h_ok([(1, 5), (2, 5)], [H, (0, 1, 2)],
       'massless line may be soft: True')
 
 # ---- 2. Crown k0 with one massive line (1,5): 20 regions ----
-from truncation_check import all_regions
+import skeleton as SG
 
 verts = [1, 2, 3, 4, 5, 6]
 edges = [(1, 5), (2, 5), (3, 5), (4, 5), (1, 6), (2, 6), (3, 6), (4, 6)]
@@ -49,8 +49,8 @@ attach = {'p1': 1, 'p2': 2, 'p3': 3, 'p4': 4}
 modes = {'p1': (0, 1, 1), 'p2': (0, 1, 2), 'p3': (0, 1, 3), 'p4': (0, 1, 4)}
 massive = {m15}
 
-regs = all_regions(verts, edges, attach, modes,
-                   use_compression=True, massive=massive)
+regs, _nc, _dt = SG.run(verts, edges, attach, modes, verbose=False,
+                        overlap_strong=True, massive=massive)
 total = len(regs)
 check(total == 20, f'Crown k0 + massive (1,5): 20 regions (got {total})')
 

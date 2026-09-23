@@ -13,8 +13,10 @@ Usage:
 import sys, os, time
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from read_graph import mode_str
-from truncation_check import all_regions, H
+from skeleton import run as skeleton_run
 import indep_loops as il
+
+H = (0, 0, 0)
 
 CASES = {}
 
@@ -76,7 +78,9 @@ def mtest1_k1():
 
 def regions_of(verts, edges, ext_attach, ext_mode):
     regs = {}
-    for vm, em in all_regions(verts, edges, ext_attach, ext_mode):
+    rlist, _nc, _dt = skeleton_run(verts, edges, ext_attach, ext_mode,
+                                   verbose=False, overlap_strong=True)
+    for vm, em in rlist:
         key = (tuple(tuple(m) for m in em))
         regs.setdefault(key, (vm, em))
     return list(regs.values())

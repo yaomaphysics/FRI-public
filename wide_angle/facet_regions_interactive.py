@@ -45,8 +45,7 @@ warnings.filterwarnings('ignore', category=SyntaxWarning)
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from read_graph import mode_str, INF
 from indep_loops import indep_loops
-from truncation_check import all_regions, kappa_of
-from skeleton import run as skeleton_run, has_soft_externals
+from skeleton import run as skeleton_run, kappa_of
 H = (0, 0, 0)
 
 # ---------------------------------------------------------------- mode parsing
@@ -91,21 +90,13 @@ def ask(label, default=None):
 
 # ---------------------------------------------------------------- enumeration
 def enumerate_regions(verts, edges, ext_attach, ext_mode):
-    """All regions of the graph.  On the validated domain (externals all
-    p_i q_j-type) this uses the skeleton enumerator (pruned; verified
-    set-equal on the corpus, 2026-09-17/18).  If any external is soft
-    (S^mC^n / S^m), it falls back to the layered enumerator (小马
-    2026-09-18: soft externals excluded until revisited).
+    """All regions of the graph (skeleton enumerator; soft externals
+    included since the 2026-09-20 spec — validated on the soft corpora).
     Returns list of (vm, em)."""
     regs = {}
-    if not has_soft_externals(ext_mode):
-        regions, _nc, _dt = skeleton_run(verts, edges, ext_attach, ext_mode,
-                                         verbose=False, overlap_strong=True)
-        for vm, em in regions:
-            regs.setdefault(tuple(tuple(m) for m in em), (vm, em))
-        return list(regs.values())
-    for vm, em in all_regions(verts, edges, ext_attach, ext_mode,
-                              use_compression=True):
+    regions, _nc, _dt = skeleton_run(verts, edges, ext_attach, ext_mode,
+                                     verbose=False, overlap_strong=True)
+    for vm, em in regions:
         regs.setdefault(tuple(tuple(m) for m in em), (vm, em))
     return list(regs.values())
 
