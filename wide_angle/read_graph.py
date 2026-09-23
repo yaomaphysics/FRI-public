@@ -59,23 +59,13 @@ def mode_str(md):
     return f'S^{m}C_{i}^{n}'
 
 # ---------------- parsing of user input ----------------
-def parse_edges_m(raw):
-    """Parse '[1,6],[1,5],...' into (edges, massive_set).
-
-    Each entry may carry an optional third column marking a BIG-massive
-    propagator (m_i = O(1), same scale as the hard momenta):
-        [a,b]        massless
-        [a,b,'m']    big mass   (also accepts 'M', 1, '1', any non-'0' label)
-
-    Returns edges as a sorted list of frozensets and massive as a set of
-    frozensets (empty when no massive lines).  Masses treated as 0 are
-    simply omitted (or given as '0').
-    """
+def parse_edges(raw):
+    """Parse '[1,6],[1,5],...' into a sorted list of frozenset pairs."""
     pairs = re.findall(
         r'\[\s*([^,\]^]+?)\s*,\s*([^\]^]+?)\s*(?:,\s*(.*?)\s*)?\]',
         raw)
-    edges, massive = [], set()
-    for a, b, mcol in pairs:
+    edges = []
+    for a, b, _mcol in pairs:
         a, b = a.strip(), b.strip()
         # try to interpret labels as ints when possible
         try:
@@ -86,21 +76,10 @@ def parse_edges_m(raw):
             b = int(b)
         except ValueError:
             pass
-        e = frozenset((a, b))
-        edges.append(e)
-        mcol = (mcol or '').strip().strip("'\"")
-        if mcol and mcol not in ('0', 'None'):
-            massive.add(e)
+        edges.append(frozenset((a, b)))
     # deduplicate (undirected, order-free)
     edges = list(dict.fromkeys(edges))
-    return sorted(edges, key=lambda e: tuple(sorted(e, key=str))), massive
-
-
-def parse_edges(raw):
-    """Parse '[1,6],[1,5],...' into a sorted list of frozenset pairs.
-    (Massive third-column markers are ignored here; use parse_edges_m.)"""
-    edges, _ = parse_edges_m(raw)
-    return edges
+    return sorted(edges, key=lambda e: tuple(sorted(e, key=str)))
 
 def parse_externals(raw):
     """Parse "['p1',1,C1],['p2',2,C2^2],..." into [(name, vertex, mode_tuple)].
@@ -202,19 +181,7 @@ def analyze_kinematics(exts):
 
 # ---------------- interactive input (reusable) ----------------
 def input_graph():
-    """Interactive graph input: returns (verts, edges, ext_attach, ext_mode).
-    (massive markers, if any, are dropped — see input_graph_m.)"""
-    verts, edges, ext_attach, ext_mode, _ = input_graph_m()
-    return verts, edges, ext_attach, ext_mode
-
-
-def input_graph_m():
-    """Interactive graph input with massive support.
-
-    Edges may carry a third column: [a,b] (massless) or [a,b,'m'] (big
-    mass, forced hard).  Returns
-    (verts, edges, ext_attach, ext_mode, massive).
-    """
+    """Interactive graph input: returns (verts, edges, ext_attach, ext_mode)."""
     # Ensure arrow keys / line editing work (readline may not be active by
     # default in some terminals / wrappers).
     try:
@@ -223,12 +190,11 @@ def input_graph_m():
         pass
     print('Step 1: please enter the edges of the graph.')
     print('Format:  [a,b],[c,d],...   (e.g. [1,2],[1,3],[2,3] for a triangle graph)')
-    print('Each [x,y] is an undirected line between vertex x and vertex y;')
-    print("add a third column for a big-massive line:  [a,b,'m'].")
+    print('Each [x,y] is an undirected line between vertex x and vertex y.')
     raw = input('Edges> ').strip()
     if not raw:
         print('ERROR: no input.'); sys.exit(1)
-    edges, massive = parse_edges_m(raw)
+    edges = parse_edges(raw)
     verts = set()
     for e in edges:
         verts |= set(e)
@@ -252,7 +218,7 @@ def input_graph_m():
               f'Continuing with {n_parsed}.')
     ext_attach = {n: v for (n, v, md) in exts}
     ext_mode = {n: md for (n, v, md) in exts}
-    return sorted(verts, key=str), edges, ext_attach, ext_mode, massive
+    return sorted(verts, key=str), edges, ext_attach, ext_mode
 
 # ---------------- main interactive flow ----------------
 def main():

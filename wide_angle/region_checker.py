@@ -20,28 +20,6 @@ from itertools import combinations
 INF = 10**9
 
 def V(m): return 2*m[0] + m[1]
-def massive_h_ok(edges, em, massive=frozenset()):
-    """Big-massive propagators (m_i = O(1)) must stay in the HARD mode.
-
-    Physics (massive prescription, 2026-08-15): with all internal
-    masses either 0 or O(1) and the small variables still the virtualities,
-    the regions are precisely those of the massless graph, constrained by
-    the requirement that every big-massive propagator is in H.  For a
-    soft/collinear line k^2 ~ lambda^n << m_i^2, the propagator
-    1/(k^2 - m_i^2) -> -1/m_i^2 + O(lambda^n): the line's scaling collapses
-    to an O(1) constant, so the mode is not self-consistent (the Landau
-    surface k^2 = m^2 meets neither the soft nor the collinear face).
-    Since the edge mode is the join of its endpoint modes, a massive edge
-    is H iff both endpoints are H.
-    """
-    if not massive:
-        return True
-    for e, md in zip(edges, em):
-        if md != (0, 0, 0) and frozenset(e) in massive:
-            return False
-    return True
-
-
 def norm(m):
     m0, n, i = m
     if n > INF//2: n = INF

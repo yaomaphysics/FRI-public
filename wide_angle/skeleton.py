@@ -329,8 +329,7 @@ def _paths_to_H(root, Hset, allowed, adj):
     return list(sets)
 
 
-def _check_combo(verts, edges_t, g, ext_attach, ext_mode, combo,
-                 seen_vm=None, massive=frozenset()):
+def _check_combo(verts, edges_t, g, ext_attach, ext_mode, combo, seen_vm=None):
     """copy of the enumerator's check chain (Step1 / FC / jet / mojetic / IR).
 
     seen_vm: optional set for vm-level dedup (2026-09-18).  em = meet(vm[u],
@@ -368,8 +367,6 @@ def _check_combo(verts, edges_t, g, ext_attach, ext_mode, combo,
         if accs:
             if not rc.eq(vee(accs), vm[v]):
                 return None
-    if not rc.massive_h_ok(edges_t, em, massive):
-        return None
     if not momentum_ok(g, em, ext_mode):
         return None
     if not jet_connected_ok(vm, em, edges_t):
@@ -421,8 +418,7 @@ def _k0_union_domain(ext_mode):
     return True
 
 
-def _run_k0_union(verts, edges, ext_attach, ext_mode, verbose=True,
-                  vm_dedup=True, massive=frozenset()):
+def _run_k0_union(verts, edges, ext_attach, ext_mode, verbose=True, vm_dedup=True):
     """k0 enumeration — union construction + the ">=2 cuts" rule (2026-09-18).
 
     Port of private/wide_angle_dev/dev_wa_skel0.py (validated region-identical
@@ -579,7 +575,7 @@ def _run_k0_union(verts, edges, ext_attach, ext_mode, verbose=True,
                 seen_ck.add(ck)
                 n_cand += 1
                 r = _check_combo(V, edges_t, g, ext_attach, ext_mode, assign,
-                                 seen_vm, massive)
+                                 seen_vm)
                 if r is None:
                     continue
                 vm, em = r
@@ -598,15 +594,14 @@ def _run_k0_union(verts, edges, ext_attach, ext_mode, verbose=True,
 
 def run(verts, edges, ext_attach, ext_mode, verbose=True, use_overlap=True,
         use_route=True, overlap_strict=True, overlap_strong=True,
-        overlap_level=True, cfg_out=None, allow_soft=True, vm_dedup=True,
-        massive=frozenset()):
+        overlap_level=True, cfg_out=None, allow_soft=True, vm_dedup=True):
     t0 = time.time()
     # soft externals: supported since the 2026-09-20 spec; validated against
     # the soft corpora (464/464).  allow_soft kept for backward compatibility
     # (no-op).
     # k0: always the union construction (single-path route removed 2026-09-20).
     r = _run_k0_union(verts, edges, ext_attach, ext_mode,
-                      verbose=verbose, vm_dedup=vm_dedup, massive=massive)
+                      verbose=verbose, vm_dedup=vm_dedup)
     if r is not None:
         return r
     kappa = kappa_of(ext_mode)
@@ -916,7 +911,7 @@ def run(verts, edges, ext_attach, ext_mode, verbose=True, use_overlap=True,
                 seen_ck.add(ck)
                 n_cand += 1
                 r = _check_combo(V, edges_t, g, ext_attach, ext_mode, assign,
-                                 seen_vm if vm_dedup else None, massive)
+                                 seen_vm if vm_dedup else None)
                 if r is None:
                     continue
                 vm, em = r

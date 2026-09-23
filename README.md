@@ -121,7 +121,6 @@ python3 spacelike_collinear/2to3/mode_level_interactive.py
 
 # self-checks and small demos (plain scripts, no pytest needed)
 python3 wide_angle/tests/unit_test_messenger_sc.py
-python3 wide_angle/tests/unit_test_massive.py
 python3 wide_angle/tests/indep_loops_demo.py
 python3 spacelike_collinear/regge/mode_levels.py --check
 python3 spacelike_collinear/2to3/mode_levels.py --check
