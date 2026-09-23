@@ -2,7 +2,7 @@
 
 A graph-theoretic **region finder** for multiscale Feynman integrals. Given a graph (topology + external momenta) in the context of **massless scattering**, which we classify into the **wide-angle** and **collinear** types based on their kinematics, FRI constructs **all facet regions** of the asymptotic expansion directly from the graph — the majority, and mostly the entire list of regions. The construction is based on understandings of the all-order region structures in momentum space, without any Feynman-polynomial computation or polytope geometry.
 
-For the wide-angle kinematics, the region-structure understanding is from the paper *"All-order prescription for facet regions in massless wide-angle scattering"* (arXiv:2601.22144). FRI is supposed to enumerate the whole list of facet regions for any Feynman graph under the following conditions.
+For the wide-angle kinematics, the region-structure understanding is from the paper *"All-order prescription for facet regions in massless wide-angle scattering"* ([arXiv:2601.22144](https://arxiv.org/abs/2601.22144)). FRI is supposed to enumerate the whole list of facet regions for any Feynman graph under the following conditions.
 1. The external momenta are within the following three types:
     (1) the "on-shell momenta" $p_i$, each close to a lightcone ($p_i^2$ small or 0);
     (2) the "off-shell momenta" $q_j$, each with $q_j^2 \sim 1$ (not small);
@@ -30,11 +30,11 @@ In the context of wide-angle kinematics, the possible modes are:
 - $C_i^n$ — collinear in direction *i* with virtuality $\sim\lambda^n$ ($n$ up to $\infty$ for being precisely lightlike),
 - $S^m$ — soft with virtuality $\sim\lambda^{2m}$,
 - $S^m C_i^n$ — soft-collinear in direction *i* with virtuality $\sim\lambda^{2m+n}$ ($n$ up to $\infty$).
-For more detail, see section 3.2 of arXiv:2601.22144.
+For more detail, see section 3.2 of [arXiv:2601.22144](https://arxiv.org/abs/2601.22144).
 
 In collinear kinematics, on top of these modes above, we also have:
 - $sH$ — semihard, with all the components $\sim\sqrt{\lambda}$,
-- $G$ — Glauber (in the current version of FRI, the only Glauber mode involved is $(\lambda, \lambda, \sqrt{\lambda})$),
+- $G$ — Glauber (in the current version of FRI, the only Glauber mode involved is ($\lambda, \lambda, \sqrt{\lambda}$)),
 - $C_i^nC_{ij}$ — collinear in direction *i* with virtuality $\sim\lambda^{n+1}$ ($n$ up to $\infty$ for being precisely lightlike), this notation is for parton *i* when partons *i* and *j* have momenta collinear to each other.
 - $S^mC_i^nC_{ij}$ — soft-collinear in direction *i* with virtuality $\sim\lambda^{2m+n+1}$.
 
@@ -68,60 +68,25 @@ Two kinematics classes are implemented — **wide-angle** and **collinear** (tim
 
 ### Enumeration (cuts, overlay, pruning)
 
-- **Cut construction.**  Every external leg of a refinement-chain type ($C_i^n$, $C_i^nC_{ij}$) whose root is not inside the hard subgraph *H* receives a route to *H* (routes of different legs are kept disjoint);
-  cuts are connected vertex sets containing the leg root, built on nested
-  levels that are confined to their allowed vertex regions and kept off
-  the other legs' routes.  At the lowest tier (k0) the construction
-  reduces to a union form with "≥ 2" leftover rules and corner pruning.
-- **Overlay.**  A configuration of cuts is overlaid on the graph: every
-  vertex takes the meet of the modes of the cuts covering it (*H* if
-  none), every edge the meet of its endpoints — yielding the
-  momentum-space mode assignment (the scaling vector) of the candidate
-  region.
-- **Filtering.**  Every subject cut must share vertices with partner cuts
-  of other directions under the kinematics-specific overlap condition
-  (in the layered refinements: two partner directions of matching total
-  power); route exclusivity keeps every cut off the other legs' paths.
-- **Pruning and fast paths** (all designed to be behaviour-preserving;
-  validated by old-vs-new A/B comparisons plus the cross-checks below):
-  - *bitmask fast path* (2026-09-22): cut sets are additionally carried as
-    bitmasks, so dedup keys become fixed-slot integer arrays and the
-    overlap/route tests become bit intersections — masks are cached per
-    graph and computed once along a chain;
-  - *per-graph refinement levels* (2026-09-21): the cut-chain levels that
-    can contribute are read off the mode first-appearance ladder
-    ($L = E - V + 1$), so needless refinement levels are never enumerated;
-  - *layer compression* (wide-angle): only the usable cut layers are
-    enumerated; higher towers collapse to their lower equivalent counts;
-  - *chain-level early kills* (Regge skeleton): most candidates are
-    rejected by count/level conditions before the full overlap test
-    (validated against the overlap condition in shadow mode — zero
-    mis-kills);
-  - *deduplication*: candidates are deduplicated by cut set and by
-    vertex-mode assignment; the verdict depends only on the vertex modes,
-    so repeats are skipped cheaply.
+- **Cut construction.**  Every external leg of a refinement-chain type ($C_i^n$, $C_i^nC_{ij}$) whose root is not inside the hard subgraph *H* receives a route to *H* (routes of different legs are kept disjoint); cuts are connected vertex sets containing the leg root, built on nested levels that are confined to their allowed vertex regions and kept off the other legs' routes.  At the lowest tier (k0) the construction reduces to a union form with "≥ 2" leftover rules and corner pruning.
+- **Overlay.**  A configuration of cuts is overlaid on the graph: every vertex takes the meet of the modes of the cuts covering it (*H* if none), every edge the meet of its endpoints — yielding the momentum-space mode assignment (the scaling vector) of the candidate region.
+- **Filtering.**  Every subject cut must share vertices with partner cuts of other directions under the kinematics-specific overlap condition (in the layered refinements: two partner directions of matching total power); route exclusivity keeps every cut off the other legs' paths.
+- **Pruning and fast paths** (all designed to be behaviour-preserving; validated by old-vs-new A/B comparisons plus the cross-checks below):
+  - *bitmask fast path* (2026-09-22): cut sets are additionally carried as bitmasks, so dedup keys become fixed-slot integer arrays and the overlap/route tests become bit intersections — masks are cached per graph and computed once along a chain;
+  - *per-graph refinement levels* (2026-09-21): the cut-chain levels that can contribute are read off the mode first-appearance ladder ($L = E - V + 1$), so needless refinement levels are never enumerated;
+  - *layer compression* (wide-angle): only the usable cut layers are enumerated; higher towers collapse to their lower equivalent counts;
+  - *chain-level early kills* (Regge skeleton): most candidates are rejected by count/level conditions before the full overlap test (validated against the overlap condition in shadow mode — zero mis-kills);
+  - *deduplication*: candidates are deduplicated by cut set and by vertex-mode assignment; the verdict depends only on the vertex modes, so repeats are skipped cheaply.
 
-In code: the pruned skeleton enumerators live in `wide_angle/skeleton.py`
-(the canonical implementation; `truncation_check.py` is the layered
-fallback for soft-external domains), `spacelike_collinear/regge/skeleton.py`
-and `spacelike_collinear/2to3/skeleton23.py`.
+In code: the pruned skeleton enumerators live in `wide_angle/skeleton.py` (the canonical implementation; `truncation_check.py` is the layered fallback for soft-external domains), `spacelike_collinear/regge/skeleton.py` and `spacelike_collinear/2to3/skeleton23.py`.
 
 ### Checks (subgraph requirements)
 
-Every surviving configuration is judged by the same chain of subgraph
-requirements: momentum conservation at every vertex, jet connectivity
-(Coleman–Norton), one-vertex-irreducibility of the contracted mode
-components, the mojetic (hard–jet) condition, First Connectivity, and the
-per-component IR-compatibility fixpoint that removes the residual
-non-regions.  The requirements are derived in arXiv:2601.22144 for the
-wide-angle class; the collinear versions (Regge and the five-point 2→3
-kinematics) follow the same cycle of subgraph conditions with the
-collinear mode algebra and will be presented in a forthcoming work.  A
-non-region fails at a definite first check — that diagnosis is exactly
-what `scaleless_diagnosis.py` reports (wide-angle).  The check
-implementations live in `wide_angle/region_checker.py`,
-`spacelike_collinear/regge/regge_core.py` and
-`spacelike_collinear/2to3/fri23.py`.
+Every surviving configuration is judged by the same chain of subgraph requirements: momentum conservation at every vertex, jet connectivity (Coleman–Norton), one-vertex-irreducibility of the contracted mode components, the mojetic (hard–jet) condition, First Connectivity, and the per-component IR-compatibility fixpoint that removes the residual
+non-regions.
+The requirements are derived in [arXiv:2601.22144](https://arxiv.org/abs/2601.22144) for the wide-angle class; the collinear versions (Regge and the five-point 2→3 kinematics) follow the same cycle of subgraph conditions with the collinear mode algebra and will be presented in a forthcoming work.
+A non-region fails at a definite first check — that diagnosis is exactly what `scaleless_diagnosis.py` reports (wide-angle).
+The check implementations live in `wide_angle/region_checker.py`, `spacelike_collinear/regge/regge_core.py` and `spacelike_collinear/2to3/fri23.py`.
 
 ---
 
