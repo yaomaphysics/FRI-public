@@ -38,6 +38,11 @@ Conditions (agreed with 小马):
 Validated domain: p_i q_j externals (2026-09-18).  Soft externals
 (S^mC^n / S^m, m>=1): the 2026-09-20 extended spec is implemented but
 still under validation — refused by default; pass allow_soft=True to run.
+* 2026-09-22 fast path (ported from the regge skeleton): cut sets carry
+  bitmasks alongside the sets; cut-dedup keys, route and overlap checks are
+  mask-based (per-graph memoization; fixed-slot int arrays).  Semantically
+  identical — verified by old-vs-new A/B (region sets + per-case counters
+  byte-identical, 2026-09-22).
 
 (v1/v2/v3/v3.2 development history preserved in
 private/skeleton_rules_history.md.)
@@ -71,6 +76,28 @@ def _connected(S, adj):
             if w in S and w not in seen:
                 st.append(w)
     return seen == S
+
+
+def _make_mk(verts):
+    """Bitmask helper (2026-09-22 fast path, ported from the regge skeleton):
+    frozenset(vertices) -> int mask, cached per graph.  Injective on subsets
+    of `verts` (bit i <-> verts[i]): mask equality == vertex-set equality
+    (coincidence/exemption tests) and mask & mask == shared vertices
+    (overlap/route checks).  Empty set -> 0; masks are never negative, so
+    the value -1 in dedup keys can safely mean "cut absent"."""
+    bidx = {v: 1 << i for i, v in enumerate(verts)}
+    cache = {}
+
+    def mk(S):
+        r = cache.get(S)
+        if r is None:
+            r = 0
+            for v in S:
+                r |= bidx[v]
+            cache[S] = r
+        return r
+
+    return mk
 
 
 def _conn_sets(root, allowed, adj):
@@ -122,7 +149,9 @@ def _check_combo(verts, edges_t, g, ext_attach, ext_mode, combo, seen_vm=None):
     """
     vm = {}
     for v in verts:
-        incuts = [cut.mode for (cut, S) in combo if v in S]
+        # combo entries: (cut, set, mask); tolerant unpack keeps older dev
+        # callers (cut, set) working
+        incuts = [cut.mode for cut, S, *_rest in combo if v in S]
         if not incuts:
             vm[v] = H
         else:
@@ -131,7 +160,9 @@ def _check_combo(verts, edges_t, g, ext_attach, ext_mode, combo, seen_vm=None):
                 acc = rc.meet(acc, md)
             vm[v] = rc.norm(acc)
     if seen_vm is not None:
-        key_m = frozenset((v, vm[v]) for v in verts)
+        # key = vm mapping in fixed vertex order (tuple builds/hashes cheaper
+        # than a frozenset of pairs; 2026-09-22)
+        key_m = tuple(vm[v] for v in verts)
         if key_m in seen_vm:
             return None
         seen_vm.add(key_m)
@@ -218,6 +249,7 @@ def _run_k0_union(verts, edges, ext_attach, ext_mode, verbose=True, vm_dedup=Tru
     if not _k0_union_domain(ext_mode):
         return None
     V = sorted(verts); Vset = set(V)
+    mk = _make_mk(V)                  # (set, mask) pairs built once, below
     adj = defaultdict(set)
     for a, b in edges:
         adj[a].add(b); adj[b].add(a)
@@ -242,6 +274,8 @@ def _run_k0_union(verts, edges, ext_attach, ext_mode, verbose=True, vm_dedup=Tru
     for n in legs:
         if len(ext_cuts[n]) != 1:
             return None          # not plain single-level C_i^1 -> old path
+    SLOTS0 = sorted(ext_cuts[n][0].name for n in legs)
+    SIDX0 = {nm: k for k, nm in enumerate(SLOTS0)}
     Hs = [frozenset(S) for r in range(1, len(V) + 1)
           for S in itertools.combinations(V, r) if _connected(S, adj)]
     n_corner = 0
@@ -318,29 +352,35 @@ def _run_k0_union(verts, edges, ext_attach, ext_mode, verbose=True, vm_dedup=Tru
             for n in legs:
                 P = Pmap[n]
                 if not P:
-                    Csets[n] = [frozenset()]
+                    Csets[n] = [(frozenset(), 0)]      # empty set -> mask 0
                     continue
                 dom = alw[n] - (u - set(P))
                 opts = _conn_supersets(P, dom, adj)
                 if not opts:
                     okc = False
                     break
-                Csets[n] = opts
+                # carry (set, mask) with each cut; the inner loops use masks
+                Csets[n] = [(S, mk(S)) for S in opts]
             if not okc:
                 continue
             for Ccomb in itertools.product(*[Csets[n] for n in legs]):
                 if lf:
                     viol = False
                     for v in lf:
-                        cntc = sum(1 for Cc in Ccomb if v in Cc)
+                        cntc = sum(1 for (S, _m) in Ccomb if v in S)
                         if cntc < 2:
                             viol = True
                             break
                     if viol:
                         n_rule_kill += 1
                         continue
-                assign = [(ext_cuts[n][0], Cc) for n, Cc in zip(legs, Ccomb) if Cc]
-                ck = tuple(sorted((c.name, tuple(sorted(S))) for c, S in assign))
+                assign = [(ext_cuts[n][0], S, m) for n, (S, m) in zip(legs, Ccomb) if S]
+                # fixed-slot dedup key: arr[cut slot] = cut mask,
+                # -1 = cut absent (masks are >= 0 -> sentinel is safe)
+                arr = [-1] * len(SLOTS0)
+                for c, _S, m in assign:
+                    arr[SIDX0[c.name]] = m
+                ck = tuple(arr)
                 if ck in seen_ck:
                     n_dup += 1
                     continue
@@ -351,7 +391,8 @@ def _run_k0_union(verts, edges, ext_attach, ext_mode, verbose=True, vm_dedup=Tru
                 if r is None:
                     continue
                 vm, em = r
-                key = frozenset((v, vm[v]) for v in V)
+                # fixed-order tuple key (2026-09-22; same dedup semantics)
+                key = tuple(vm[v] for v in V)
                 if key not in regions:
                     regions[key] = (vm, em)
     dt = time.time() - t0
@@ -381,6 +422,9 @@ def run(verts, edges, ext_attach, ext_mode, verbose=True, use_overlap=True,
     kappa = TC.kappa_of(ext_mode)
     V = sorted(verts)
     Vset = set(V)
+    mk = _make_mk(V)                  # per-graph bitmask helper
+    # external-attachment masks (soft-support test below =  m & emask[ln_])
+    emask = {ln_: mk(frozenset({ext_attach[ln_]})) for ln_ in ext_mode}
     adj = defaultdict(set)
     for a, b in edges:
         adj[a].add(b); adj[b].add(a)
@@ -423,6 +467,10 @@ def run(verts, edges, ext_attach, ext_mode, verbose=True, use_overlap=True,
         allowed_by_cut[name] = [TC.cut_allowed_vertices(verts, edges, ext_attach,
                                                         ext_mode, name, c.mode)
                                 for c in cs]
+    # fixed slot order for cut-dedup keys: a candidate's key is the int
+    # array  arr[SIDX[cut.name]] = cut mask  (-1 = cut absent)
+    SLOTS = sorted({c.name for n in ext_cuts for c in ext_cuts[n]})
+    SIDX = {nm: k for k, nm in enumerate(SLOTS)}
     # 小马 2026-09-20: a C_i^a cut may not contain the incident vertex of a
     # soft leg (S^mC_j^n / S^m, m>=1) when a > m (paths may; cuts may not).
     # [A/B escape: FRI_NO_SOFTCUT_RESTRICTION=1]
@@ -512,8 +560,10 @@ def run(verts, edges, ext_attach, ext_mode, verbose=True, use_overlap=True,
                     for P in path_assign.values():
                         blocked |= P
                     alw = [a - blocked for a in alw]
-                    chain_opts[n] = TC.nested_chains(verts, edges, root,
-                                                     len(cs), alw)
+                    # chain elements carry (set, mask) — built once, reused
+                    chain_opts[n] = [
+                        tuple((S, mk(S)) for S in ch)
+                        for ch in TC.nested_chains(verts, edges, root, len(cs), alw)]
                     continue
                 # C_i^m-type: base cut must contain a root->H path.
                 P = path_assign[n]
@@ -538,18 +588,26 @@ def run(verts, edges, ext_attach, ext_mode, verbose=True, use_overlap=True,
                 if not chains:
                     okc = False
                     break
-                chain_opts[n] = chains
+                # chain elements carry (set, mask) — inner loops stay mask-only
+                chain_opts[n] = [tuple((S, mk(S)) for S in ch)
+                                 for ch in chains]
             if not okc:
                 continue
             leglist = sorted(chain_opts.keys())
+            # route masks: P_j as a bitmask (route test:  m & pmask[jn])
+            pmask = {jn: mk(P) for jn, P in path_assign.items()}
             for combo_chains in itertools.product(*[chain_opts[n] for n in leglist]):
                 assign = []
                 for n, chain in zip(leglist, combo_chains):
                     cs = ext_cuts[n]
-                    for cut, S in zip(cs, chain):
+                    for cut, SM in zip(cs, chain):
+                        S, m = SM
                         if S:
-                            assign.append((cut, S))
-                ck = tuple(sorted((c.name, tuple(sorted(S))) for c, S in assign))
+                            assign.append((cut, S, m))
+                arr = [-1] * len(SLOTS)
+                for c, _S, m in assign:
+                    arr[SIDX[c.name]] = m
+                ck = tuple(arr)
                 if use_overlap:
                     # 小马 2026-09-17（WA 版, rev. 01:55）: every C_i^n cut
                     # with n < m must have nonempty overlap with some cut
@@ -558,14 +616,14 @@ def run(verts, edges, ext_attach, ext_mode, verbose=True, use_overlap=True,
                     # cannot happen when m = inf).  overlap = shared vertex,
                     # or an edge with endpoints in the two cuts respectively.
                     ok_ov = True
-                    for cut, S in assign:
+                    for cut, S, m in assign:
                         nm = cut.ext
                         md = ext_mode[nm]
                         if md[0] != 0:
                             continue          # only C_i^m-type externals
                         if cut.mode[1] < md[1]:  # n < m
                             if any(c2.ext == nm and c2.mode[1] > cut.mode[1]
-                                   and S2 == S for c2, S2 in assign):
+                                   and m2 == m for c2, S2, m2 in assign):
                                 continue      # coincides with a deeper
                                 # same-leg C_i^N cut (N > n) — 小马
                                 # 2026-09-20 (former rule: only the m-level
@@ -588,7 +646,7 @@ def run(verts, edges, ext_attach, ext_mode, verbose=True, use_overlap=True,
                                 # C_j^n) from >= 2 other directions j.
                                 sig = cut.mode[0] + cut.mode[1]
                                 by_dir = {}
-                                for c2, S2 in assign:
+                                for c2, S2, m2 in assign:
                                     if c2.ext == nm:
                                         continue
                                     j2 = c2.mode[2]
@@ -596,12 +654,17 @@ def run(verts, edges, ext_attach, ext_mode, verbose=True, use_overlap=True,
                                         continue
                                     if overlap_level and (c2.mode[0] + c2.mode[1]) != sig:
                                         continue
-                                    by_dir.setdefault(j2, set()).update(S2)
+                                    by_dir[j2] = by_dir.get(j2, 0) | m2
+                                # masks: pair_or ORs the pairwise ANDs; a bit
+                                # survives iff shared with >= 2 directions
                                 ok_st = False
-                                for v in S:
-                                    if sum(1 for vs in by_dir.values() if v in vs) >= 2:
-                                        ok_st = True
-                                        break
+                                dirs = list(by_dir.values())
+                                pair_or = 0
+                                for a_i in range(len(dirs)):
+                                    for b_i in range(a_i + 1, len(dirs)):
+                                        pair_or |= dirs[a_i] & dirs[b_i]
+                                if m & pair_or:
+                                    ok_st = True
                                 if not ok_st:
                                     # (2) 小马 2026-09-20 (amended 14:52):
                                     # soft support — an external of soft
@@ -613,7 +676,7 @@ def run(verts, edges, ext_attach, ext_mode, verbose=True, use_overlap=True,
                                         md2 = ext_mode[ln_]
                                         if ln_ == nm or md2[0] != n_lv:
                                             continue
-                                        if ext_attach[ln_] in S:
+                                        if m & emask[ln_]:
                                             ok_st = True
                                             break
                                 if not ok_st:
@@ -621,11 +684,11 @@ def run(verts, edges, ext_attach, ext_mode, verbose=True, use_overlap=True,
                                     if os.environ.get('FRI_DEBUG_OVL'):
                                         print('OVL-STRONG-KILL %s %s S=%s assign=%s' % (
                                               nm, cut.name, sorted(S),
-                                              [(c.name, sorted(ss)) for c, ss in assign]),
+                                              [(c.name, sorted(ss)) for c, ss, _m2 in assign]),
                                               flush=True)
                                     break
                             else:
-                                others = [S2 for (c2, S2) in assign if c2.ext != nm]
+                                others = [S2 for (c2, S2, _m2) in assign if c2.ext != nm]
                                 if not any(_overlap(S, S2) for S2 in others):
                                     ok_ov = False
                                     break
@@ -636,9 +699,10 @@ def run(verts, edges, ext_attach, ext_mode, verbose=True, use_overlap=True,
                     # 小马 2026-09-17 18:02: S_k^(i) ∩ P_j = ∅ for i != j —
                     # no leg's cut layers may touch another leg's route P_j.
                     ok_rt = True
-                    for cut, S in assign:
-                        for jn, P in path_assign.items():
-                            if jn != cut.ext and (S & P):
+                    # mask test: route-exclusive cuts have  m & pmask[jn] == 0
+                    for cut, S, m in assign:
+                        for jn in path_assign:
+                            if jn != cut.ext and (m & pmask[jn]):
                                 ok_rt = False
                                 break
                         if not ok_rt:
@@ -648,7 +712,7 @@ def run(verts, edges, ext_attach, ext_mode, verbose=True, use_overlap=True,
                         if os.environ.get('FRI_DEBUG_ROUTE'):
                             print('ROUTE-KILL H=%s assign=%s paths=%s' % (
                                   sorted(Hset),
-                                  [(c.name, sorted(S)) for c, S in assign],
+                                  [(c.name, sorted(S)) for c, S, _m in assign],
                                   {n: sorted(P) for n, P in path_assign.items()}),
                                   flush=True)
                         continue
@@ -666,11 +730,12 @@ def run(verts, edges, ext_attach, ext_mode, verbose=True, use_overlap=True,
                 if r is None:
                     continue
                 vm, em = r
-                key = frozenset((v, vm[v]) for v in V)
+                # fixed-order tuple key (2026-09-22; same dedup semantics)
+                key = tuple(vm[v] for v in V)
                 if cfg_out is not None:
                     got = cfg_out.setdefault(key, [])
                     if len(got) < 200:
-                        got.append(list(assign))
+                        got.append([(c, S) for (c, S, _m) in assign])
                 if key not in regions:
                     regions[key] = (vm, em)
     dt = time.time() - t0

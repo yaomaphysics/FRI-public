@@ -37,6 +37,11 @@ appearance table — LEVELS = mode_levels.cut_chain_levels(ext_mode, L) with
 L = E - V + 1 (the needed refinement level of each chain is a function of the
 graph's loop count).  k1 engine: not wired (levels fixed); k0 union: none.
 
+Fast path (2026-09-22; ported from the wide-angle skeleton): cut sets carry
+bitmasks; the cut-dedup keys and the strong-overlap test are mask-based
+(fixed-slot int arrays; mk cached per enumeration).  Semantically identical —
+verified by old-vs-new A/B (vectors + per-case counters).
+
 Use:  enumerate_skelg(edges, verts, ext_attach, kin, use_overlap=True,
                       overlap_strict=False, overlap_strong=True)  # k0,k2,k3,k4
       enumerate_skel(edges, verts, ext_attach, kin='k1')          # k1
@@ -144,6 +149,38 @@ def _chain_tops(ext_mode):
     return M, levels
 
 
+def _make_mk(verts):
+    """Bitmask helper (fast path 2026-09-22, ported from the wide-angle
+    skeleton): frozenset(vertices) -> int mask, cached per enumeration.
+    Injective on subsets of `verts` (bit i <-> verts[i]): mask equality ==
+    vertex-set equality; mask & mask == shared vertices (used by the
+    cut-dedup keys and the strong-overlap test).  Inputs must be hashable
+    (frozensets) — the cache is keyed by the set itself."""
+    bidx = {v: 1 << i for i, v in enumerate(verts)}
+    cache = {}
+
+    def mk(S):
+        r = cache.get(S)
+        if r is None:
+            r = 0
+            for v in S:
+                r |= bidx[v]
+            cache[S] = r
+        return r
+
+    return mk
+
+
+# fixed slot order for the cut-dedup keys (fast path 2026-09-22); a
+# candidate's key is the int tuple  masks[nm] for nm in _CUT_SLOTS
+_CUT_SLOTS = ('C23', 'C1', 'C4', 'C5', 'C1R1', 'C4R1', 'C5R1',
+              'C2R1', 'C3R1', 'C2R2', 'C3R2')
+
+# strong-overlap subject (leg, level) -> cut slot name
+_SUB_NM = {(1, 1): 'C1', (1, 2): 'C1R1', (4, 1): 'C4', (4, 2): 'C4R1',
+           (5, 1): 'C5', (5, 2): 'C5R1', (2, 1): 'C2R1', (3, 1): 'C3R1'}
+
+
 def _refined_opts(root, base, forbid, adj):
     """refined_opts23 shape: empty + connected supersets of `root` inside
     base, avoiding `forbid`."""
@@ -228,6 +265,7 @@ def enumerate_skelg(edges, verts, ext_attach, kin, use_overlap=True,
         raise NotImplementedError('deeper chains not implemented yet (levels > 1)')
     edges = [tuple(e) for e in edges]
     V = sorted(verts)
+    mk = _make_mk(V)                  # fast path 2026-09-22 (bitmask cache)
     adj = {v: set() for v in V}
     for a, b in edges:
         adj[a].add(b); adj[b].add(a)
@@ -255,7 +293,14 @@ def enumerate_skelg(edges, verts, ext_attach, kin, use_overlap=True,
         cuts = {'C23': set(C23), 'C1': set(C1), 'C4': set(C4), 'C5': set(C5),
                 'C1R1': set(C1R1), 'C4R1': set(C4R1), 'C5R1': set(C5R1),
                 'C2R1': set(C2), 'C3R1': set(C3), 'C2R2': set(), 'C3R2': set()}
-        ck = tuple(sorted((k, tuple(sorted(v))) for k, v in cuts.items()))
+        # fast path (2026-09-22): bitmasks for the fixed cut slots; mk is
+        # cached per frozenset, so recurring partner cuts cost a dict lookup
+        masks = {'C23': mk(C23), 'C1': mk(C1), 'C4': mk(C4), 'C5': mk(C5),
+                 'C1R1': mk(C1R1), 'C4R1': mk(C4R1), 'C5R1': mk(C5R1),
+                 'C2R1': mk(C2), 'C3R1': mk(C3), 'C2R2': 0, 'C3R2': 0}
+        # fast path (2026-09-22): fixed-slot mask array as the dedup key
+        # (was: sorted (name, sorted-set-tuple) pairs — same equality classes)
+        ck = tuple(masks[nm] for nm in _CUT_SLOTS)
         if ck in cuts_seen:
             dup_cuts += 1
             return
@@ -282,12 +327,17 @@ def enumerate_skelg(edges, verts, ext_attach, kin, use_overlap=True,
             if C3 and 1 < m3 - 1:
                 subs.append((3, 1, C3))
 
-            def _lvl_cut(j, p):
-                """Direction-j cut with total C-power p: C_j^p for wide
-                j=1,4,5; C_j^{p-1}C23 for pair j=2,3 (p=1 -> C23)."""
-                d = {1: (C1, C1R1), 4: (C4, C4R1), 5: (C5, C5R1),
-                     2: (C23, C2), 3: (C23, C3)}[j]
-                return d[p - 1] if 1 <= p <= 2 else None
+            # fast path (2026-09-22): the partner cuts are tested as
+            # bitmasks — "shares a vertex with T1 and T2" <=> mSx & mT1 & mT2
+            def _lvl_mask(j, p):
+                """Direction-j cut with total C-power p (same naming as
+                before: C_j^p for wide j=1,4,5; C_j^{p-1}C23 for pair
+                j=2,3, p=1 -> C23), returned as a bitmask."""
+                if not (1 <= p <= 2):
+                    return None
+                nm = {1: ('C1', 'C1R1'), 4: ('C4', 'C4R1'), 5: ('C5', 'C5R1'),
+                      2: ('C23', 'C2R1'), 3: ('C23', 'C3R1')}[j][p - 1]
+                return masks[nm]
 
             for i, n, Sx in subs:
                 if overlap_strong:
@@ -296,20 +346,21 @@ def enumerate_skelg(edges, verts, ext_attach, kin, use_overlap=True,
                     # directions, both of total C-power p = n (wide) /
                     # n+1 (pair).  Overlap = shared vertex only.
                     p = n  # partners at total C-power n (小马 2026-09-19: the n+1 was a slip)
+                    mSx = masks[_SUB_NM[(i, n)]]
                     ok = False
                     for j1 in (1, 2, 3, 4, 5):
                         if j1 == i:
                             continue
-                        T1 = _lvl_cut(j1, p)
-                        if not T1:
+                        mT1 = _lvl_mask(j1, p)
+                        if not mT1:
                             continue
                         for j2 in (1, 2, 3, 4, 5):
                             if j2 == i or j2 == j1:
                                 continue
-                            T2 = _lvl_cut(j2, p)
-                            if not T2:
+                            mT2 = _lvl_mask(j2, p)
+                            if not mT2:
                                 continue
-                            if any(v in T1 and v in T2 for v in Sx):
+                            if mSx & mT1 & mT2:
                                 ok = True
                                 break
                         if ok:
@@ -345,7 +396,9 @@ def enumerate_skelg(edges, verts, ext_attach, kin, use_overlap=True,
             return
         em, vm = res
         ek = tuple((i, F.name(m)) for i, m in enumerate(em))
-        vk = tuple(sorted((w, F.name(m)) for w, m in vm.items()))
+        # fast path (2026-09-22): fixed vertex-order key (V is sorted; was
+        # sorted (vertex, name) pairs — same equality classes)
+        vk = tuple(F.name(vm[w]) for w in V)
         if (ek, vk) in emvm_seen:
             skip_emvm += 1
             return
@@ -601,6 +654,7 @@ def _k0_union(edges, verts, ext_attach,
     # excl_h + skip_if_lt2 + startpoints + corner_prune; dedup key includes H.
     edges = [tuple(e) for e in edges]
     V = sorted(verts)
+    mk = _make_mk(V)                  # fast path 2026-09-22 (bitmask cache)
     adj = {v: set() for v in V}
     for a, b in edges:
         adj[a].add(b)
@@ -668,7 +722,14 @@ def _k0_union(edges, verts, ext_attach,
         cuts = {'C23': set(C23), 'C1': set(C1), 'C4': set(C4), 'C5': set(C5),
                 'C1R1': set(), 'C4R1': set(), 'C5R1': set(),
                 'C2R1': set(), 'C3R1': set(), 'C2R2': set(), 'C3R2': set()}
-        ck = tuple(sorted((k, tuple(sorted(v))) for k, v in cuts.items()))
+        # fast path (2026-09-22): bitmasks for the fixed cut slots (the
+        # R1/R2 slots are always empty in this engine)
+        masks = {'C23': mk(C23), 'C1': mk(C1), 'C4': mk(C4), 'C5': mk(C5),
+                 'C1R1': 0, 'C4R1': 0, 'C5R1': 0, 'C2R1': 0, 'C3R1': 0,
+                 'C2R2': 0, 'C3R2': 0}
+        # fast path (2026-09-22): fixed-slot mask array as the dedup key
+        # (was: sorted (name, sorted-set-tuple) pairs — same equality classes)
+        ck = tuple(masks[nm] for nm in _CUT_SLOTS)
         if ck in cuts_seen:
             dup_cuts += 1
             return
@@ -682,7 +743,9 @@ def _k0_union(edges, verts, ext_attach,
             return
         em, vm = res
         ek = tuple((i, F.name(m)) for i, m in enumerate(em))
-        vk = tuple(sorted((w, F.name(m)) for w, m in vm.items()))
+        # fast path (2026-09-22): fixed vertex-order key (V is sorted; was
+        # sorted (vertex, name) pairs — same equality classes)
+        vk = tuple(F.name(vm[w]) for w in V)
         if (ek, vk) in emvm_seen:
             skip_emvm += 1
             return
@@ -855,6 +918,7 @@ def enumerate_skel(edges, verts, ext_attach, kin='k1', collect=False):
         raise NotImplementedError('enumerate_skel supports k1 only')
     edges = [tuple(e) for e in edges]
     V = sorted(verts)
+    mk = _make_mk(V)                  # fast path 2026-09-22 (bitmask cache)
     adj = {v: set() for v in V}
     for a, b in edges:
         adj[a].add(b); adj[b].add(a)
@@ -914,7 +978,14 @@ def enumerate_skel(edges, verts, ext_attach, kin='k1', collect=False):
         cuts = {'C23': set(C23), 'C1': set(C1), 'C4': set(C4), 'C5': set(C5),
                 'C1R1': set(), 'C4R1': set(), 'C5R1': set(),
                 'C2R1': set(C2), 'C3R1': set(C3), 'C2R2': set(), 'C3R2': set()}
-        ck = tuple(sorted((k, tuple(sorted(v))) for k, v in cuts.items()))
+        # fast path (2026-09-22): bitmasks for the fixed cut slots (the
+        # R1/R2 slots are always empty in this engine)
+        masks = {'C23': mk(C23), 'C1': mk(C1), 'C4': mk(C4), 'C5': mk(C5),
+                 'C1R1': 0, 'C4R1': 0, 'C5R1': 0, 'C2R1': mk(C2),
+                 'C3R1': mk(C3), 'C2R2': 0, 'C3R2': 0}
+        # fast path (2026-09-22): fixed-slot mask array as the dedup key
+        # (was: sorted (name, sorted-set-tuple) pairs — same equality classes)
+        ck = tuple(masks[nm] for nm in _CUT_SLOTS)
         if ck in cuts_seen:
             dup_cuts += 1
             return
@@ -928,7 +999,9 @@ def enumerate_skel(edges, verts, ext_attach, kin='k1', collect=False):
         if not uncovered_ok(edges, V, cuts):
             return
         ek = tuple((i, F.name(m)) for i, m in enumerate(em))
-        vk = tuple(sorted((w, F.name(m)) for w, m in vm.items()))
+        # fast path (2026-09-22): fixed vertex-order key (V is sorted; was
+        # sorted (vertex, name) pairs — same equality classes)
+        vk = tuple(F.name(vm[w]) for w in V)
         if (ek, vk) in emvm_seen:
             skip_emvm += 1
             return

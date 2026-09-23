@@ -733,7 +733,9 @@ def build_overlay(edges, verts, ext_attach, ext_mode, cuts, vm_seen=None):
                         return None, f'meet23:{e}'
         vm[v] = acc if acc is not None else H()
     if vm_seen is not None:
-        vkey = frozenset((v, vm[v]) for v in verts)
+        # fast path (2026-09-22): fixed vertex order (callers pass the
+        # sorted V); same equality classes as the old frozenset-of-pairs key
+        vkey = tuple(vm[v] for v in verts)
         if vkey in vm_seen:
             return None, 'vm-dup'
         vm_seen.add(vkey)
