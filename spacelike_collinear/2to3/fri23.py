@@ -842,6 +842,20 @@ def jets_ok(edges, verts, vm, em, ext_attach):
             return False, (tag, 'jet')
     return True, jvje
 
+# 小马 2026-09-23: the subgraph H ∪ C23 must be connected ("C23" = the whole
+# C23 mode subgraph, not the cut): the H- and C23-mode elements (vertices
+# plus their mode edges) must form one connected component.
+def h_c23_connected_ok(edges, verts, em, vm):
+    hv = {v for v in verts if vm.get(v) == H()}
+    cv = {v for v in verts if vm.get(v) == P(0, 0)}
+    vs = hv | cv
+    es = []
+    for e, m in zip(edges, em):
+        if m == H() or m == P(0, 0):
+            es.append(e)
+            vs.update(e)
+    return connected(vs, es)
+
 # the subgraph outside all cuts (H) must be nonempty and connected.
 def uncovered_ok(edges, verts, cuts):
     covered_v = set()
@@ -936,6 +950,13 @@ def marginally_softer23(src, dst):
             nd = n_of(dst)
             return nd != INF and m == nd
         return False
+    if isC(src) and isS(dst):
+        # soft-carrier -> pure soft: S^m X -> S^m (added 2026-09-23; was missing).
+        # Matches wide_angle.region_checker.marginal_softer and the regge MARGINAL_SOFTER
+        # rows ('S^1C13','S'), ('S^1C24','S'), ('S^1C1C13','S'), ('S^2C13','S^2')
+        # (all reduce to: carrier soft power == target soft power).
+        # (R066_v12 k3: without this branch the S#0 block could not be confirmed.)
+        return m_of(src) == dst[1]
     return False
 
 # relevance (path version): marginally softer + monotone path (V non-increasing), no pass-through H.
@@ -1248,23 +1269,27 @@ def _comp_adjacent(a_blk, b_blk, edges):
             if u in av or w in av: return True
     return False
 
-def messenger_targets(blk, mode, comps, edges, em, vm, ext_attach, ext_mode, debug=None):
+def messenger_targets(blk, mode, comps, edges, em, vm, ext_attach, ext_mode, debug=None,
+                      kernel=None, kernel_blocks=None):
     # Collect (dirs, targets) for the messenger check of the S^m block blk — FULL version
-    # (2026-09-19, WA-aligned).
+    # (2026-09-19, WA-aligned; kernel clouds added 2026-09-23 per the 2026-09-04 rules 1+2).
     #   Gamma^[m] = connected closure (vertex-contact) of all soft-power-m components around
-    #   the kernel block blk (S^m and S^m C^n members alike).
+    #   the kernel (S^m and S^m C^n members alike; kernel = the whole connected pure-S^m cloud
+    #   when given — several 1VI blocks joined through shared real S^m vertices).
     #   A target gamma_i counts iff the n_i-matched Gamma member is relevant to it:
-    #     n_i = 0  -> the KERNEL itself (only the checked block; no borrowing from other S blocks);
-    #     n_i >= 1 -> an S^m C_i^{n_i} member ADJACENT to the kernel.
+    #     n_i = 0  -> the KERNEL (the whole cloud may serve; no borrowing from other S blocks);
+    #     n_i >= 1 -> an S^m C_i^{n_i} member ADJACENT to the kernel (cloud).
     m = mode[1]
+    _kern = kernel if kernel is not None else blk
     pool = []
     for md, lst in comps.items():
         if m_of(md) != m: continue
         for i, b in enumerate(lst):
             pool.append((md, i, b))
     gmemb = [False] * len(pool)
+    _seeds = kernel_blocks if kernel_blocks else (blk,)
     for j in range(len(pool)):
-        if pool[j][2] is blk: gmemb[j] = True
+        if any(pool[j][2] is _kb for _kb in _seeds): gmemb[j] = True
     changed = True
     while changed:
         changed = False
@@ -1287,7 +1312,7 @@ def messenger_targets(blk, mode, comps, edges, em, vm, ext_attach, ext_mode, deb
             if n_i < 0: continue
             via = None
             if n_i == 0:
-                if relevant23(blk, d, md, edges, em, vm, mode):
+                if relevant23(_kern, d, md, edges, em, vm, mode):
                     via = 'kernel'
             else:
                 for j in range(len(pool)):
@@ -1295,7 +1320,7 @@ def messenger_targets(blk, mode, comps, edges, em, vm, ext_attach, ext_mode, deb
                     md2, i2, b2 = pool[j]
                     if depth_of(md2) != n_i: continue
                     if d_of(md2) != d_of(md): continue
-                    if not _comp_adjacent(b2, blk, edges): continue
+                    if not _comp_adjacent(b2, _kern, edges): continue
                     if relevant23(b2, d, md, edges, em, vm, md2):
                         via = name(md2)
                         break
@@ -1321,10 +1346,12 @@ def messenger_targets(blk, mode, comps, edges, em, vm, ext_attach, ext_mode, deb
                 debug.append((name(md), i, n_i, via))
     return dirs, targets
 
-def messenger_ok(blk, mode, comps, confirmed, edges, em, vm, ext_attach, ext_mode, info=None):
+def messenger_ok(blk, mode, comps, confirmed, edges, em, vm, ext_attach, ext_mode, info=None,
+                 kernel=None, kernel_blocks=None):
     # S^m messenger check — full Gamma^[m] form (WA-aligned; kernel + n_i-matched members,
     # connected closure; >=3 distinct directions; >=1 confirmed-relevant).
-    dirs, targets = messenger_targets(blk, mode, comps, edges, em, vm, ext_attach, ext_mode)
+    dirs, targets = messenger_targets(blk, mode, comps, edges, em, vm, ext_attach, ext_mode,
+                                      kernel=kernel, kernel_blocks=kernel_blocks)
     if info is not None:
         info.setdefault('messenger', []).append((name(mode), sorted(dirs)))
     if len(dirs) < 3: return False
@@ -1346,6 +1373,54 @@ def ir_ok(edges, verts, em, vm, ext_attach, ext_mode, dbg=None):
         comps[m] = mode_components(m, vm, em, edges, verts)
     # drop empty
     comps = {m: c for m, c in comps.items() if c}
+    # 2026-09-04 rules 1+2 (ported 2026-09-23; WA primitives): kernel clouds —
+    # blocks of the same pure-soft S^m mode joined (transitively) through shared
+    # REAL S^m vertices form ONE kernel; a messenger confirmation covers every
+    # confirmable block of that cloud (rule 2).
+    _cloud_of = {}
+    _pure_by = {}
+    for _md, _lst in comps.items():
+        if isS(_md):
+            _pure_by[_md] = _lst
+    for _md, _blocks in _pure_by.items():
+        if len(_blocks) == 1:
+            _cloud_of[id(_blocks[0])] = _blocks
+            continue
+        _par = {id(b): id(b) for b in _blocks}
+
+        def _uf(i, _par=_par):
+            while _par[i] != i:
+                _par[i] = _par[_par[i]]
+                i = _par[i]
+            return i
+
+        _vown = {}
+        for _b in _blocks:
+            for _v in _b[0]:
+                if _v == 'aux': continue
+                if _v in _vown:
+                    _ra, _rb = _uf(id(_b)), _uf(_vown[_v])
+                    if _ra != _rb: _par[_ra] = _rb
+                else:
+                    _vown[_v] = id(_b)
+        _roots = {}
+        for _b in _blocks:
+            _roots.setdefault(_uf(id(_b)), []).append(_b)
+        for _lst2 in _roots.values():
+            for _b in _lst2:
+                _cloud_of[id(_b)] = _lst2
+
+    def _make_kern(blk):
+        _lst = _cloud_of.get(id(blk))
+        if not _lst or len(_lst) == 1:
+            return None, None
+        _V = set()
+        _I = []
+        for _b in _lst:
+            _V |= {v for v in _b[0] if v != 'aux'}
+            if len(_b) > 2:
+                _I += list(_b[2])
+        return (_V, [tuple(edges[_i]) for _i in _I], _I), _lst
     confirmed = {}
     # tadpole gate (2026-09-12, ported from wide-angle primitives.py).
     # A soft-containing component (m >= 1) adjacent to NO harder-mode component is already a 1VI block of its own mode subgraph;
@@ -1452,8 +1527,19 @@ def ir_ok(edges, verts, em, vm, ext_attach, ext_mode, dbg=None):
             for i, blk in enumerate(lst):
                 if (sm, i) in confirmed: continue
                 if not _cond_allowed(sm, blk): continue
-                if messenger_ok(blk, sm, comps, confirmed, edges, em, vm, ext_attach, ext_mode, dbg):
-                    changed |= try_confirm(sm, i)
+                _kern, _kbs = _make_kern(blk)
+                if messenger_ok(blk, sm, comps, confirmed, edges, em, vm, ext_attach, ext_mode, dbg,
+                                kernel=_kern, kernel_blocks=_kbs):
+                    if try_confirm(sm, i):
+                        changed = True
+                        # rule 2 (2026-09-04): a messenger confirmation covers every
+                        # confirmable S^m block of the kernel cloud.
+                        if _kbs:
+                            _kids = {id(b) for b in _kbs}
+                            for j2, kb in enumerate(lst):
+                                if id(kb) in _kids and (sm, j2) not in confirmed \
+                                        and _cond_allowed(sm, kb):
+                                    changed |= try_confirm(sm, j2)
         if _DBG: print('  -- cond2 special-messenger --')
         # [condition 2] special messenger for the 23-collinear kinematics: simultaneously relevant to a C2C23 component, a C3C23 component, and a C_i component (i in 1,4,5), with >=1 of those confirmed.
         # [hidden path — approved 2026-09-19 15:15; (二) restated 17:06 (v-E)]

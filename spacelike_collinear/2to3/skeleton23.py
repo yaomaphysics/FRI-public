@@ -53,8 +53,8 @@ sys.path.insert(0, HERE)
 import fri23 as F
 import kin23 as K
 import mode_levels as ML
-from fri23 import (build_overlay, momentum_ok, jets_ok, uncovered_ok,
-                   mojetic_all_ok, island_ok, ir_ok, INF)
+from fri23 import (build_overlay, momentum_ok, jets_ok, h_c23_connected_ok,
+                   uncovered_ok, mojetic_all_ok, island_ok, ir_ok, INF)
 # ---- shared helpers (moved from skel23.py, 2026-09-20; that file was
 # removed) ----
 
@@ -408,6 +408,8 @@ def enumerate_skelg(edges, verts, ext_attach, kin, use_overlap=True,
         okinfo = jets_ok(edges, V, vm, em, ext_attach)
         if not okinfo[0]:
             return
+        if not h_c23_connected_ok(edges, V, em, vm):
+            return
         if not mojetic_all_ok(edges, V, vm, em, ext_attach, okinfo[1]):
             return
         if not island_ok(edges, V, em, vm):
@@ -755,6 +757,8 @@ def _k0_union(edges, verts, ext_attach,
         okinfo = jets_ok(edges, V, vm, em, ext_attach)
         if not okinfo[0]:
             return
+        if not h_c23_connected_ok(edges, V, em, vm):
+            return
         if not mojetic_all_ok(edges, V, vm, em, ext_attach, okinfo[1]):
             return
         if not island_ok(edges, V, em, vm):
@@ -1010,6 +1014,8 @@ def enumerate_skel(edges, verts, ext_attach, kin='k1', collect=False):
             return
         okinfo = jets_ok(edges, V, vm, em, ext_attach)
         if not okinfo[0]:
+            return
+        if not h_c23_connected_ok(edges, V, em, vm):
             return
         if not mojetic_all_ok(edges, V, vm, em, ext_attach, okinfo[1]):
             return
