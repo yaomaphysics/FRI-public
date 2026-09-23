@@ -33,7 +33,7 @@ Usage:
     python3 skeleton.py box k5 hexagon k4    # name kin [name kin ...]
 """
 import sys, os, time
-from itertools import combinations, product
+from itertools import combinations
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
