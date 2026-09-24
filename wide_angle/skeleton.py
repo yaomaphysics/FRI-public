@@ -52,10 +52,10 @@ from collections import defaultdict
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
-import region_checker as rc
-from primitives import Graph, vee, check_fc, momentum_ok, ir_ok_blocks
+from primitives import Graph, vee, eq, harder_or_eq, meet, norm
 from read_graph import mode_str, INF
-from region_checker import jet_connected_ok, cond1_ok
+from region_checker import (jet_connected_ok, cond1_ok, check_fc,
+                            momentum_ok, ir_ok_blocks)
 from usable_modes import derive_usable_modes, usable_layers
 
 H = (0, 0, 0)
@@ -147,7 +147,7 @@ def cut_allowed_vertices(verts, edges, ext_attach, ext_mode, k_name, k_md):
             md = ext_mode[n]
             if n == k_name:
                 allowed.add(v)
-            elif rc.eq(md, k_md) or rc.harder_or_eq(k_md, md):
+            elif eq(md, k_md) or harder_or_eq(k_md, md):
                 allowed.add(v)
     return allowed
 
@@ -347,8 +347,8 @@ def _check_combo(verts, edges_t, g, ext_attach, ext_mode, combo, seen_vm=None):
         else:
             acc = incuts[0]
             for md in incuts[1:]:
-                acc = rc.meet(acc, md)
-            vm[v] = rc.norm(acc)
+                acc = meet(acc, md)
+            vm[v] = norm(acc)
     if seen_vm is not None:
         # key = vm mapping in fixed vertex order (tuple builds/hashes cheaper
         # than a frozenset of pairs; 2026-09-22)
@@ -356,7 +356,7 @@ def _check_combo(verts, edges_t, g, ext_attach, ext_mode, combo, seen_vm=None):
         if key_m in seen_vm:
             return None
         seen_vm.add(key_m)
-    em = [rc.meet(vm[u], vm[v]) for (u, v) in edges_t]
+    em = [meet(vm[u], vm[v]) for (u, v) in edges_t]
     for v in verts:
         accs = []
         for ei in g.incident.get(v, []):
@@ -365,7 +365,7 @@ def _check_combo(verts, edges_t, g, ext_attach, ext_mode, combo, seen_vm=None):
             if vv == v:
                 accs.append(ext_mode[name])
         if accs:
-            if not rc.eq(vee(accs), vm[v]):
+            if not eq(vee(accs), vm[v]):
                 return None
     if not momentum_ok(g, em, ext_mode):
         return None
@@ -379,13 +379,6 @@ def _check_combo(verts, edges_t, g, ext_attach, ext_mode, combo, seen_vm=None):
     if not ir_ok_blocks(g, em, ext_mode):
         return None
     return vm, em
-
-
-def has_soft_externals(ext_mode):
-    """True iff any external has softness m >= 1 (S^mC^n / S^m).
-    p_i q_j is the fully validated domain (小马 2026-09-18); the soft-domain
-    spec (2026-09-20) is validated on the soft corpora (464/464)."""
-    return any(md[0] != 0 for md in ext_mode.values())
 
 
 def _comps(sub, adj):

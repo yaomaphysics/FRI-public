@@ -22,6 +22,7 @@ Graph: chain 1-2-3-4-5-6 plus branch 2-3 with the SC edge:
 import sys, os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import region_checker as rc
+from primitives import marginal_softer
 
 H = (0, 0, 0)
 S2 = (2, 0, 0)
@@ -48,8 +49,8 @@ attach = {}
 extmode = {}
 
 # sanity: the relevance facts the test depends on
-assert rc.marginal_softer(S2C1, C13), "S^2C_1 should be marginally softer than C_1^3"
-assert not rc.marginal_softer(S2, C13), "S^2 should NOT be marginally softer than C_1^3"
+assert marginal_softer(S2C1, C13), "S^2C_1 should be marginally softer than C_1^3"
+assert not marginal_softer(S2, C13), "S^2 should NOT be marginally softer than C_1^3"
 assert rc.relevant(sc, g1, verts, edges, all_comps), "S^2C_1 should reach C_1^3"
 assert not rc.relevant(kernel, g1, verts, edges, all_comps), "kernel should NOT reach C_1^3"
 assert rc.relevant(kernel, g2, verts, edges, all_comps), "kernel should reach C_2^2"

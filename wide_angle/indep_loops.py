@@ -151,7 +151,7 @@ def _connected_spanning(verts, edge_indices, edges2):
     return all(find(v) == root for v in verts)
 
 
-def indep_loops(edges, em, vm, rc=None):
+def indep_loops(edges, em, vm):
     """Per-mode independent loop momenta of a region.
 
     edges: list of (u, v) internal lines (order = index space).
@@ -163,8 +163,7 @@ def indep_loops(edges, em, vm, rc=None):
          'blocks': [{'verts': ..., 'tree': [...], 'basis': [...]}]}
     and validates Σ r_X = L.
     """
-    if rc is None:
-        import region_checker as rc
+    from primitives import eq
     H = (0, 0, 0)
     em2 = [m if m is not None else H for m in em]
 
@@ -177,7 +176,7 @@ def indep_loops(edges, em, vm, rc=None):
     total_rank = 0
     for X in sorted(emodes, key=lambda m: (m[0], m[1], m[2])):
         ex = emodes[X]
-        vx = {v for v, jm in vm.items() if rc.eq(jm, X)}
+        vx = {v for v, jm in vm.items() if eq(jm, X)}
         verts2 = set(vx) | {'aux'}
         edges2 = [('aux' if a not in vx else a,
                    'aux' if b not in vx else b) for (a, b) in edges]
@@ -217,7 +216,7 @@ def indep_loops(edges, em, vm, rc=None):
     return results, total_rank, L
 
 
-def forced_basis(edges, em, vm, F, rc=None):
+def forced_basis(edges, em, vm, F):
     """A concrete basis containing the forced lines F (edge indices).
 
     Returns (ok, failures, results):
@@ -233,8 +232,7 @@ def forced_basis(edges, em, vm, F, rc=None):
     first; a spanning tree is then chosen among the REMAINING edges
     (feasibility = such a tree exists); every non-tree remaining edge is
     also a basis line.  Self-loops are always basis lines."""
-    if rc is None:
-        import region_checker as rc
+    from primitives import eq
     H = (0, 0, 0)
     em2 = [m if m is not None else H for m in em]
     F = set(F)
@@ -247,7 +245,7 @@ def forced_basis(edges, em, vm, F, rc=None):
     total_rank = 0
     for X in sorted(emodes, key=lambda m: (m[0], m[1], m[2])):
         ex = emodes[X]
-        vx = {v for v, jm in vm.items() if rc.eq(jm, X)}
+        vx = {v for v, jm in vm.items() if eq(jm, X)}
         verts2 = set(vx) | {'aux'}
         edges2 = [('aux' if a not in vx else a,
                    'aux' if b not in vx else b) for (a, b) in edges]
@@ -295,10 +293,10 @@ def forced_basis(edges, em, vm, F, rc=None):
     return True, [], (results, total_rank, L)
 
 
-def forced_feasible(edges, em, vm, F, rc=None):
+def forced_feasible(edges, em, vm, F):
     """Feasibility of forcing lines F (edge indices) into the independent-
     loop-momentum basis.  Returns (ok, failures) where failures lists
     (mode, block_verts, offending_forced_lines) for each block whose
     remaining edges do not span it."""
-    ok, failures, _ = forced_basis(edges, em, vm, F, rc)
+    ok, failures, _ = forced_basis(edges, em, vm, F)
     return ok, failures

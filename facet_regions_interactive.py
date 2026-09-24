@@ -1,28 +1,23 @@
 #!/usr/bin/env python3
 """facet_regions_interactive.py — unified Facet Region Interpreter entry point.
 
-You first choose a framework; the framework's own interactive browser then
-runs (all paths relative to this project root):
+First choose a framework; the framework's own interactive browser then runs (all paths relative to this project root):
 
     [1] wide-angle           -> wide_angle/facet_regions_interactive.py
     [2] spacelike-collinear
-          [1] 2->2 (Regge)   -> spacelike_collinear/regge/fri_interactive.py
-          [2] 2->3           -> spacelike_collinear/2to3/fri23_interactive.py
-          [3] mode stepper   -> spacelike_collinear/2to3/mode_level_interactive.py
+          [1] 2->3           -> spacelike_collinear/2to3/fri23_interactive.py
+          [2] 2->2 (Regge)   -> spacelike_collinear/regge/fri_interactive.py
+          [3] mode stepper   -> 2->3: spacelike_collinear/2to3/mode_level_interactive.py
+                                2->2: spacelike_collinear/regge/mode_level_interactive.py
 
-Every browser shares the same workflow: give a graph (topology + external
-kinematics ONLY — the cut formalism stays internal), enumerate ALL its
-regions, list them, then
-    1) inspect specific regions  — per-mode subgraphs + loop numbers
-       (+ a concrete independent-loop-momentum basis with forced lines),
+Every browser shares the same workflow: give a graph (topology + external kinematics ONLY — the cut formalism stays internal), enumerate ALL its regions, list them, then
+    1) inspect specific regions  — per-mode subgraphs + loop numbers (+ a concrete independent-loop-momentum basis with forced lines),
     2) Lee-Pomeransky parametric representation (scaling vectors),
     3) classification by characteristic (softest) mode.
 
-([3] is the exception: a stepper for the mode first-appearance ladder — no
-graph needed, just the five external-momentum modes.)
+([3] is the exception: a stepper for the mode first-appearance ladder — no graph needed, just the external-momentum modes.)
 
-Usage:
-    python3 facet_regions_interactive.py
+Usage: python3 facet_regions_interactive.py
 """
 import importlib.util
 import os
@@ -32,8 +27,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 
 
 def _load(path, name):
-    """Load a backend module from a file path under a unique name (avoids
-    any basename clashes between the framework directories)."""
+    """Load a backend module from a file path under a unique name (avoids any basename clashes between the framework directories)."""
     spec = importlib.util.spec_from_file_location(name, path)
     mod = importlib.util.module_from_spec(spec)
     sys.modules[name] = mod
@@ -81,9 +75,20 @@ def run_fri23():
 
 
 def run_mode_ladder():
-    run_backend(os.path.join(HERE, 'spacelike_collinear', '2to3',
-                             'mode_level_interactive.py'),
-                'fri_mode_ladder', 'mode first-appearance ladder')
+    print()
+    print('  mode first-appearance stepper:')
+    print('    [1] 2->3')
+    print('    [2] 2->2 (Regge)')
+    print('    [b] back')
+    s = _ask('stepper [1/2/b] > ', ('1', '2', 'b'))
+    if s == '1':
+        run_backend(os.path.join(HERE, 'spacelike_collinear', '2to3',
+                                 'mode_level_interactive.py'),
+                    'fri_mode_ladder', 'mode first-appearance ladder')
+    elif s == '2':
+        run_backend(os.path.join(HERE, 'spacelike_collinear', 'regge',
+                                 'mode_level_interactive.py'),
+                    'fri_mode_ladder_regge', 'mode first-appearance ladder (2->2 Regge)')
 
 
 def main():
@@ -105,17 +110,17 @@ def main():
         while True:
             print()
             print('  spacelike-collinear:')
-            print('    [1] 2->2 (Regge)')
-            print('    [2] 2->3')
-            print('    [3] 2->3: mode first-appearance stepper')
+            print('    [1] 2->3 scattering (p2 collinear to p3)')
+            print('    [2] 2->2 scattering (Regge limit, p1 collinear to p3 while p2 collinear to p4)')
+            print('    [3] mode first-appearance stepper')
             print('    [b] back')
             s = _ask('sub-framework [1/2/3/b] > ', ('1', '2', '3', 'b'))
             if s == 'b':
                 break
             if s == '1':
-                run_regge()
-            elif s == '2':
                 run_fri23()
+            elif s == '2':
+                run_regge()
             elif s == '3':
                 run_mode_ladder()
     print('bye!')

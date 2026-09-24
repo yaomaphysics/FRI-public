@@ -8,7 +8,8 @@ At startup you pick one of the 6 Regge 2->2 kinematics (k0..k5, default
 k1).  The kinematics sets the external-momentum modes (ext_mode) fed into
 the FRI pipeline (cuts -> overlay -> Glauber adjustment -> subgraph
 requirements -> IR compatibility); the definitions are shared with
-regge_graphs.py.
+regge_graphs.py.  Enumeration runs on the pruned skeleton enumerator
+(skeleton.py); k1 uses its all-lightlike engine.
 
   k0: p_i^2 ~ lambda for all i                -> ext modes C13/C24
   k1: all p_i lightlike (original case)       -> ext modes C1^oo C13, ...
@@ -41,7 +42,8 @@ import sys, os, time, ast, re
 BASE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, BASE)
 
-from regge_core import fri_regions_full, to_scaling, mode_components
+from regge_core import to_scaling, mode_components
+from skeleton import skel_regions, skel_regions_k1   # pruned skeleton enumerators
 from regge_modes import to_mode          # mode strings are plain literals
                                          # ('C13', 'sH', ...) everywhere
 from regge_indep_loops import show_basis     # indep loops + edge momenta
@@ -387,11 +389,23 @@ def run_graph(edges_raw, kin_name):
           f'L = {L} loops')
     print(f'  edges: {edges}')
     if L >= 5:
-        print('  [warning] L >= 5 may be slow '
-              '(e.g. 16 edges / 12 vertices ~ 13 min)')
+        print('  [warning] L >= 5 may be slow')
     t0 = time.time()
-    regs = fri_regions_full(edges, verts, ext_attach, ext_mode)
+    try:
+        if kin_name == 'k1':
+            regs, _cnt, _depth = skel_regions_k1(edges, verts, ext_attach,
+                                                 ext_mode)
+        else:
+            regs, _cnt, _depth = skel_regions(edges, verts, ext_attach,
+                                              ext_mode)
+    except (Exception, SystemExit) as e:
+        print(f'  [error] skeleton engine could not handle this input: {e}')
+        return
     dt = time.time() - t0
+    # deterministic display order (scaling, then em); same convention as the
+    # 2->3 browser after its skeleton switch (2026-09-21).
+    regs = sorted(regs, key=lambda r: (to_scaling(r[7]),
+                                       tuple(str(m) for m in r[7])))
     print(f'  FRI regions: {len(regs)}  ({dt:.1f}s)')
     scal = set()
     for i, (cut13, cut24, cut1, cut3, cut2, cut4, vm, em) in enumerate(regs, 1):

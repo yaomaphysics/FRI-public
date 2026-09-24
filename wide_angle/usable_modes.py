@@ -32,7 +32,7 @@ The result is the CONFIRMABLE set: a superset of what any specific graph
 realizes (realization is graph-dependent), and a subset of all algebraically
 possible modes.  It is exactly what layer compression should use.
 """
-from region_checker import norm, eq, harder_or_eq
+from primitives import norm, eq, harder_or_eq
 from read_graph import INF  # pipeline INF = 100 (C^inf/SC^inf marker)
 
 

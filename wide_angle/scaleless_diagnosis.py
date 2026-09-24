@@ -41,11 +41,10 @@ SC_i^n / S^mC_i^n  (C_i without n means n=1; i is the direction index).
 """
 import sys, os, itertools
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-import region_checker as rc
 from read_graph import parse_mode, mode_str, INF
-from primitives import Graph, vertex_mode, vee
-from region_checker import jet_connected_ok, cond1_ok
-from primitives import mode_components_wa
+from primitives import Graph, vertex_mode, vee, eq, V
+from region_checker import (jet_connected_ok, cond1_ok, check_conditions,
+                            mode_components_wa)
 
 H = (0, 0, 0)
 
@@ -68,7 +67,7 @@ def momentum_fail_vertex(g, em, extmode):
                 return v
             continue
         if n == 2:
-            if not rc.eq(inc[0], inc[1]):
+            if not eq(inc[0], inc[1]):
                 return v
             continue
         ok = False
@@ -77,7 +76,7 @@ def momentum_fail_vertex(g, em, extmode):
                 B = [i for i in range(n) if i not in A]
                 if not B:
                     continue
-                if rc.eq(vee([inc[i] for i in A]), vee([inc[i] for i in B])):
+                if eq(vee([inc[i] for i in A]), vee([inc[i] for i in B])):
                     ok = True
                     break
             if ok:
@@ -126,11 +125,11 @@ def fc_fail_subgraph(g, em, extmode):
     """First First-Connectivity failure: the threshold n and the isolated
     component (vertices + edges) of ∪_{𝒱≤n} Γ_X — the "non-H subgraph
     harder than its neighbours".  Returns (verts, edges) or None."""
-    eVs = [rc.V(m) if m is not None else INF for m in em]
+    eVs = [V(m) if m is not None else INF for m in em]
     vVs = []
     for v in g.vertices:
         md = vertex_mode(g, em, v, extmode)
-        vVs.append(rc.V(md) if md else INF)
+        vVs.append(V(md) if md else INF)
     thresh = sorted({v for v in eVs if v < INF} | {v for v in vVs if v < INF})
     for n in thresh:
         sub = [ei for ei, vv in enumerate(eVs) if vv <= n]
@@ -176,14 +175,14 @@ def ir_compat_fail(vm, em, edges_in, ext_attach, extmode):
     Returns (ok, stuck_components)."""
     e3 = [(a, b, md) for (a, b), md in zip(edges_in, em) if md is not None]
     all_comps = mode_components_wa(edges_in, [md for (_, _, md) in e3],
-                                   ext_attach, extmode, rc)
+                                   ext_attach, extmode)
     confirmed = []
     while True:
         changed = False
         for comp in all_comps:
             if comp in confirmed:
                 continue
-            tag = rc.check_conditions(comp, confirmed, vm, e3, all_comps,
+            tag = check_conditions(comp, confirmed, vm, e3, all_comps,
                                       ext_attach, extmode)
             if tag is not None:
                 confirmed.append(comp)

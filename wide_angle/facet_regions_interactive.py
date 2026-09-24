@@ -1,43 +1,27 @@
 #!/usr/bin/env python3
-"""facet_regions_interactive.py — interactive facet-region browser (2026-08-20).
+"""facet_regions_interactive.py — interactive facet-region browser.
 
-Input: graph topology + external kinematics ONLY (the cut formalism is
-internal — the user never touches cuts).  The script:
+Input: graph topology + external kinematics ONLY (the cut formalism is internal — the user never touches cuts).
 
-  1. enumerates ALL regions of the graph (C/H family via nested cuts +
-     layered enumeration for the overlapping family; mode-analysis
-     compression on by default),
-  2. lists them with numbers (edge-mode sequence per region, in input
-     edge order), then offers a menu:
-       1) Inspect specific regions  — pick a subset ("3, 8--10" =
-          regions 3, 4, 8, 10; empty = all); for every picked region:
-          MODE SUBGRAPHS
-            mode X: {vertices: {V_X}, edges: {E_X}}   loop number of X
-          (V_X = join-mode-X vertices, E_X = X-mode edges, r_X = cycle
-          rank of the contracted X-subgraph gamma~_X), then optionally a
-          concrete set of independent loop momenta (a basis) with
-          optional FORCED lines ((x,y) endpoint pairs, square brackets
-          also accepted; empty = default basis),
-       2) Show Lee-Pomeransky parametric representation — per region the
-          scaling vector v_e (x_e ~ λ^{v_e} with λ the expansion parameter,
-          v_e = -(2m+n), edge order),
-       3) Classify these regions based on their characteristic modes —
-          per region its softest-mode class + by-type counts,
-       4) Visualize the selected regions — per-mode colours; choose
-          [a] a single PDF atlas (default) or [p] one PNG per region
-          (region_plot_wa.py; saved under fri_out/regions_*/),
-   and loops until the user quits (empty or q).
+Script:
+  1. enumerates ALL regions of the graph (C/H family via nested cuts + compression on by default),
+  2. lists them with numbers (edge-mode sequence per region, in input edge order), then offers a menu:
+       1) Inspect specific regions  — pick a subset ("e.g., 3, 8--10" = regions 3, 4, 8, 10; empty = all);
+           for every picked region, output the mode subgraphs:
+           "X: {vertices: {...}, edges: {...}}   loop number = ...."
+          Optionally, the user can select a set of line momenta as independent loop momenta (a basis) with optional forced lines.
+       2) Show Lee-Pomeransky parametric representation — per region the scaling vector v_e (x_e ~ λ^{v_e} with λ the expansion parameter, v_e = -(2m+n), edge order),
+       3) Classify these regions based on their characteristic modes — per region its softest-mode class + by-type counts,
+       4) Visualize the selected regions — per-mode colours; can choose a single PDF atlas (default) or one PNG file per region.
+  This loops until the user quits (empty or q).
 
 Usage: python3 facet_regions_interactive.py
-  Each input is one line of Python literal; empty line = built-in example.
-
+  Each input is one line of Python literal; empty line = built-in example, which is the example in Sec. 7.1 of arXiv:2601.22144.
   internal_lines = [[1,5],[1,8],[2,5],[2,7],[3,6],[3,8],[4,6],[4,7],[5,6],[7,8]]
   externals      = {'p1':[1,'C1'], 'p2':[2,'C2^2'], 'p3':[3,'C3^inf'], 'p4':[4,'C4^inf']}
-  (built-in example: 4pt3loop, paper §7.1, 81 regions)
+  (81 regions in total)
 
-Mode syntax: H / S / S^m / C_i / C_i^n / C_i^inf / C_i^\\infty / SC_i /
-SC_i^n / S^mC_i^n  (C_i without n means n=1; SC_i without n means n=1;
-i is the direction index from 1).
+Mode syntax: H / S / S^m / C_i / C_i^n / C_i^inf / C_i^\\infty / SC_i / SC_i^n / S^mC_i^n  (C_i without n means n=1; SC_i without n means n=1; i is the direction index from 1).
 """
 import sys, re, os, time, warnings
 from collections import defaultdict
@@ -90,9 +74,7 @@ def ask(label, default=None):
 
 # ---------------------------------------------------------------- enumeration
 def enumerate_regions(verts, edges, ext_attach, ext_mode):
-    """All regions of the graph (skeleton enumerator; soft externals
-    included since the 2026-09-20 spec — validated on the soft corpora).
-    Returns list of (vm, em)."""
+    """All regions of the graph (skeleton enumerator; soft externals included since the 2026-09-20 spec — validated on the soft corpora). Returns list of (vm, em)."""
     regs = {}
     regions, _nc, _dt = skeleton_run(verts, edges, ext_attach, ext_mode,
                                      verbose=False, overlap_strong=True)
@@ -127,9 +109,7 @@ def type_order(kappa):
     return lst
 
 def classify(vm, em, kappa):
-    """Classify a region by its softest mode present (exclusion-style order).
-    Considers ALL mode components: both vertex modes and edge modes (a soft
-    component such as SC can live on a propagator)."""
+    """Classify a region by its softest mode present (exclusion-style order). Considers ALL mode components: both vertex modes and edge modes (a soft component such as SC can live on a propagator)."""
     order = type_order(kappa)
     present = set()
     for v, md in vm.items():
@@ -158,8 +138,7 @@ def scaling_of(md):
     return -(2 * md[0] + md[1])
 
 def show_parametric(regs):
-    """Option 2: Lee-Pomeransky parametric representation per region:
-    x_e ~ λ^{v_e}, v_e = -(2m+n), in input edge order."""
+    """Option 2: Lee-Pomeransky parametric representation per region: x_e ~ λ^{v_e}, v_e = -(2m+n), in input edge order."""
     print('  Lee-Pomeransky parametric representation '
           '(x_e ~ λ^{v_e} with λ the expansion parameter, edge order):')
     for i, (vm, em) in enumerate(regs, 1):
@@ -180,9 +159,7 @@ def _fmt_set(items):
 
 
 def print_region_modes(vm, em, edges, indent='    '):
-    """Print a region as one line per mode:
-        <mode> vertex = {...}; <mode> edge = {...}.
-    Empty vertex/edge sets print 'empty'. Modes in stable order."""
+    """Print a region as one line per mode: <mode> vertex = {...}; <mode> edge = {...}. Empty vertex/edge sets print 'empty'. Modes in stable order."""
     edges_t = [tuple(sorted(e, key=str)) for e in edges]
     v_by_mode = {}
     for v in sorted(vm, key=str):
@@ -198,17 +175,14 @@ def print_region_modes(vm, em, edges, indent='    '):
 
 
 def print_region_with_vector(vm, em, edges, indent='    '):
-    """Region as mode assignment + scaling vector (trailing 1 = the
-    t1/λ power of the single expansion scale, pySecDec style)."""
+    """Region as mode assignment + scaling vector (trailing 1 = the t1/λ power of the single expansion scale, pySecDec style)."""
     print_region_modes(vm, em, edges, indent=indent)
     vec = [scaling_of(md) for md in em]
     print(f'{indent}scaling vector = ({', '.join(map(str, vec))}, 1)')
 
 
 def show_classify(regs, edges, kappa):
-    """Option 3: classify regions by their characteristic (softest) modes,
-    grouped by type (softest first), each with mode assignment and
-    scaling vector."""
+    """Option 3: classify regions by their characteristic (softest) modes, grouped by type (softest first), each with mode assignment and scaling vector."""
     groups = group_by_type(regs, kappa)
     order = type_order(kappa)
     labels = [sc_short(*mn) for mn in order] + ['C/H']
@@ -253,8 +227,7 @@ def show_mode_subgraphs(edges, em, vm):
           f'{"✓" if total == L else "✗ MISMATCH"}')
 
 def _spanning_tree(verts, edge_list, skip):
-    """Spanning tree of (verts, edge_list) avoiding the skip set; None if
-    no such tree exists (skip set contains a bridge / disconnects)."""
+    """Spanning tree of (verts, edge_list) avoiding the skip set; None if no such tree exists (skip set contains a bridge / disconnects)."""
     parent = {v: v for v in verts}
     def find(a):
         while parent[a] != a:
@@ -279,26 +252,16 @@ def _spanning_tree(verts, edge_list, skip):
 
 
 def edge_momenta(edges, em, vm, carriers, ext_attach):
-    """Momentum of every line as a linear combination of the loop momenta
-    k1..kL and the external momenta, self-consistent at every vertex.
+    """Momentum of every line as a linear combination of the loop momenta k1...kL and the external momenta, self-consistent at every vertex.
 
-    Parameterization on the ORIGINAL graph (tree + chords): the carrier
-    lines are the chords (loop-momentum carriers; forced lines first in
-    the k numbering, remaining carriers chosen freely), the other |V|-1
-    lines form a spanning tree.  A carrier's loop momentum flows through
-    every tree line on its fundamental cycle — a "self-loop" of a
-    contracted mode subgraph is NOT inert: it is an ordinary line of the
+    Parameterization on the ORIGINAL graph (tree + chords): the carrier lines are the chords (loop-momentum carriers; forced lines first in the k numbering, remaining carriers chosen freely), the other |V|-1
+    lines form a spanning tree.  A carrier's loop momentum flows through every tree line on its fundamental cycle — a "self-loop" of a contracted mode subgraph is NOT inert: it is an ordinary line of the
     original graph and its momentum couples to the other lines.
 
-    Lines are oriented (a,b) with a<b; the reported momentum is the flow
-    along that direction.  External momenta enter at their attachment
-    vertices (net-inflow convention: in - out = p_v).
+    Lines are oriented (a,b) with a<b; the reported momentum is the flow along that direction.  External momenta enter at their attachment vertices (net-inflow convention: in - out = p_v).
 
-    Returns (True, order, momenta, verts) with momenta[ei] = {term: coeff}
-    (order = carrier edge indices in k-numbering order), or
-    (False, reason, None, None) if no such parameterization exists:
-    |carriers| > L, or the complement of the carriers is disconnected
-    (a carrier would be a bridge — it cannot carry a loop momentum)."""
+    Returns (True, order, momenta, verts) with momenta[ei] = {term: coeff} (order = carrier edge indices in k-numbering order), or (False, reason, None, None) if no such parameterization exists:
+    |carriers| > L, or the complement of the carriers is disconnected (a carrier would be a bridge — it cannot carry a loop momentum)."""
     verts = sorted({v for e in edges for v in e})
     E = len(edges)
     V = len(verts)
@@ -355,10 +318,7 @@ def edge_momenta(edges, em, vm, carriers, ext_attach):
 
 
 def _check_conservation(edges, verts, momenta, ext_attach):
-    """in - out = p_v at every vertex, up to the external-momentum
-    identity Σ_v p_v = 0 (momentum conservation of the kinematics):
-    k-terms must vanish individually, p-terms must all have equal
-    coefficients."""
+    """in - out = p_v at every vertex, up to the external-momentum identity Σ_v p_v = 0 (momentum conservation of the kinematics): k-terms must vanish individually, p-terms must all have equal coefficients."""
     for v in verts:
         flow = {}
         for ei, (a, b) in enumerate(edges):
@@ -460,8 +420,7 @@ def parse_region_select(s, n):
     return sorted(out)
 
 def parse_forced_lines(edges, line):
-    """'[2,5],[7,8]' -> sorted edge indices (order-free endpoints).
-    Returns None if nothing parses or an edge is unknown."""
+    """'[2,5],[7,8]' -> sorted edge indices (order-free endpoints). Returns None if nothing parses or an edge is unknown."""
     pairs = re.findall(r'[\[(]\s*(\d+)\s*,\s*(\d+)\s*[\])]', line)
     if not pairs:
         print('  ! no (x,y) pairs found — use e.g. (2,5),(7,8) (square brackets ok too)')
@@ -483,9 +442,7 @@ def parse_forced_lines(edges, line):
     return sorted(set(F))
 
 def show_basis(edges, em, vm, F=None, ext_attach=None):
-    """A concrete basis: default (F=None, per-mode algebraic basis) or
-    forced lines F (physical tree+chords parameterization), then every
-    line's momentum in terms of k1..kL and the external momenta."""
+    """A concrete basis: default (F=None, per-mode algebraic basis) or forced lines F (physical tree+chords parameterization), then every line's momentum in terms of k1..kL and the external momenta."""
     if F:
         show_edge_momenta(edges, em, vm, F, ext_attach, forced=True)
     else:

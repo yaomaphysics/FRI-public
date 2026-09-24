@@ -30,6 +30,7 @@ In the context of wide-angle kinematics, the possible modes are:
 - $C_i^n$ — collinear in direction *i* with virtuality $\sim\lambda^n$ ($n$ up to $\infty$ for being precisely lightlike),
 - $S^m$ — soft with virtuality $\sim\lambda^{2m}$,
 - $S^m C_i^n$ — soft-collinear in direction *i* with virtuality $\sim\lambda^{2m+n}$ ($n$ up to $\infty$).
+
 For more detail, see section 3.2 of [arXiv:2601.22144](https://arxiv.org/abs/2601.22144).
 
 In collinear kinematics, on top of these modes above, we also have:
@@ -86,7 +87,7 @@ Every surviving configuration is judged by the same chain of subgraph requiremen
 non-regions.
 The requirements are derived in [arXiv:2601.22144](https://arxiv.org/abs/2601.22144) for the wide-angle class; the collinear versions (Regge and the five-point 2→3 kinematics) follow the same cycle of subgraph conditions with the collinear mode algebra and will be presented in a forthcoming work.
 A non-region fails at a definite first check — that diagnosis is exactly what `scaleless_diagnosis.py` reports (wide-angle).
-The check implementations live in `wide_angle/region_checker.py`, `spacelike_collinear/regge/regge_core.py` and `spacelike_collinear/2to3/fri23.py`.
+The check implementations live in `wide_angle/region_checker.py`, `spacelike_collinear/regge/regge_core.py` and `spacelike_collinear/2to3/fri23.py`; the wide-angle mode algebra and graph machinery shared by the enumerator and the checker live in `wide_angle/primitives.py` (see *Layout* for the module layering).
 
 ---
 
@@ -143,10 +144,10 @@ FRI-project/
 ├── facet_regions_interactive.py       # unified entry: [1] wide-angle / [2] spacelike-collinear
 ├── wide_angle/                        # class 1: wide-angle scattering (canonical)
 │   ├── fri_demo.py                    #   built-in demonstrations
-│   ├── region_checker.py              #   mode algebra, components, mojetic (1VI) checks, IR compat, messengers
-│   ├── skeleton.py                    #   pruned skeleton cut enumerator (p_i,q_j externals; n-leg)
-│   ├── usable_modes.py                #   IR-compat mode closure (compression)
-│   ├── primitives.py                  #   graph primitives + shared checks (incl. contracted-1VI)
+│   ├── region_checker.py              #   region judgment: subgraph requirements + IR fixpoint
+│   ├── skeleton.py                    #   pruned skeleton cut enumerator (enumeration core)
+│   ├── usable_modes.py                #   IR-compatible mode closure (compression)
+│   ├── primitives.py                  #   shared base: mode algebra + graph machinery
 │   ├── read_graph.py                  #   input parsing
 │   ├── indep_loops.py                 #   independent loop momenta per region
 │   ├── facet_regions_interactive.py   #   interactive browser (enumerate + menu)
@@ -158,41 +159,36 @@ FRI-project/
     │   ├── regge_core.py              #     engine: mode lattice, cuts, pipeline, IR fixpoint
     │   ├── regge_modes.py             #     S^m C_i^n C_ij mode algebra (meet/join)
     │   ├── regge_indep_loops.py       #     independent loop momenta (semihard fix)
-    │   ├── regge_graphs.py            #     example graph library + k0..k5 kinematics
-    │   ├── skeleton.py                #     skeleton cut enumerator (k0–k5; fast path)
+    │   ├── regge_graphs.py            #     example graph library + k0--k5 kinematics
+    │   ├── skeleton.py                #     skeleton cut enumerator (k0--k5; fast path)
     │   ├── mode_levels.py             #     mode first-appearance ladder
     │   ├── mode_level_interactive.py  #     interactive stepper for the mode ladder
     │   ├── fri_interactive.py         #     interactive enumerator for a new graph
     │   └── region_plot.py             #     region figures + PDF atlas
     └── 2to3/                          #   part 2: five-point 2->3
-        ├── skeleton23.py              #     skeleton cut enumerators (k0–k4; per-graph cut-chain levels)
+        ├── skeleton23.py              #     skeleton cut enumerators (k0--k4; per-graph cut-chain levels)
         ├── mode_levels.py             #     mode first-appearance ladder + cut-chain level derivation
         ├── mode_level_interactive.py  #     interactive stepper for the mode ladder
         ├── fri23.py                   #     mode algebra + region checks (check chain shared with skeleton23)
         ├── fri23_interactive.py       #     interactive enumerator for a new graph
-        ├── kin23.py                   #     kinematics table (k0..k4 presets; general virtuality patterns)
+        ├── kin23.py                   #     kinematics table (k0--k4 presets; general virtuality patterns)
         └── region_plot23.py           #     region figures + PDF atlas
 ```
 
-Dependency ladder (each layer uses only the ones below):
+### Module layering (wide-angle)
 
-```text
-wide_angle/
-  skeleton.py           skeleton enumerator (all domains incl. soft externals)
-  primitives.py         graph primitives + shared checks (incl. contracted-1VI)
-  region_checker.py     mode algebra + region checks (base; no local deps)
+The wide-angle modules form a single-direction dependency chain — nothing points back up. The two cores are the **cut enumerator** (`skeleton.py`) and the **region checker** (`region_checker.py`); both sit on a shared base layer:
 
-spacelike_collinear/regge/
-  skeleton.py           skeleton enumerator (fast path; k0-k5)
-  mode_levels.py        mode ladder + first-appearance levels
-  regge_graphs.py       graph library + k0..k5 kinematics
-  regge_core.py         engine: cuts, pipeline, checks (base)
-
-spacelike_collinear/2to3/
-  skeleton23.py         skeleton enumerators (k0-k4; levels via mode_levels)
-  mode_levels.py        mode ladder + cut-chain levels
-  kin23.py              kinematics table
-  fri23.py              mode algebra + region checks (base)
+```
+base        read_graph.py · primitives.py      input parsing · mode algebra ·
+                                               graph & component machinery
+support     usable_modes.py                    mode closure (layer compression)
+cores       region_checker.py                  region judgment — subgraph
+                                               requirements + IR fixpoint
+            skeleton.py                        cut enumeration — calls the
+                                               checker's pipeline during search
+byproducts  indep_loops.py · scaleless_diagnosis.py · facet_regions_interactive.py ·
+            fri_demo.py · region_plot_wa.py · tests/
 ```
 
 ---
@@ -201,10 +197,10 @@ spacelike_collinear/2to3/
 
 Every implementation has been cross-checked against the region finder of [pySecDec](https://github.com/gudrunhe/secdec) (`find_regions`): the two region sets are compared as **sets of scaling vectors** (one entry per internal line, plus the smallness parameter).  All comparisons agree exactly.  Each kinematics class is checked on **two complementary sets of graphs** — (1) hand-built diagrams that target specific region structures, and (2) random batches of 1000+ graphs that probe for unexpected ones — the two catch different kinds of mistakes.
 
-- **wide_angle**: ~830 configurations covering 45+ topologies (2→2 / 2→3 / 1→3, 3–5 loops, planar and nonplanar, including soft-emission families).
+- **wide_angle**: ~830 configurations covering 45+ topologies (2→2 / 2→3 / 1→3 processes, 3--5 loops, planar and nonplanar, including soft-emission families).
   The skeleton enumerator matches pySecDec on all 255 lightlike 2→2 configurations, and on random samples of 1,200 four-leg + 600 five-leg cases (on top of ~19,000 earlier random cases).
 - **spacelike_collinear — regge**: the region files of 56 graphs in the six kinematics k0–k5 (lightlike and off-shell external legs, $\lambda^2$-suppressed virtualities); random batches of 1000 + 1000 (3-loop) and 100 + 200 (4-loop) graphs over k0–k5 — all matching.
-- **spacelike_collinear — 2to3**: the 11-graph Frog family and 394 variants obtained by attaching a fifth external leg to the 2→2 topologies; random batches of 1000 3-loop, 500 4-loop, and 100 5-loop graphs in the five kinematics k0–k4 — all matching.
+- **spacelike_collinear — 2to3**: the 11-graph Frog family and 394 variants obtained by attaching a fifth external leg to the 2→2 topologies; random batches of 1000 3-loop, 500 4-loop, and 100 5-loop graphs in the five kinematics k0--k4 — all matching.
 
 ---
 
