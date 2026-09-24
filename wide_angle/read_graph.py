@@ -19,31 +19,42 @@ Usage:
 """
 import re
 import sys
+from collections import defaultdict
 
-INF = 100   # sentinel for C_i^inf (infty): no one needs n > 100 in practice
+INF = 100   # sentinel for C_i^inf (infty); one value for the whole wide-angle tree (2026-09-24)
 
 # ---------------- mode parsing ----------------
 def parse_mode(s):
-    """Parse a mode string into the internal tuple (m, n, i):
-    S^m C_i^n; H = (0,0,0); C_i^inf -> n = INF."""
-    s = s.strip()
+    """Parse a mode string into the internal tuple (m, n, i): S^m C_i^n;
+    H = (0,0,0); C_i^inf -> n = INF.  Accepts 'inf' / 'infty' / '∞' / '\\infty',
+    and the SC_i shorthand.  (Single implementation for the wide-angle tree —
+    2026-09-24: the copies in primitives.py and facet_regions_interactive.py
+    were merged here; primitives.py re-exports this one.)"""
+    s = s.strip().replace(' ', '')
     if s in ('H', 'h'):
         return (0, 0, 0)
-    m = n = 0
-    i = 0
-    mm = re.search(r'S(?:\^(\d+))?', s)
-    if mm:
-        m = int(mm.group(1)) if mm.group(1) else 1
-    cm = re.search(r'C(\d+)(?:\^(\d+))?', s)
-    if cm:
-        i = int(cm.group(1))
-        if cm.group(2):
-            n = int(cm.group(2))
-        elif 'inf' in s or 'infty' in s or '∞' in s:
-            n = INF
-        else:
-            n = 1
-    return (m, n, i)
+    if s == 'S':
+        return (1, 0, 0)
+    m = re.fullmatch(r'S\^(\d+)', s)
+    if m:
+        return (int(m.group(1)), 0, 0)
+    m = re.fullmatch(r'S\^?(\d+)?C_?(\d+)\^?(\d+|inf|infty|∞|\\infty)?', s)
+    if m:
+        ms, i, ns = m.group(1), int(m.group(2)), m.group(3)
+        mval = int(ms) if ms else 1
+        nval = INF if ns in ('inf', 'infty', '∞', '\\infty') else (int(ns) if ns else 1)
+        return (mval, nval, i)
+    m = re.fullmatch(r'SC_?(\d+)\^?(\d+|inf|infty|∞|\\infty)?', s)
+    if m:
+        i, ns = int(m.group(1)), m.group(2)
+        nval = INF if ns in ('inf', 'infty', '∞', '\\infty') else (int(ns) if ns else 1)
+        return (1, nval, i)
+    m = re.fullmatch(r'C_?(\d+)\^?(\d+|inf|infty|∞|\\infty)?', s)
+    if m:
+        i, ns = int(m.group(1)), m.group(2)
+        nval = INF if ns in ('inf', 'infty', '∞', '\\infty') else (int(ns) if ns else 1)
+        return (0, nval, i)
+    raise ValueError(f"cannot parse mode: {s!r} (use e.g. C2^inf, C2^\\infty, SC4, S^2, H)")
 
 def mode_str(md):
     """Internal tuple back to a readable string (for verification echo)."""
@@ -57,6 +68,57 @@ def mode_str(md):
             return f'C_{i}^∞'
         return f'C_{i}' if n == 1 else f'C_{i}^{n}'
     return f'S^{m}C_{i}^{n}'
+
+
+# ---------------- mode classes & short labels ----------------
+def sc_short(m, n):
+    """Short label: (1,1)->SC, (1,2)->SC^2, (2,1)->S^2C, (m,0)->S^m."""
+    if n == 0:
+        return 'S' if m == 1 else f'S^{m}'
+    if m == 1:
+        return 'SC' if n == 1 else f'SC^{n}'
+    if n == 1:
+        return f'S^{m}C'
+    return f'S^{m}C^{n}'
+
+
+def type_order(kappa):
+    """All (m,n) with m>=1, n>=0, m+n<=kappa, softest-first:
+    (sigma=m+n desc, then m desc)."""
+    lst = []
+    for m in range(1, kappa + 1):
+        for n in range(0, kappa + 1 - m):
+            lst.append((m, n))
+    lst.sort(key=lambda mn: (-(mn[0] + mn[1]), -mn[0]))
+    return lst
+
+
+def classify(vm, em, kappa):
+    """Classify a region by its softest mode present (exclusion-style order).
+    Considers ALL mode components: both vertex modes and edge modes (a soft
+    component such as SC can live on a propagator)."""
+    order = type_order(kappa)
+    present = set()
+    for v, md in vm.items():
+        m, n, i = md
+        if m >= 1:
+            present.add((m, n))
+    for md in em:
+        m, n, i = md
+        if m >= 1:
+            present.add((m, n))
+    for mn in order:
+        if mn in present:
+            return sc_short(*mn)
+    return 'C/H'
+
+
+def group_by_type(results, kappa):
+    """Group regions (vm, em) by their softest-mode class label (classify)."""
+    groups = defaultdict(list)
+    for vm, em in results:
+        groups[classify(vm, em, kappa)].append((vm, em))
+    return groups
 
 # ---------------- parsing of user input ----------------
 def parse_edges(raw):
@@ -147,21 +209,7 @@ def analyze_kinematics(exts):
     # Classes: each (m,n) with m >= 1, n >= 0, m+n <= kappa gets its own class,
     # defined by exclusion: "no softer class's mode, but contains (m,n)".
     # Pure C modes (m = 0) never define a class; they fall into C/H.
-    mn_list = []
-    for m in range(1, kappa + 1):
-        for n in range(0, kappa + 1 - m):
-            mn_list.append((m, n))
-    mn_list.sort(key=lambda mn: (-(mn[0] + mn[1]), -mn[0]))
-
-    def sc_short(m, n):
-        """Short label: (1,1)->SC, (1,2)->SC^2, (2,1)->S^2C, (m,0)->S^m."""
-        if n == 0:
-            return 'S' if m == 1 else f'S^{m}'
-        if m == 1:
-            return 'SC' if n == 1 else f'SC^{n}'
-        if n == 1:
-            return f'S^{m}C'
-        return f'S^{m}C^{n}'
+    mn_list = type_order(kappa)
 
     types = []
     for idx, (m, n) in enumerate(mn_list):

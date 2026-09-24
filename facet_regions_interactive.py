@@ -57,21 +57,15 @@ def run_backend(path, name, label):
 
 
 def run_wide_angle():
-    run_backend(os.path.join(HERE, 'wide_angle',
-                             'facet_regions_interactive.py'),
-                'fri_wide_angle_interactive', 'wide-angle')
+    run_backend(os.path.join(HERE, 'wide_angle', 'facet_regions_interactive.py'), 'fri_wide_angle_interactive', 'wide-angle')
 
 
 def run_regge():
-    run_backend(os.path.join(HERE, 'spacelike_collinear', 'regge',
-                             'fri_interactive.py'),
-                'fri_regge_interactive', 'spacelike-collinear 2->2 (Regge)')
+    run_backend(os.path.join(HERE, 'spacelike_collinear', 'regge', 'fri_interactive.py'), 'fri_regge_interactive', 'spacelike-collinear 2->2 (Regge)')
 
 
 def run_fri23():
-    run_backend(os.path.join(HERE, 'spacelike_collinear', '2to3',
-                             'fri23_interactive.py'),
-                'fri_fri23_interactive', 'spacelike-collinear 2->3')
+    run_backend(os.path.join(HERE, 'spacelike_collinear', '2to3', 'fri23_interactive.py'), 'fri_fri23_interactive', 'spacelike-collinear 2->3')
 
 
 def run_mode_ladder():
@@ -82,13 +76,9 @@ def run_mode_ladder():
     print('    [b] back')
     s = _ask('stepper [1/2/b] > ', ('1', '2', 'b'))
     if s == '1':
-        run_backend(os.path.join(HERE, 'spacelike_collinear', '2to3',
-                                 'mode_level_interactive.py'),
-                    'fri_mode_ladder', 'mode first-appearance ladder')
+        run_backend(os.path.join(HERE, 'spacelike_collinear', '2to3', 'mode_level_interactive.py'), 'fri_mode_ladder', 'mode first-appearance ladder')
     elif s == '2':
-        run_backend(os.path.join(HERE, 'spacelike_collinear', 'regge',
-                                 'mode_level_interactive.py'),
-                    'fri_mode_ladder_regge', 'mode first-appearance ladder (2->2 Regge)')
+        run_backend(os.path.join(HERE, 'spacelike_collinear', 'regge', 'mode_level_interactive.py'), 'fri_mode_ladder_regge', 'mode first-appearance ladder (2->2 Regge)')
 
 
 def main():

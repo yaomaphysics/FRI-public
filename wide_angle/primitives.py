@@ -5,11 +5,14 @@ region_checker.py).
 Contents:
   - mode algebra on (m, n, i) tuples [S^m C_i^n; H = (0,0,0)]:
       V, norm, eq, harder_or_eq, join, meet, marginal_softer;
-  - mode-string parsing: parse_mode;
+  - mode scaling: scaling_of (v_e = -V);
+  - mode-string parsing: parse_mode (single implementation in
+      read_graph.py; re-exported);
   - graph representation + helpers: Graph (vertex_mode, vee, softer_v,
       is_sc_type, allowed);
   - component machinery: build_components;
-  - graph utilities: biconnected_blocks (Tarjan; used by the 1VI checks).
+  - graph utilities: biconnected_blocks (Tarjan; used by the 1VI checks),
+      spanning_tree.
 
 Used by: skeleton.py (enumeration), region_checker.py (judgment),
 usable_modes.py, scaleless_diagnosis.py, indep_loops.py.
@@ -19,10 +22,11 @@ were merged in here; the Step-1 / First-Connectivity / IR check functions
 moved to region_checker.py; the standalone 5pt6loop enumerator lives in
 private/wide_angle_dev/dev_5pt6loop_enum.py.)
 """
-import re
 from collections import defaultdict
 
-INF = 10**9
+from read_graph import parse_mode  # re-export; single implementation (2026-09-24)
+
+INF = 100   # sentinel for C_i^inf; one value for the whole WA tree (2026-09-24)
 H = (0, 0, 0)
 
 
@@ -89,20 +93,16 @@ def marginal_softer(X, Y):
     if harder_or_eq(X, Y): return False
     return X[0] <= Y[0] + Y[1]
 
-# =========================== mode-string parsing ==========================
 
-def parse_mode(s):
-    if s == 'H': return (0, 0, 0)
-    m = n = 0; i = 0
-    mm = re.match(r'S(?:\^(\d+))?', s)
-    if mm: m = int(mm.group(1)) if mm.group(1) else 1
-    cm = re.search(r'C(\d+)(?:\^(\d+)|(inf))?', s)
-    if cm:
-        i = int(cm.group(1))
-        if cm.group(3) == 'inf': n = INF
-        elif cm.group(2): n = int(cm.group(2))
-        else: n = 1
-    return (m, n, i)
+def scaling_of(md):
+    """Scaling exponent v_e = -(2m + n) = -V(md) of edge mode md
+    (x_e ~ lambda^{v_e}, lambda = expansion parameter); None -> 0."""
+    return 0 if md is None else -V(md)
+
+
+# =========================== mode-string parsing ==========================
+# (parse_mode is re-exported from read_graph — see the import at the top.)
+
 
 # =========================== graph representation =========================
 
@@ -192,7 +192,35 @@ def build_components(verts, edges):
             comps.append({'mode': md, 'V': gr['V'], 'E': gr['E']})
     return comps
 
-# ======================== graph utilities (blocks) ========================
+# ======================== graph utilities ========================
+
+def spanning_tree(verts, edge_list, skip):
+    """Spanning tree of (verts, edge_list) avoiding the skip set (edge
+    indices); None if no such tree exists (the skip set contains a bridge
+    / disconnects the graph).  (Moved from the wide-angle interactive
+    browser, 2026-09-24.)"""
+    parent = {v: v for v in verts}
+    def find(a):
+        while parent[a] != a:
+            parent[a] = parent[parent[a]]
+            a = parent[a]
+        return a
+    def union(a, b):
+        ra, rb = find(a), find(b)
+        if ra != rb:
+            parent[ra] = rb
+    tree = []
+    for i, (a, b) in enumerate(edge_list):
+        if i in skip or a == b:
+            continue
+        if find(a) != find(b):
+            union(a, b)
+            tree.append(i)
+    if len(tree) != len(verts) - 1:
+        return None
+    root = find(verts[0])
+    return tree if all(find(v) == root for v in verts) else None
+
 
 def biconnected_blocks(verts, edges):
     """Biconnected components (blocks) of (verts, edges); bridges appear as

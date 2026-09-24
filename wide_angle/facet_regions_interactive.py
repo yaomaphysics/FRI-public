@@ -24,44 +24,21 @@ Usage: python3 facet_regions_interactive.py
 Mode syntax: H / S / S^m / C_i / C_i^n / C_i^inf / C_i^\\infty / SC_i / SC_i^n / S^mC_i^n  (C_i without n means n=1; SC_i without n means n=1; i is the direction index from 1).
 """
 import sys, re, os, time, warnings
-from collections import defaultdict
 warnings.filterwarnings('ignore', category=SyntaxWarning)
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from read_graph import mode_str, INF
+from read_graph import (mode_str, INF, parse_mode, sc_short, type_order, group_by_type)
+from primitives import scaling_of, spanning_tree
 from indep_loops import indep_loops
 from skeleton import run as skeleton_run, kappa_of
 H = (0, 0, 0)
 
-# ---------------------------------------------------------------- mode parsing
-# order matters: SC_i before C_i, S^mC_i^n before SC_i
-def parse_mode(s):
-    s = s.strip().replace(' ', '')
-    if s == 'H': return (0, 0, 0)
-    if s == 'S': return (1, 0, 0)
-    m = re.fullmatch(r'S\^(\d+)', s)
-    if m: return (int(m.group(1)), 0, 0)
-    m = re.fullmatch(r'S\^?(\d+)?C_?(\d+)\^?(\d+|inf|infty|∞|\\infty)?', s)
-    if m:
-        ms, i, ns = m.group(1), int(m.group(2)), m.group(3)
-        mval = int(ms) if ms else 1
-        nval = INF if ns in ('inf', 'infty', '∞', '\\infty') else (int(ns) if ns else 1)
-        return (mval, nval, i)
-    m = re.fullmatch(r'SC_?(\d+)\^?(\d+|inf|infty|∞|\\infty)?', s)
-    if m:
-        i, ns = int(m.group(1)), m.group(2)
-        nval = INF if ns in ('inf', 'infty', '∞', '\\infty') else (int(ns) if ns else 1)
-        return (1, nval, i)
-    m = re.fullmatch(r'C_?(\d+)\^?(\d+|inf|infty|∞|\\infty)?', s)
-    if m:
-        i, ns = int(m.group(1)), m.group(2)
-        nval = INF if ns in ('inf', 'infty', '∞', '\\infty') else (int(ns) if ns else 1)
-        return (0, nval, i)
-    raise ValueError(f"cannot parse mode: {s!r} (use e.g. C2^inf, C2^\\infty, SC4, S^2, H)")
 
+# One mode tuple -> display string ('∅' when an edge mode is missing).
 def ms(md):
     return mode_str(md) if md is not None else '∅'
 
 # ---------------------------------------------------------------- input helpers
+# Prompt for one line of Python input; empty -> default.
 def ask(label, default=None):
     print(f'{label}:' + (f'  (default: {default})' if default else ''))
     line = input('> ').strip()
@@ -73,80 +50,21 @@ def ask(label, default=None):
         return ask(label, default)
 
 # ---------------------------------------------------------------- enumeration
+# enumerates all regions of the graphs; return list of (vm, em).
 def enumerate_regions(verts, edges, ext_attach, ext_mode):
-    """All regions of the graph (skeleton enumerator; soft externals included since the 2026-09-20 spec — validated on the soft corpora). Returns list of (vm, em)."""
     regs = {}
-    regions, _nc, _dt = skeleton_run(verts, edges, ext_attach, ext_mode,
-                                     verbose=False, overlap_strong=True)
+    regions, _nc, _dt = skeleton_run(verts, edges, ext_attach, ext_mode, verbose=False, overlap_strong=True)
     for vm, em in regions:
         regs.setdefault(tuple(tuple(m) for m in em), (vm, em))
     return list(regs.values())
 
+# Edge modes as one display string, in terms of the input edge order.
 def em_sequence(em):
-    """Edge-mode sequence in input edge order: 'C_1, C_1, S^1C_2^1, ...'"""
     return ', '.join(ms(m) for m in em)
 
-# ---------------------------------------------------------------- classification
-# (from the former facet_interpreter.py — canonical main archived 2026-08-20)
-def sc_short(m, n):
-    """Short label: (1,1)->SC, (1,2)->SC^2, (2,1)->S^2C, (m,0)->S^m."""
-    if n == 0:
-        return 'S' if m == 1 else f'S^{m}'
-    if m == 1:
-        return 'SC' if n == 1 else f'SC^{n}'
-    if n == 1:
-        return f'S^{m}C'
-    return f'S^{m}C^{n}'
 
-def type_order(kappa):
-    """All (m,n) with m>=1, n>=0, m+n<=kappa, softest-first:
-    (sigma=m+n desc, then m desc)."""
-    lst = []
-    for m in range(1, kappa + 1):
-        for n in range(0, kappa + 1 - m):
-            lst.append((m, n))
-    lst.sort(key=lambda mn: (-(mn[0] + mn[1]), -mn[0]))
-    return lst
-
-def classify(vm, em, kappa):
-    """Classify a region by its softest mode present (exclusion-style order). Considers ALL mode components: both vertex modes and edge modes (a soft component such as SC can live on a propagator)."""
-    order = type_order(kappa)
-    present = set()
-    for v, md in vm.items():
-        m, n, i = md
-        if m >= 1:
-            present.add((m, n))
-    for md in em:
-        m, n, i = md
-        if m >= 1:
-            present.add((m, n))
-    for mn in order:
-        if mn in present:
-            return sc_short(*mn)
-    return 'C/H'
-
-def group_by_type(results, kappa):
-    groups = defaultdict(list)
-    for vm, em in results:
-        groups[classify(vm, em, kappa)].append((vm, em))
-    return groups
-
-def scaling_of(md):
-    """v_e = -(2m + n)  (x_e ~ λ^{v_e} with λ the expansion parameter);  H -> 0."""
-    if md is None:
-        return 0
-    return -(2 * md[0] + md[1])
-
-def show_parametric(regs):
-    """Option 2: Lee-Pomeransky parametric representation per region: x_e ~ λ^{v_e}, v_e = -(2m+n), in input edge order."""
-    print('  Lee-Pomeransky parametric representation '
-          '(x_e ~ λ^{v_e} with λ the expansion parameter, edge order):')
-    for i, (vm, em) in enumerate(regs, 1):
-        print(f'    R{i}: v = {tuple(scaling_of(m) for m in em)}')
-
-
+# Format a vertex/edge set as '{a, b, c}' ('empty' for the empty set).
 def _fmt_set(items):
-    """Format a set/list as '{a, b, c}' or 'empty'. Edges print as [a,b]."""
     if not items:
         return 'empty'
     parts = []
@@ -158,8 +76,8 @@ def _fmt_set(items):
     return '{' + ', '.join(parts) + '}'
 
 
+# Print a region as one line per mode: <mode> vertex = {...}; <mode> edge = {...}. Empty vertex/edge sets print 'empty'.
 def print_region_modes(vm, em, edges, indent='    '):
-    """Print a region as one line per mode: <mode> vertex = {...}; <mode> edge = {...}. Empty vertex/edge sets print 'empty'. Modes in stable order."""
     edges_t = [tuple(sorted(e, key=str)) for e in edges]
     v_by_mode = {}
     for v in sorted(vm, key=str):
@@ -170,39 +88,19 @@ def print_region_modes(vm, em, edges, indent='    '):
     all_modes = list(v_by_mode) + [m for m in e_by_mode if m not in v_by_mode]
     for md in all_modes:
         s = mode_str(md)
-        print(f'{indent}{s} vertex = {_fmt_set(v_by_mode.get(md, []))}; '
-              f'{s} edge = {_fmt_set(e_by_mode.get(md, []))}.')
+        print(f'{indent}{s} vertex = {_fmt_set(v_by_mode.get(md, []))}; {s} edge = {_fmt_set(e_by_mode.get(md, []))}.')
 
 
+# print_region_modes followed by the corresponding region vector.
 def print_region_with_vector(vm, em, edges, indent='    '):
-    """Region as mode assignment + scaling vector (trailing 1 = the t1/λ power of the single expansion scale, pySecDec style)."""
     print_region_modes(vm, em, edges, indent=indent)
     vec = [scaling_of(md) for md in em]
     print(f'{indent}scaling vector = ({', '.join(map(str, vec))}, 1)')
 
 
-def show_classify(regs, edges, kappa):
-    """Option 3: classify regions by their characteristic (softest) modes, grouped by type (softest first), each with mode assignment and scaling vector."""
-    groups = group_by_type(regs, kappa)
-    order = type_order(kappa)
-    labels = [sc_short(*mn) for mn in order] + ['C/H']
-    total = 0
-    for lab in labels:
-        if lab not in groups:
-            continue
-        g = groups[lab]
-        total += len(g)
-        print()
-        print(f'There are {len(g)} {lab} type regions:')
-        for i, (vm, em) in enumerate(g, 1):
-            print(f'  --- {lab} region {i} ---')
-            print_region_with_vector(vm, em, edges, indent='    ')
-    print()
-    print(f'TOTAL: {total} regions')
-
 # ---------------------------------------------------------------- display
+# Split a region into per-mode subgraphs {mode: (vertex set, edge list)}.
 def mode_subgraphs(edges, em, vm):
-    """{mode: (V_X, E_X)} — V_X by join-mode, E_X by edge mode (H default)."""
     subs = {}
     for i, m in enumerate(em):
         m = m if m is not None else H
@@ -212,8 +110,8 @@ def mode_subgraphs(edges, em, vm):
         subs.setdefault(m, [set(), []])[0].add(v)
     return subs
 
+# Print per-mode subgraphs {{V_X}, {E_X}} with their independent loop numbers.
 def show_mode_subgraphs(edges, em, vm):
-    """Per-mode subgraphs {{V_X}, {E_X}} with independent loop number."""
     results, total, L = indep_loops(edges, em, vm)
     rank = {r['mode']: r['rank'] for r in results}
     for X in sorted(mode_subgraphs(edges, em, vm),
@@ -221,47 +119,22 @@ def show_mode_subgraphs(edges, em, vm):
         V, E = mode_subgraphs(edges, em, vm)[X]
         Vs = '{' + ', '.join(str(v) for v in sorted(V)) + '}'
         Es = '{' + ', '.join(f'({u},{v})' for u, v in sorted(E)) + '}'
-        print(f'  mode {ms(X)}: {{vertices: {Vs}, edges: {Es}}}   '
-              f'loop number = {rank.get(X, 0)}')
-    print(f'  Σ loop numbers = {total}  vs  L = {L}  '
-          f'{"✓" if total == L else "✗ MISMATCH"}')
-
-def _spanning_tree(verts, edge_list, skip):
-    """Spanning tree of (verts, edge_list) avoiding the skip set; None if no such tree exists (skip set contains a bridge / disconnects)."""
-    parent = {v: v for v in verts}
-    def find(a):
-        while parent[a] != a:
-            parent[a] = parent[parent[a]]
-            a = parent[a]
-        return a
-    def union(a, b):
-        ra, rb = find(a), find(b)
-        if ra != rb:
-            parent[ra] = rb
-    tree = []
-    for i, (a, b) in enumerate(edge_list):
-        if i in skip or a == b:
-            continue
-        if find(a) != find(b):
-            union(a, b)
-            tree.append(i)
-    if len(tree) != len(verts) - 1:
-        return None
-    root = find(verts[0])
-    return tree if all(find(v) == root for v in verts) else None
+        print(f'  mode {ms(X)}: {{vertices: {Vs}, edges: {Es}}}   loop number = {rank.get(X, 0)}')
+    print(f'  Σ loop numbers = {total}  vs  L = {L}  {"✓" if total == L else "✗ MISMATCH"}')
 
 
+# Express line momenta as linear combinations of the loop and external momenta.
+# More details: carrier lines are the chords (forced lines first in the k numbering,
+# remaining carriers chosen freely); the other |V|-1 lines form a spanning tree on
+# the ORIGINAL graph.  A carrier's loop momentum flows through every tree line on its
+# fundamental cycle — a "self-loop" of a contracted mode subgraph is NOT inert: it is
+# an ordinary line of the original graph and its momentum couples to the other lines.
+# Lines are oriented (a,b) with a<b; external momenta enter at their attachment
+# vertices (net-inflow convention: in - out = p_v).
+# Returns (True, order, momenta, verts), momenta[ei] = {term: coeff} (order = carrier
+# edge indices in k-numbering order), or (False, reason, None, None): |carriers| > L,
+# or the complement of the carriers is disconnected (a forced line is a bridge).
 def edge_momenta(edges, em, vm, carriers, ext_attach):
-    """Momentum of every line as a linear combination of the loop momenta k1...kL and the external momenta, self-consistent at every vertex.
-
-    Parameterization on the ORIGINAL graph (tree + chords): the carrier lines are the chords (loop-momentum carriers; forced lines first in the k numbering, remaining carriers chosen freely), the other |V|-1
-    lines form a spanning tree.  A carrier's loop momentum flows through every tree line on its fundamental cycle — a "self-loop" of a contracted mode subgraph is NOT inert: it is an ordinary line of the
-    original graph and its momentum couples to the other lines.
-
-    Lines are oriented (a,b) with a<b; the reported momentum is the flow along that direction.  External momenta enter at their attachment vertices (net-inflow convention: in - out = p_v).
-
-    Returns (True, order, momenta, verts) with momenta[ei] = {term: coeff} (order = carrier edge indices in k-numbering order), or (False, reason, None, None) if no such parameterization exists:
-    |carriers| > L, or the complement of the carriers is disconnected (a carrier would be a bridge — it cannot carry a loop momentum)."""
     verts = sorted({v for e in edges for v in e})
     E = len(edges)
     V = len(verts)
@@ -269,14 +142,12 @@ def edge_momenta(edges, em, vm, carriers, ext_attach):
     F = set(carriers)
     if len(F) > L:
         return False, f'{len(F)} forced lines exceed L = {L}', None, None
-    tree = _spanning_tree(verts, edges, F)
+    tree = spanning_tree(verts, edges, F)
     if tree is None:
-        return False, ('the remaining lines do not connect (a forced line '
-                       'is a bridge and cannot carry a loop momentum)'), \
+        return False, ('the remaining lines do not connect (a forced line is a bridge and cannot carry a loop momentum)'), \
             None, None
     chords = [i for i in range(E) if i not in tree]
-    # k-numbering: forced lines first (input order), then remaining chords
-    # in edge order
+    # k-numbering: forced lines first (input order), then remaining chords in edge order
     order = sorted(F) + [i for i in chords if i not in F]
     kname = {ei: f'k{order.index(ei) + 1}' for ei in order}
     orient = {i: (a, b) if a < b else (b, a) for i, (a, b) in enumerate(edges)}
@@ -317,8 +188,8 @@ def edge_momenta(edges, em, vm, carriers, ext_attach):
     return True, order, momenta, verts
 
 
+# Check momentum conservation at each vertex.
 def _check_conservation(edges, verts, momenta, ext_attach):
-    """in - out = p_v at every vertex, up to the external-momentum identity Σ_v p_v = 0 (momentum conservation of the kinematics): k-terms must vanish individually, p-terms must all have equal coefficients."""
     for v in verts:
         flow = {}
         for ei, (a, b) in enumerate(edges):
@@ -342,12 +213,13 @@ def _check_conservation(edges, verts, momenta, ext_attach):
     return True
 
 
+# Sort key for momentum terms: k's first (numeric), then externals (alphabetical).
 def _term_key(t):
     return (0, int(t[1:]), '') if t.startswith('k') else (1, 0, t)
 
 
+# {term: coeff} -> readable string such as 'k1 - k2 + p2 + p3'.
 def fmt_expr(terms):
-    """'k1 - k2 + p2 + p3' from {term: coeff} (0 if empty)."""
     if not terms:
         return '0'
     items = sorted(terms.items(), key=lambda kv: _term_key(kv[0]))
@@ -365,25 +237,19 @@ def fmt_expr(terms):
     return s
 
 
+# Print the line-momentum basis and every line's momentum, together with a conservation check.
 def show_edge_momenta(edges, em, vm, carriers, ext_attach, forced=False):
-    """Print line momenta (k1..kL carriers) and every line's momentum."""
-    ok, payload, momenta, verts = edge_momenta(edges, em, vm, carriers,
-                                                ext_attach)
+    ok, payload, momenta, verts = edge_momenta(edges, em, vm, carriers, ext_attach)
     if not ok:
         reason = payload
         if forced:
-            print('  ✗ unfeasible: these line momenta do not form a basis '
-                  'for the loop momenta')
+            print('  ✗ unfeasible: these line momenta do not form a basis for the loop momenta')
         else:
-            print(f'  ! default basis cannot serve as loop-momentum '
-                  f'carriers: {reason}')
+            print(f'  ! default basis cannot serve as loop-momentum carriers: {reason}')
         return
     order = payload
-    print('  line momenta: ' + ', '.join(
-        f'{f"k{i + 1}"} ↦ {edges[ei]} along {edges[ei][0]}→{edges[ei][1]}'
-        for i, ei in enumerate(order)))
-    print('  edge momenta (flow along the displayed direction; '
-          'p_i = external):')
+    print('  line momenta: ' + ', '.join(f'k{i+1} ↦ {edges[ei]} along {edges[ei][0]}→{edges[ei][1]}' for i, ei in enumerate(order)))
+    print('  edge momenta (flow along the displayed direction; p_i = external):')
     for ei in range(len(edges)):
         a, b = edges[ei]
         print(f'    ({a},{b}) {a}→{b}: {fmt_expr(momenta[ei])}')
@@ -394,9 +260,8 @@ def show_edge_momenta(edges, em, vm, carriers, ext_attach, forced=False):
     print('  These line momenta can form a loop-momentum basis.')
 
 # ---------------------------------------------------------------- parsing
+# Parse a region selection like '3, 8--10' -> [3, 4, 8, 10]; sorted 1-based indices (None if invalid).
 def parse_region_select(s, n):
-    """'3, 8--10' -> [3, 4, 8, 10] (1-based).  Supports ',' separators and
-    '--' / '-' ranges.  Returns None if any number is out of range."""
     out = set()
     for part in s.split(','):
         part = part.strip()
@@ -419,8 +284,8 @@ def parse_region_select(s, n):
         return None
     return sorted(out)
 
+# Parse forced lines like '(2,5),(7,8)'; edge indices (None if invalid).
 def parse_forced_lines(edges, line):
-    """'[2,5],[7,8]' -> sorted edge indices (order-free endpoints). Returns None if nothing parses or an edge is unknown."""
     pairs = re.findall(r'[\[(]\s*(\d+)\s*,\s*(\d+)\s*[\])]', line)
     if not pairs:
         print('  ! no (x,y) pairs found — use e.g. (2,5),(7,8) (square brackets ok too)')
@@ -441,8 +306,8 @@ def parse_forced_lines(edges, line):
         return None
     return sorted(set(F))
 
+# Show a loop-momentum basis (forced lines or the default per-mode basis) and the momenta.
 def show_basis(edges, em, vm, F=None, ext_attach=None):
-    """A concrete basis: default (F=None, per-mode algebraic basis) or forced lines F (physical tree+chords parameterization), then every line's momentum in terms of k1..kL and the external momenta."""
     if F:
         show_edge_momenta(edges, em, vm, F, ext_attach, forced=True)
     else:
@@ -461,16 +326,15 @@ def show_basis(edges, em, vm, F=None, ext_attach=None):
                         s += ' [self-loop]'
                     desc.append(s)
                 print(f'    mode {ms(X)}: basis = {", ".join(desc)}')
-        basis_all = [j for r in results for b in r['blocks']
-                     for j in b['basis']]
+        basis_all = [j for r in results for b in r['blocks'] for j in b['basis']]
         show_edge_momenta(edges, em, vm, basis_all, ext_attach)
 
 
+# ---------------------------------------------------------------- option handlers (menu 1-4)
+# Option 1: pick regions -> mode subgraphs -> optional loop-momentum basis.
 def inspect_regions(edges, regs, ext_attach):
-    """Option 1: pick regions -> mode subgraphs -> optional basis/force."""
     n = len(regs)
-    line = input('Region numbers (e.g. "3, 8--10" represents regions '
-                 '3, 8, 9, and 10; empty = all) > ').strip()
+    line = input('Region numbers (e.g. "3, 8--10" represents regions 3, 8, 9, and 10; empty = all) > ').strip()
     sel = parse_region_select(line, n) if line else list(range(1, n + 1))
     if sel is None:
         sel = list(range(1, n + 1))
@@ -478,14 +342,11 @@ def inspect_regions(edges, regs, ext_attach):
         vm, em = regs[i - 1]
         print(f'  --- region {i}:')
         show_mode_subgraphs(edges, em, vm)
-    if input('Select a set of line momenta as independent loop '
-             'momenta? (y/n) [n] > ').strip().lower() == 'y':
+    if input('Select a set of line momenta as independent loop momenta? (y/n) [n] > ').strip().lower() == 'y':
         asked = False
         while True:
-            prompt = ('Force lines into the basis? ((x,y) pairs; '
-                      'empty = show default basis) > ' if not asked
-                      else 'Force more lines? ((x,y) pairs; '
-                           'empty = done) > ')
+            prompt = ('Force lines into the basis? ((x,y) pairs; empty = show default basis) > ' if not asked
+                      else 'Force more lines? ((x,y) pairs; empty = done) > ')
             line = input(prompt).strip()
             if not line:
                 if not asked:
@@ -504,38 +365,57 @@ def inspect_regions(edges, regs, ext_attach):
                 show_basis(edges, em, vm, F, ext_attach)
 
 
+# Option 2: Lee-Pomeransky parametric representation per region: x_e ~ λ^{v_e}, v_e = -(2m+n), in input edge order.
+def show_parametric(regs):
+    print('  Lee-Pomeransky parametric representation (x_e ~ λ^{v_e} with λ the expansion parameter, edge order):')
+    for i, (vm, em) in enumerate(regs, 1):
+        print(f'    R{i}: v = {tuple(scaling_of(m) for m in em)}')
+
+
+# Option 3: group the regions by their softest-mode class and print each group.
+def show_classify(regs, edges, kappa):
+    groups = group_by_type(regs, kappa)
+    order = type_order(kappa)
+    labels = [sc_short(*mn) for mn in order] + ['C/H']
+    total = 0
+    for lab in labels:
+        if lab not in groups:
+            continue
+        g = groups[lab]
+        total += len(g)
+        print()
+        print(f'There are {len(g)} {lab} type regions:')
+        for i, (vm, em) in enumerate(g, 1):
+            print(f'  --- {lab} region {i} ---')
+            print_region_with_vector(vm, em, edges, indent='    ')
+    print()
+    print(f'TOTAL: {total} regions')
+
+
+# Option 4: visualize the selected regions via wolframscript (can output PDF atlas or PNGs).
 def visualize_regions(edges, regs, extmode, ext_attach):
-    """Option 4: visualize the selected regions — PDF atlas or PNG files."""
     n = len(regs)
-    line = input('Region numbers (e.g. "3, 8--10" represents regions '
-                 '3, 8, 9, and 10; empty = all) > ').strip()
+    line = input('Region numbers (e.g. "3, 8--10" represents regions 3, 8, 9, and 10; empty = all) > ').strip()
     sel = parse_region_select(line, n) if line else list(range(1, n + 1))
     if sel is None:
         return
-    fmt = input('Output: [a] single PDF atlas (default) / '
-                '[p] individual PNG files > ').strip().lower()
+    fmt = input('Output: [a] single PDF atlas (default) / [p] individual PNG files > ').strip().lower()
     try:
         import region_plot_wa
     except Exception as e:
         print(f'  ! visualization module unavailable: {e}')
         return
-    outdir = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                          'fri_out',
-                          'regions_' + time.strftime('%Y%m%d-%H%M%S'))
+    outdir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'fri_out', 'regions_' + time.strftime('%Y%m%d-%H%M%S'))
     if fmt in ('p', 'png', 'files'):
         print(f'  rendering {len(sel)} region figure(s) via wolframscript ...')
         try:
-            paths = region_plot_wa.render_regions(
-                edges, sorted({v for e in edges for v in e}),
-                [(i, regs[i - 1]) for i in sel],
-                ext_mode=extmode, ext_attach=ext_attach, outdir=outdir)
+            paths = region_plot_wa.render_regions(edges, sorted({v for e in edges for v in e}), [(i, regs[i - 1]) for i in sel], ext_mode=extmode, ext_attach=ext_attach, outdir=outdir)
         except Exception as e:
             print(f'  ! region rendering failed: {e}')
             return
         print(f'  saved {len(paths)} region PNG(s) to: {outdir}')
     else:
-        print(f'  building the PDF atlas for {len(sel)} region(s) '
-              f'via wolframscript ...')
+        print(f'  building the PDF atlas for {len(sel)} region(s) via wolframscript ...')
         try:
             path = region_plot_wa.render_atlas(
                 edges, sorted({v for e in edges for v in e}),
@@ -549,33 +429,29 @@ def visualize_regions(edges, regs, extmode, ext_attach):
 
 # ---------------------------------------------------------------- main loop
 DEFAULT_EDGES = '[(1,5),(1,8),(2,5),(2,7),(3,6),(3,8),(4,6),(4,7),(5,6),(7,8)]'
-DEFAULT_EXTS = ("{'p1':[1,'C1'],'p2':[2,'C2^2'],'p3':[3,'C3^inf'],"
-                "'p4':[4,'C4^inf']}")
+DEFAULT_EXTS = ("{'p1':[1,'C1'],'p2':[2,'C2^2'],'p3':[3,'C3^inf'],'p4':[4,'C4^inf']}")
 
+# Interactive loop: read a graph, enumerate its regions, serve the menu; save results to fri_out/.
 def main():
     print('=== facet-region browser ===')
     print('Input: graph topology + external momenta only (Python literals).')
     while True:
-        internal_lines = ask('internal_lines (topology, edge list)',
-                             DEFAULT_EDGES)
+        internal_lines = ask('internal_lines (topology, edge list)', DEFAULT_EDGES)
         externals = ask("externals ({name: [vertex, mode_str]})", DEFAULT_EXTS)
         try:
-            verts = sorted({v for (a, b) in internal_lines for v in (a, b)}
-                           | {vv[0] for vv in externals.values()})
+            verts = sorted({v for (a, b) in internal_lines for v in (a, b)} | {vv[0] for vv in externals.values()})
             edges = [tuple(sorted((a, b))) for (a, b) in internal_lines]
             ext_attach = {n: vv[0] for n, vv in externals.items()}
             extmode = {n: parse_mode(s) for n, (v, s) in externals.items()}
         except ValueError as e:
             print(f'  ! {e}')
             continue
-        print(f'\n  enumerating all regions ({len(edges)} edges, '
-              f'{len(verts)} vertices) ...')
+        print(f'\n  enumerating all regions ({len(edges)} edges, {len(verts)} vertices) ...')
         t0 = time.time()
         regs = enumerate_regions(verts, edges, ext_attach, extmode)
         dt = time.time() - t0
         edge_seq = ', '.join(f'({u},{v})' for u, v in edges)
-        print(f'  {len(regs)} regions in {dt:.1f}s (presented in terms of '
-              f'the edge modes {edge_seq}):')
+        print(f'  {len(regs)} regions in {dt:.1f}s (presented in terms of the edge modes {edge_seq}):')
         for i, (vm, em) in enumerate(regs, 1):
             print(f'    R{i}: {em_sequence(em)}')
         kappa = kappa_of(extmode)
@@ -583,8 +459,7 @@ def main():
             print('  Options:')
             print('    1) Inspect specific regions')
             print('    2) Show Lee-Pomeransky parametric representation')
-            print('    3) Classify these regions based on their '
-                  'characteristic modes')
+            print('    3) Classify these regions based on their characteristic modes')
             print('    4) Visualize these regions (PDF atlas / PNGs)')
             opt = input('  (1/2/3/4; empty or q = done with this graph) > ')\
                 .strip().lower()
@@ -601,13 +476,11 @@ def main():
             else:
                 print('  ! enter 1, 2, 3, 4, or q')
         # save
-        fdir = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                            'fri_out')
+        fdir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'fri_out')
         os.makedirs(fdir, exist_ok=True)
         fname = os.path.join(fdir, time.strftime('%Y%m%d-%H%M%S') + '.txt')
         with open(fname, 'w') as f:
-            f.write(f'# wide-angle FRI regions - '
-                    f'{time.strftime("%Y-%m-%d %H:%M:%S")}\n')
+            f.write(f'# wide-angle FRI regions - {time.strftime("%Y-%m-%d %H:%M:%S")}\n')
             f.write(f'# internal lines: {internal_lines}\n')
             f.write(f'# externals: {externals}\n')
             f.write(f'# regions: {len(regs)} ({dt:.1f}s)\n\n')

@@ -56,6 +56,7 @@ import time
 BASE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, BASE)
 from read_graph import mode_str as mode_name
+from primitives import scaling_of
 
 EDGE_T = '0.0055'
 R_VERT = '0.010'
@@ -142,14 +143,6 @@ def _esc(s):
     by this pipeline (render mojibake, e.g. the 'â' artifacts)."""
     s = s.replace('\\', '\\\\').replace('"', '\\"')
     return ''.join(ch if ord(ch) < 128 else '\\:%04x' % ord(ch) for ch in s)
-
-
-def scaling_of(md):
-    """v_e = -(2m + n)  (x_e ~ λ^{v_e} with λ the expansion parameter);
-    H -> 0 (same convention as the wide-angle browser)."""
-    if md is None:
-        md = (0, 0, 0)
-    return -(2 * md[0] + md[1])
 
 
 def split_region(r):

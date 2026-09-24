@@ -25,7 +25,7 @@ from primitives import (V, norm, eq, harder_or_eq, join, meet, marginal_softer,
                         parse_mode, build_components, biconnected_blocks,
                         vee, vertex_mode, H)
 
-INF = 10**9
+INF = 100   # sentinel for C_i^inf; one value for the whole WA tree (2026-09-24)
 
 # 2026-08-12 TENTATIVE (: type-2 / m_i=0 special messenger target.
 # When True, an S^m kernel carrying an attached S^m C_i^{n'} external counts

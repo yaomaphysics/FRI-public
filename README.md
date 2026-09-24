@@ -87,7 +87,7 @@ Every surviving configuration is judged by the same chain of subgraph requiremen
 non-regions.
 The requirements are derived in [arXiv:2601.22144](https://arxiv.org/abs/2601.22144) for the wide-angle class; the collinear versions (Regge and the five-point 2→3 kinematics) follow the same cycle of subgraph conditions with the collinear mode algebra and will be presented in a forthcoming work.
 A non-region fails at a definite first check — that diagnosis is exactly what `scaleless_diagnosis.py` reports (wide-angle).
-The check implementations live in `wide_angle/region_checker.py`, `spacelike_collinear/regge/regge_core.py` and `spacelike_collinear/2to3/fri23.py`; the wide-angle mode algebra and graph machinery shared by the enumerator and the checker live in `wide_angle/primitives.py` (see *Layout* for the module layering).
+The check implementations live in `wide_angle/region_checker.py`, `spacelike_collinear/regge/regge_core.py` and `spacelike_collinear/2to3/fri23.py`; the wide-angle mode algebra and graph machinery shared by the enumerator and the checker live in `wide_angle/primitives.py`.
 
 ---
 
@@ -175,32 +175,17 @@ FRI-project/
         └── region_plot23.py           #     region figures + PDF atlas
 ```
 
-### Module layering (wide-angle)
-
-The wide-angle modules form a single-direction dependency chain — nothing points back up. The two cores are the **cut enumerator** (`skeleton.py`) and the **region checker** (`region_checker.py`); both sit on a shared base layer:
-
-```
-base        read_graph.py · primitives.py      input parsing · mode algebra ·
-                                               graph & component machinery
-support     usable_modes.py                    mode closure (layer compression)
-cores       region_checker.py                  region judgment — subgraph
-                                               requirements + IR fixpoint
-            skeleton.py                        cut enumeration — calls the
-                                               checker's pipeline during search
-byproducts  indep_loops.py · scaleless_diagnosis.py · facet_regions_interactive.py ·
-            fri_demo.py · region_plot_wa.py · tests/
-```
-
 ---
 
 ## Validation
 
 Every implementation has been cross-checked against the region finder of [pySecDec](https://github.com/gudrunhe/secdec) (`find_regions`): the two region sets are compared as **sets of scaling vectors** (one entry per internal line, plus the smallness parameter).  All comparisons agree exactly.  Each kinematics class is checked on **two complementary sets of graphs** — (1) hand-built diagrams that target specific region structures, and (2) random batches of 1000+ graphs that probe for unexpected ones — the two catch different kinds of mistakes.
 
-- **wide_angle**: ~830 configurations covering 45+ topologies (2→2 / 2→3 / 1→3 processes, 3--5 loops, planar and nonplanar, including soft-emission families).
-  The skeleton enumerator matches pySecDec on all 255 lightlike 2→2 configurations, and on random samples of 1,200 four-leg + 600 five-leg cases (on top of ~19,000 earlier random cases).
-- **spacelike_collinear — regge**: the region files of 56 graphs in the six kinematics k0–k5 (lightlike and off-shell external legs, $\lambda^2$-suppressed virtualities); random batches of 1000 + 1000 (3-loop) and 100 + 200 (4-loop) graphs over k0–k5 — all matching.
-- **spacelike_collinear — 2to3**: the 11-graph Frog family and 394 variants obtained by attaching a fifth external leg to the 2→2 topologies; random batches of 1000 3-loop, 500 4-loop, and 100 5-loop graphs in the five kinematics k0--k4 — all matching.
+| class | hand-built | random |
+|---|---|---|
+| **wide-angle** | ~830 configurations covering 45+ topologies (2→2 / 2→3 / 1→3; 3--5 loops; planar and nonplanar; including soft-emission families) | 1,200 four-leg + 600 five-leg cases (on top of ~19,000 earlier random cases) |
+| **spacelike-collinear: 2→3** (p2 ∥ p3) | 11-graph Frog family + 394 variants (a fifth external leg attached to the 2→2 topologies) | 1,000 (3-loop) + 500 (4-loop) + 100 (5-loop) graphs in the five kinematics k0--k4 |
+| **spacelike-collinear: 2→2 (Regge)** (p1 ∥ p3, p2 ∥ p4) | region files of 56 graphs in the six kinematics k0–k5 (lightlike and off-shell external legs, $\lambda^2$-suppressed virtualities) | 1,000 + 1,000 (3-loop) and 100 + 200 (4-loop) graphs over k0–k5 |
 
 ---
 

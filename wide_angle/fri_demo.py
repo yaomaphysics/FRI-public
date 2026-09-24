@@ -20,14 +20,9 @@ Usage:
 """
 import sys, os, time
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from read_graph import mode_str, INF
+from read_graph import mode_str, INF, sc_short, type_order, group_by_type
 from skeleton import kappa_of, run as skeleton_run
-from facet_regions_interactive import (group_by_type,
-                                  type_order, sc_short)
-
-
-def scaling_of(md):
-    return 0 if md is None else -(2 * md[0] + md[1])
+from primitives import scaling_of
 
 
 def fmt_region(vm, em, edges):
