@@ -3,7 +3,7 @@
 """mode_level_interactive.py — interactive stepper for the mode first-appearance ladder
 (mode_levels module; the public 2->3 toolkit).
 
-Ask for the five external-momentum modes (p1..p5; plain Enter = the fri23 k1
+Ask for the five external-momentum modes (p1..p5; plain Enter = the two_to_three k1
 defaults), show the L = 0 modes, then advance one loop level per key press:
 
     space : next loop level (+1)
@@ -24,14 +24,14 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 if HERE not in sys.path:
     sys.path.insert(0, HERE)
 
-import fri23 as F
+import two_to_three as F
 from mode_levels import predict, derive_external_modes
 
 LMAX = 10
 
 BANNER = '''\
 ==============================================================
-  mode first-appearance stepper   (fri23)
+  mode first-appearance stepper   (two_to_three)
 --------------------------------------------------------------
   Enter the five external-momentum modes (Enter = k1 defaults),
   then:
@@ -55,7 +55,7 @@ def leg_check(i, m):
 
 def ask_momenta():
     print('Enter the five external-momentum modes '
-          '(Enter = fri23 k1 defaults; examples: C1∞ / C2∞C23 / C4 / S^1C4):')
+          '(Enter = two_to_three k1 defaults; examples: C1∞ / C2∞C23 / C4 / S^1C4):')
     out = []
     for i, dflt in enumerate(DEFAULT_MOMENTA, 1):
         while True:

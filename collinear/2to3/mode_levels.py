@@ -38,10 +38,10 @@ S^2 relevant to the C2C23/C3C23 seeds -> S^2 at L = 2, verified against
 pysd_cache region data).  Members may share a level (k4: S^2@2 with S@2).
 
 Known caveat (pending): same-direction joins S^m C_i^n v C_i^inf (m >= 2)
-differ between fri23 (C_i^{2m+n}) and wide_angle (sigma = m+n); affects
+differ between two_to_three (C_i^{2m+n}) and wide_angle (sigma = m+n); affects
 extrapolated high-L output only (can inflate derived levels for L >= 9 on
 k2-like inputs -> those hit the engine's "deeper chains not implemented"
-guard).  See fri23_vs_wa_inf_join_note_20260921.md (private).
+guard).  See two_to_three_vs_wa_inf_join_note_20260921.md (private).
 """
 import os, sys
 
@@ -49,7 +49,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 if HERE not in sys.path:
     sys.path.insert(0, HERE)
 
-import fri23 as F
+import two_to_three as F
 import kin23
 
 
@@ -58,7 +58,7 @@ def predict(ext_tokens, Lmax, kin='k1', momenta=None):
     """Returns (levels: {mode tuple -> level}, log: dict).
 
     momenta: optional override for the five external-momentum modes
-             (list of fri23 mode tuples); default = kin23.ext_modes(kin).
+             (list of two_to_three mode tuples); default = kin23.ext_modes(kin).
     """
     ext_modes = [F.parse(t) for t in ext_tokens]
     ext_mom = list(momenta) if momenta is not None else list(kin23.ext_modes(kin).values())
@@ -109,7 +109,7 @@ def predict(ext_tokens, Lmax, kin='k1', momenta=None):
         return list(miss)
 
     # ---- messenger tower (the single place to swap in the general rule)
-    pair_enabled = True  # fri23: the collinear (2,3) pair always brings the C23 family in (via the momenta)
+    pair_enabled = True  # two_to_three: the collinear (2,3) pair always brings the C23 family in (via the momenta)
     def messenger_iter():
         m = 1
         while True:
@@ -218,7 +218,7 @@ def messenger_eligibility(momenta, m, kind):
 
     kind 'A' (S^m):     wide legs need depth(e) >= m;  pair legs depth(e) >= m;
     kind 'B' (S^mC23):  wide legs need depth(e) >= m;  pair legs depth(e) >= m+1.
-    (fri23 depth_of: wide C_i^a -> a;  pair C_mem^a C23 -> a+1.)
+    (two_to_three depth_of: wide C_i^a -> a;  pair C_mem^a C23 -> a+1.)
     Pair members are counted separately ("pair2", "pair3") -- change here if a
     single 23-direction count is intended.
 

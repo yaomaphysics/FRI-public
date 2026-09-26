@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""kin23.py — external-virtuality kinematics for the spacelike-collinear 2->3 scattering.
+"""kin23.py — external-virtuality kinematics for the collinear 2->3 scattering.
 
 Kinematics are GENERAL: any virtuality pattern ms = (m1, ..., m5), where
     m = 1, 2, ... : the leg's virtuality scales as t1**m;
@@ -25,11 +25,11 @@ is swept over k0..k4) and as defaults in the interactive browser:
     them no special treatment).
 
 Usage:  import kin23 as K
-        K.ext_modes('k3')                    -> fri23 ext_mode dict {'p1'..'p5'}
+        K.ext_modes('k3')                    -> two_to_three ext_mode dict {'p1'..'p5'}
         K.ext_modes((1, 2, INF, INF, INF))   -> the same, built directly
         K.mass_exprs('k3')                   -> pySecDec m_i**2 expressions
 """
-from fri23 import W, P, INF
+from two_to_three import W, P, INF
 
 KIN = {
     # ---- the two special cases (dedicated engines) ----
@@ -60,7 +60,7 @@ def mass_exprs(kind_or_ms):
 
 
 def ext_modes(kind_or_ms):
-    """fri23 ext_mode dict {'p1'..'p5'} for a preset name or a raw
+    """two_to_three ext_mode dict {'p1'..'p5'} for a preset name or a raw
     (m1, ..., m5) virtuality tuple (general kinematics)."""
     ms = KIN[kind_or_ms]['ms'] if isinstance(kind_or_ms, str) else tuple(kind_or_ms)
     m1, m2, m3, m4, m5 = ms

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""region_plot23.py — render fri23 (spacelike-collinear 2->3) regions as PNG figures with per-mode colours.
+"""region_plot23.py — render two_to_three (collinear 2->3) regions as PNG figures with per-mode colours.
 
-Style spec (final, 2026-09-15) — fri23 edition:
+Style spec (final, 2026-09-15) — two_to_three edition:
 
   colours  (directions: p1 -> 1, p4 -> 4, p5 -> 5, the p2/p3 pair -> 23)
       H                                          Blue
@@ -24,7 +24,7 @@ Style spec (final, 2026-09-15) — fri23 edition:
       numbers grey (FontSize 11) offset 0.026 outward; external legs
       (p1..p5 @ vertices 1..5) stub + label in the external-mode colour;
       caption "R{label}:  v = (...)" + one colour->modes line per colour
-      (modes displayed via fri23.name(); merged modes listed together).
+      (modes displayed via two_to_three.name(); merged modes listed together).
 
 Rendering runs through `wolframscript` (must be on PATH).
 
@@ -33,7 +33,7 @@ API:
                    outdir=None, image_size=720) -> [png paths]
         items = [(label, region), ...] with region = (vec, cuts, em, vm)
         (the survivors format: skeleton23.enumerate_surv, formerly
-        fri23.enumerate_regions); em/vm entries are fri23 mode tuples.
+        two_to_three.enumerate_regions); em/vm entries are two_to_three mode tuples.
     render_atlas(edges, verts, items, ext_mode=None, ext_attach=None,
                  outdir=None, nrows=None, font=None) -> atlas PDF path
         Single A4 PDF atlas; rows/page auto (5-7, by the drawn content's
@@ -50,8 +50,8 @@ import time
 
 BASE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, BASE)
-import fri23
-from fri23 import name as mode_name
+import two_to_three
+from two_to_three import name as mode_name
 
 EDGE_T = '0.0055'
 R_VERT = '0.010'
@@ -66,7 +66,7 @@ DISPLAY_NAME = {'D12': 'Teal', 'D6': 'Olive', 'Green': 'LightGreen'}   # caption
 
 
 def mode_color(x):
-    """(color-name, wl-directive) for one fri23 mode tuple."""
+    """(color-name, wl-directive) for one two_to_three mode tuple."""
     if x[0] == 'H':
         return 'Blue', 'Blue'
     if x[0] == 'S':
@@ -86,7 +86,7 @@ def mode_color(x):
 
 
 def edge_directive(x):
-    """(style, thickness) for one edge — all fri23 edges are solid."""
+    """(style, thickness) for one edge — all two_to_three edges are solid."""
     return mode_color(x)[1], EDGE_T
 
 
@@ -339,7 +339,7 @@ def _ts_str(m, font=None):
 
 
 def ts_mode(x, font=None):
-    """WL typeset expression for a fri23 mode tuple (via its name)."""
+    """WL typeset expression for a two_to_three mode tuple (via its name)."""
     return _ts_str(mode_name(x), font)
 
 
@@ -550,7 +550,7 @@ def _layout_rows(edges, verts, ext_attach, items, outdir):
 
 def render_atlas(edges, verts, items, ext_mode=None, ext_attach=None,
                  outdir=None, nrows=None, font=None,
-                 title='spacelike-collinear 2->3', verbose=False):
+                 title='collinear 2->3', verbose=False):
     """Render [(label, region), ...] as a single PDF atlas (A4, nrows/page;
     nrows=None -> auto by content aspect); returns the merged PDF path.
     Runs a font fidelity check first."""

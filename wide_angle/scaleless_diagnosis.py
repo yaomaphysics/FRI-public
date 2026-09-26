@@ -9,10 +9,9 @@ externals).  FRI then runs its region checks in order:
 
   1. momentum conservation at every vertex,
   2. jet connectivity (Coleman--Norton interpretation),
-  3. contracted-mode-component 1VI (S^m C^n with n >= 1),
-  4. mojetic (H∪J∖J_i),
-  5. First Connectivity,
-  6. IR compatibility (fixed-point confirmation flow),
+  3. mojetic (H∪J∖J_i),
+  4. First Connectivity,
+  5. IR compatibility (fixed-point confirmation flow),
 
 and stops at the FIRST failure.  If the assignment is a region, the
 answer is simply that.  If not, the expanded integral is scaleless, and
@@ -21,8 +20,6 @@ physical mechanism:
 
   - momentum violation        -> the specific vertex,
   - jet disconnected          -> the specific jet (Coleman--Norton),
-  - contracted component      -> the subgraph scaleless (single-vertex
-                                 attachment),
   - mojetic                   -> hard-jet interaction,
   - First Connectivity        -> the non-H subgraph harder than its
                                  neighbours,
@@ -43,16 +40,14 @@ import sys, os, itertools
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from read_graph import parse_mode, mode_str, INF
 from primitives import Graph, vertex_mode, vee, eq, V
-from region_checker import (jet_connected_ok, cond1_ok, check_conditions,
-                            mode_components_wa)
+from region_checker import (jet_connected_ok, hard_jet_mojetic_ok, confirm_all, mode_components_wa)
 
 H = (0, 0, 0)
 
 
 # ---------------------------------------------------------------- diagnostics
+# First vertex where momentum conservation fails (same logic as primitives.momentum_ok, but reports the vertex).
 def momentum_fail_vertex(g, em, extmode):
-    """First vertex where momentum conservation fails (same logic as
-    primitives.momentum_ok, but reports the vertex)."""
     for v in g.vertices:
         inc = []
         for ei in g.incident.get(v, []):
@@ -86,9 +81,8 @@ def momentum_fail_vertex(g, em, extmode):
     return None
 
 
+# Direction of the first disconnected jet (same logic as region_checker.jet_connected_ok, but reports the direction).
 def disconnected_jet(vm, em, edges_in):
-    """Direction of the first disconnected jet (same logic as
-    region_checker.jet_connected_ok, but reports the direction)."""
     dirs = set()
     for v, md in vm.items():
         m, n, i = md
@@ -99,8 +93,7 @@ def disconnected_jet(vm, em, edges_in):
         if m == 0 and n >= 1 and i != 0:
             dirs.add(i)
     for i in sorted(dirs):
-        V = {v for v, md in vm.items()
-             if md[0] == 0 and md[1] >= 1 and md[2] == i}
+        V = {v for v, md in vm.items() if md[0] == 0 and md[1] >= 1 and md[2] == i}
         if not V:
             continue
         adj = {v: set() for v in V}
@@ -121,10 +114,8 @@ def disconnected_jet(vm, em, edges_in):
     return None
 
 
+# First First-Connectivity failure: the isolated component (verts + edges) of ∪_{𝒱≤n} Γ_X — the "non-H subgraph harder than its neighbours"; returns (verts, edges) or None.
 def fc_fail_subgraph(g, em, extmode):
-    """First First-Connectivity failure: the threshold n and the isolated
-    component (vertices + edges) of ∪_{𝒱≤n} Γ_X — the "non-H subgraph
-    harder than its neighbours".  Returns (verts, edges) or None."""
     eVs = [V(m) if m is not None else INF for m in em]
     vVs = []
     for v in g.vertices:
@@ -169,38 +160,21 @@ def fc_fail_subgraph(g, em, extmode):
     return None
 
 
+# IR-compatibility fixed-point flow (2026-08-21: components are 1VI blocks from mode_components_wa, not connected components; 2026-09-26: shared confirm_all core); returns (ok, stuck_components).
 def ir_compat_fail(vm, em, edges_in, ext_attach, extmode):
-    """IR-compatibility fixed-point flow (2026-08-21: components are 1VI
-    blocks from mode_components_wa, not connected components).
-    Returns (ok, stuck_components)."""
     e3 = [(a, b, md) for (a, b), md in zip(edges_in, em) if md is not None]
-    all_comps = mode_components_wa(edges_in, [md for (_, _, md) in e3],
-                                   ext_attach, extmode)
-    confirmed = []
-    while True:
-        changed = False
-        for comp in all_comps:
-            if comp in confirmed:
-                continue
-            tag = check_conditions(comp, confirmed, vm, e3, all_comps,
-                                      ext_attach, extmode)
-            if tag is not None:
-                confirmed.append(comp)
-                changed = True
-        if not changed:
-            break
-    stuck = [c for c in all_comps if c not in confirmed]
-    return len(stuck) == 0, stuck
+    all_comps = mode_components_wa(edges_in, [md for (_, _, md) in e3], ext_attach, extmode)
+    ok, _order, _confirmed, stuck = confirm_all(all_comps, vm, e3, ext_attach, extmode)
+    return ok, stuck
 
 
+# '{a, b, c}' or 'empty'; tuples of two ints print as [a,b].
 def _fmt_set(items):
-    """'{a, b, c}' or 'empty'; tuples of two ints print as [a,b]."""
     if not items:
         return 'empty'
     parts = []
     for x in sorted(items, key=str):
-        if isinstance(x, tuple) and len(x) == 2 \
-                and not isinstance(x[0], tuple):
+        if isinstance(x, tuple) and len(x) == 2 and not isinstance(x[0], tuple):
             parts.append(f'[{x[0]},{x[1]}]')
         else:
             parts.append(str(x))
@@ -208,9 +182,8 @@ def _fmt_set(items):
 
 
 # ---------------------------------------------------------------- the chain
+# Run the FRI check chain; stop at the first failure; returns (is_region, message).
 def diagnose(edges, em, ext_attach, extmode):
-    """Run the FRI check chain; stop at the first failure.
-    Returns (is_region, message)."""
     verts = sorted({v for e in edges for v in e})
     g = Graph(verts, edges, ext_attach)
     vm = {v: vertex_mode(g, em, v, extmode) for v in verts}
@@ -223,45 +196,36 @@ def diagnose(edges, em, ext_attach, extmode):
     # 2. jet connectivity (Coleman--Norton)
     j = disconnected_jet(vm, em, edges)
     if j is not None:
-        return False, ('the Coleman--Norton interpretation is violated '
-                       f'because jet C_{j} is disconnected')
+        return False, (f'the Coleman--Norton interpretation is violated because jet C_{j} is disconnected')
 
-    # 3. (removed 2026-08-21: mode components are 1VI blocks from
-    #    mode_components_wa — the biconnected decomposition replaces the
-    #    old contracted-1VI filter; see ir_ok_blocks.)
+    # (contracted-1VI check removed — superseded by third_port; mode components are 1VI blocks from mode_components_wa — see ir_ok_blocks.)
 
-    # 4. mojetic (H∪J∖J_i)
-    ok, _ = cond1_ok(edges, em, ext_attach, extmode)
+    # 3. mojetic (H∪J∖J_i)
+    ok, _ = hard_jet_mojetic_ok(edges, em, ext_attach, extmode)
     if not ok:
-        return False, ('momentum conservation is violated at the '
-                       'hard-jet interaction')
+        return False, ('momentum conservation is violated at the hard-jet interaction')
 
-    # 5. First Connectivity
+    # 4. First Connectivity
     fc = fc_fail_subgraph(g, em, extmode)
     if fc is not None:
         V, E = fc
-        return False, ('integrating over the following subgraph is '
-                       f'scaleless: {{{_fmt_set(V)}, {_fmt_set(E)}}} '
-                       '(the non-H subgraph harder than its neighbours)')
+        return False, (f'integrating over the following subgraph is scaleless: {{{_fmt_set(V)}, {_fmt_set(E)}}} (the non-H subgraph harder than its neighbours)')
 
-    # 6. IR compatibility
+    # 5. IR compatibility
     ok, stuck = ir_compat_fail(vm, em, edges, ext_attach, extmode)
     if not ok:
         V, E = set(), set()
         for c in stuck:
             V |= c['V']
             E |= c['E']
-        return False, ('integrating over the following subgraph is '
-                       f'scaleless: {{{_fmt_set(V)}, {_fmt_set(E)}}} '
-                       '(the union of the non-confirmed subgraphs)')
+        return False, (f'integrating over the following subgraph is scaleless: {{{_fmt_set(V)}, {_fmt_set(E)}}} (the union of the non-confirmed subgraphs)')
 
     return True, 'this mode assignment IS a region'
 
 
 # ---------------------------------------------------------------- interactive
 DEFAULT_EDGES = '[(1,5),(1,8),(2,5),(2,7),(3,6),(3,8),(4,6),(4,7),(5,6),(7,8)]'
-DEFAULT_EXTS = ("{'p1':[1,'C1'],'p2':[2,'C2^2'],'p3':[3,'C3^inf'],"
-                "'p4':[4,'C4^inf']}")
+DEFAULT_EXTS = "{'p1':[1,'C1'],'p2':[2,'C2^2'],'p3':[3,'C3^inf'],'p4':[4,'C4^inf']}"
 DEFAULT_MODES = "['C1','C1','C1','H','H','C1','H','H','C1','C1']"
 
 
@@ -282,11 +246,9 @@ def main():
     print('Input: graph + external kinematics + an edge-mode assignment.')
     print('Vertex modes are derived: 𝒳(v) = ∨(incident edge modes ∪ externals).')
     while True:
-        internal_lines = ask('internal_lines (topology, edge list)',
-                             DEFAULT_EDGES)
+        internal_lines = ask('internal_lines (topology, edge list)', DEFAULT_EDGES)
         externals = ask("externals ({name: [vertex, mode_str]})", DEFAULT_EXTS)
-        mode_strs = ask('edge_modes (one mode per edge, input edge order)',
-                        DEFAULT_MODES)
+        mode_strs = ask('edge_modes (one mode per edge, input edge order)', DEFAULT_MODES)
         try:
             edges = [tuple(sorted((a, b))) for (a, b) in internal_lines]
             ext_attach = {n: vv[0] for n, vv in externals.items()}

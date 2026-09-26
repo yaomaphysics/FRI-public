@@ -4,14 +4,14 @@ region_checker.py).
 
 Contents:
   - mode algebra on (m, n, i) tuples [S^m C_i^n; H = (0,0,0)]:
-      V, norm, eq, harder_or_eq, join, meet, marginal_softer;
+      V, norm, eq, harder_or_eq, join, meet, marginal_softer, _join;
   - mode scaling: scaling_of (v_e = -V);
   - mode-string parsing: parse_mode (single implementation in
       read_graph.py; re-exported);
   - graph representation + helpers: Graph (vertex_mode, vee, softer_v,
       is_sc_type, allowed);
-  - component machinery: build_components;
-  - graph utilities: biconnected_blocks (Tarjan; used by the 1VI checks),
+  - component machinery: _components;
+  - graph utilities: find_1vi_blocks (Tarjan; used by the 1VI checks),
       spanning_tree.
 
 Used by: skeleton.py (enumeration), region_checker.py (judgment),
@@ -19,8 +19,8 @@ usable_modes.py, scaleless_diagnosis.py, indep_loops.py.
 
 (2026-09-24 “two cores” split: the base parts of the old region_checker.py
 were merged in here; the Step-1 / First-Connectivity / IR check functions
-moved to region_checker.py; the standalone 5pt6loop enumerator lives in
-private/wide_angle_dev/dev_5pt6loop_enum.py.)
+moved to region_checker.py; the standalone 5pt6loop enumerator was retired
+2026-09-25; archived in private/_trash/cleanup_20260925.)
 """
 from collections import defaultdict
 
@@ -72,8 +72,7 @@ def _join_meet(X, Y):
         if harder_or_eq(B, A) and not harder_or_eq(A, B): return (norm(B), norm(A))
         return (norm(A), norm(B))
     else:
-        # different directions: first check comparability (meet/join of two
-        # comparable modes = the softer/harder one, regardless of direction)
+        # Different directions: first check comparability (meet/join of two comparable modes = the softer/harder one, regardless of direction).
         if harder_or_eq(X, Y) and not harder_or_eq(Y, X):
             return (norm(X), norm(Y))      # X harder: join=X, meet=Y
         if harder_or_eq(Y, X) and not harder_or_eq(X, Y):
@@ -94,9 +93,19 @@ def marginal_softer(X, Y):
     return X[0] <= Y[0] + Y[1]
 
 
+# Join of a list of modes (hardest common mode; None-filtered, empty -> H).
+def _join(modes):
+    modes = [m for m in modes if m is not None]
+    if not modes:
+        return (0, 0, 0)
+    acc = modes[0]
+    for m in modes[1:]:
+        acc = join(acc, m)
+    return norm(acc)
+
+
+# Scaling exponent v_e = -(2m + n) = -V(md) of edge mode md (x_e ~ lambda^{v_e}, lambda = expansion parameter); None -> 0.
 def scaling_of(md):
-    """Scaling exponent v_e = -(2m + n) = -V(md) of edge mode md
-    (x_e ~ lambda^{v_e}, lambda = expansion parameter); None -> 0."""
     return 0 if md is None else -V(md)
 
 
@@ -164,41 +173,35 @@ def allowed(va, vb):
 
 # =========================== component machinery =========================
 
-def build_components(verts, edges):
-    by_mode = defaultdict(lambda: {'V': set(), 'E': set()})
-    for v, md in verts.items(): by_mode[md]['V'].add(v)
-    for (a, b, md) in edges: by_mode[md]['E'].add((a, b))
+
+# Vertex sets of the connected components (isolated real vertices kept).
+def _components(verts, edges):
+    adj = {v: set() for v in verts}
+    for u, v in edges:
+        if u in adj and v in adj:
+            adj[u].add(v)
+            adj[v].add(u)
+    seen = set()
     comps = []
-    for md, g in by_mode.items():
-        nodes = list(g['V']) + list(g['E'])
-        idx = {nd: k for k, nd in enumerate(nodes)}
-        par = list(range(len(nodes)))
-        def find(x):
-            while par[x] != x: par[x] = par[par[x]]; x = par[x]
-            return x
-        def union(a, b):
-            ra, rb = find(a), find(b)
-            if ra != rb: par[ra] = rb
-        for k, e in enumerate(g['E']):
-            a, b = e
-            for v in (a, b):
-                if v in g['V']: union(idx[e], idx[v])
-        groups = defaultdict(lambda: {'V': set(), 'E': set()})
-        for k, nd in enumerate(nodes):
-            r = find(k)
-            if nd in g['V']: groups[r]['V'].add(nd)
-            else: groups[r]['E'].add(nd)
-        for gr in groups.values():
-            comps.append({'mode': md, 'V': gr['V'], 'E': gr['E']})
+    for v in verts:
+        if v in seen:
+            continue
+        stack, c = [v], set()
+        while stack:
+            x = stack.pop()
+            if x in c:
+                continue
+            c.add(x)
+            stack.extend(adj[x] - c)
+        comps.append(c)
+        seen |= c
     return comps
+
 
 # ======================== graph utilities ========================
 
+# Spanning tree of (verts, edge_list) avoiding the skip set (edge indices); None if no such tree exists (the skip set contains a bridge / disconnects the graph).
 def spanning_tree(verts, edge_list, skip):
-    """Spanning tree of (verts, edge_list) avoiding the skip set (edge
-    indices); None if no such tree exists (the skip set contains a bridge
-    / disconnects the graph).  (Moved from the wide-angle interactive
-    browser, 2026-09-24.)"""
     parent = {v: v for v in verts}
     def find(a):
         while parent[a] != a:
@@ -222,12 +225,9 @@ def spanning_tree(verts, edge_list, skip):
     return tree if all(find(v) == root for v in verts) else None
 
 
-def biconnected_blocks(verts, edges):
-    """Biconnected components (blocks) of (verts, edges); bridges appear as
-    single-edge blocks; self-loops as single-vertex blocks; isolated vertices
-    as single-vertex blocks.  (Tarjan; identical algorithm to
-    spacelike_collinear/regge/regge_core.mode_components — 2026-08-21: the
-    Regge methodology decomposes γ̃_X into 1VI blocks instead of filtering.)"""
+# 1VI components of (verts, edges): bridges = single-edge blocks, self-loops / isolated vertices = single-vertex blocks (Tarjan).
+# The Regge side uses the same decomposition for γ̃_X — 1VI blocks instead of filtering (2026-08-21).
+def find_1vi_blocks(verts, edges):
     loops = [(a, b) for (a, b) in edges if a == b]
     other = [(a, b) for (a, b) in edges if a != b]
     out = []

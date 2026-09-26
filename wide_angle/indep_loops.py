@@ -1,47 +1,33 @@
 #!/usr/bin/env python3
-"""indep_loops.py — independent loop momenta per region (wide-angle).
+"""
+This script is the core of the module of choosing independent loop momenta of a given region (in wide-angle kinematics). It is based on §3.2 of 2601.22144.
 
-For a region (edge-mode assignment em + vertex join-modes vm), for every
-mode X present in the graph:
+Given a region, for every mode X:
 
-  * contracted X-subgraph γ̃_X (paper §3.2):  V_X ∪ {aux},
-    where V_X = vertices with join mode X, and the aux vertex absorbs ALL
-    vertices of other (necessarily harder) mode subgraphs adjacent to Γ_X.
-    X-edges with an endpoint outside V_X map to aux; X-edges with both
-    endpoints outside V_X become self-loops (edge count preserved).
+  * Γ_X: the X subgraph, consisting of edges and vertices of the X mode.
+  
+  * Contracted X-subgraph Γ̃_X (§3.2 of 2601.22144).
+    Definition: to obtain from Γ_X, identify ALL its adjacent vertices from other (necessarily harder) mode subgraphs with an auxiliary vertex (shorthanded as "aux").
+    Γ̃_X is connected.
 
-  * The number of independent X-loop momenta = the cycle rank of γ̃_X
-    (2026-08-20: "the loop number of the contracted X subgraph,
-    including the auxiliary vertex"):
-        r_X = |E(γ̃_X)| − |V(γ̃_X)| + c(γ̃_X),   c = #connected components.
+  * The number of independent X-loop momenta = the loop number of Γ̃_X = |E(Γ̃_X)| − |V(Γ̃_X)| + 1.
 
-  * Basis lines: decompose γ̃_X into its 1VI (biconnected) components
-    (blocks; blocks share cut vertices, e.g. two blocks sharing aux).
-    In each block, delete edges until the block becomes a spanning tree
-    (aux included); the DELETED edges' line momenta form a basis of the
-    independent X-loop momenta in this region.
-      - self-loops are never tree edges -> always in the basis;
-      - parallel edges: at most one survives in the tree;
-      - the choice of which edges to delete is otherwise free (per-block
-        spanning tree, any one).
+  * Basis lines: decompose Γ̃_X into its 1VI components.
+    In each component, delete edges until it becomes a spanning tree (aux included); the DELETED edges' line momenta form a basis of the independent X-loop momenta in this region.
+    Note:
+      - self-loops are always in the basis;
+      - parallel edges (those with the same endpoints): at most one survives in the tree;
+      - the choice of which edges to delete is otherwise free.
 
-  * Forced lines F (user requires certain lines to be in the basis):
-    feasible iff for every block γ (of the mode of each forced line),
-    γ ∖ (F ∩ γ) is connected (contains a spanning tree).  Self-loops are
-    forced automatically.
+  * Forced lines F: user can require certain lines to be in the basis.
 
-Sanity: Σ_X r_X = L = |E| − |V| + 1 for every region (checked).
-
-Independent module: does not modify any region-analysis code.
+For sanity check: Σ_X r_X = L = |E| − |V| + 1 for every region.
 """
 from collections import defaultdict
 
 
-def biconnected_blocks(verts, edges):
-    """Biconnected components (blocks) of a MULTIGRAPH (verts, edges) where
-    edges is a list of (a, b) pairs; self-loops become single-vertex blocks,
-    parallel edges are distinguished by index.  Returns list of
-    (vertex_set, edge_index_list)."""
+# 1VI components of a subgraph.
+def find_1vi_blocks(verts, edges):
     loops = [(i, e) for i, e in enumerate(edges) if e[0] == e[1]]
     other = [(i, e) for i, e in enumerate(edges) if e[0] != e[1]]
     other_map = dict(other)
@@ -97,17 +83,14 @@ def biconnected_blocks(verts, edges):
     return out
 
 
+# spanning tree of a connected block (aux included); returns (tree_edge_indices, basis_edge_indices). That is, basis = deleted edges.
 def _basis_of_block(block_verts, block_edges, edges2):
-    """Spanning tree of a connected block (aux included); returns
-    (tree_edge_indices, basis_edge_indices) — basis = deleted edges."""
     parent = {}
-
     def find(a):
         while parent[a] != a:
             parent[a] = parent[parent[a]]
             a = parent[a]
         return a
-
     for v in block_verts:
         parent[v] = v
     tree, basis = [], []
@@ -126,43 +109,30 @@ def _basis_of_block(block_verts, block_edges, edges2):
 
 
 def _connected_spanning(verts, edge_indices, edges2):
-    """True iff (verts, edges2[i] for i in edge_indices) is connected and
-    spans all of verts."""
     if not verts:
         return True
     parent = {v: v for v in verts}
-
     def find(a):
         while parent[a] != a:
             parent[a] = parent[parent[a]]
             a = parent[a]
         return a
-
     def union(a, b):
         ra, rb = find(a), find(b)
         if ra != rb:
             parent[ra] = rb
-
     for i in edge_indices:
         a, b = edges2[i]
         if a in parent and b in parent and a != b:
             union(a, b)
     root = find(next(iter(verts)))
-    return all(find(v) == root for v in verts)
+    return all(find(v) == root for v in verts) # true iff (verts, edges2[i] for i in edge_indices) is connected and spans all of verts.
 
 
+# Per-mode independent loop momenta of a region: rank r_X and basis blocks per mode.
+# Inputs: edges = (u, v) lines (order = index space); em = edge modes (None/(0,0,0) = H); vm = {vertex: join-mode tuple}.
+# Returns (results, total_rank, L); results = per-mode {'mode', 'rank', 'blocks'} entries.
 def indep_loops(edges, em, vm):
-    """Per-mode independent loop momenta of a region.
-
-    edges: list of (u, v) internal lines (order = index space).
-    em:    list of edge mode tuples (m, n, i); None or (0,0,0) = H.
-    vm:    {vertex: join-mode tuple} (may omit isolated vertices).
-
-    Returns list of mode entries:
-        {'mode': X, 'rank': r_X,
-         'blocks': [{'verts': ..., 'tree': [...], 'basis': [...]}]}
-    and validates Σ r_X = L.
-    """
     from primitives import eq
     H = (0, 0, 0)
     em2 = [m if m is not None else H for m in em]
@@ -178,8 +148,7 @@ def indep_loops(edges, em, vm):
         ex = emodes[X]
         vx = {v for v, jm in vm.items() if eq(jm, X)}
         verts2 = set(vx) | {'aux'}
-        edges2 = [('aux' if a not in vx else a,
-                   'aux' if b not in vx else b) for (a, b) in edges]
+        edges2 = [('aux' if a not in vx else a, 'aux' if b not in vx else b) for (a, b) in edges]
         ge2 = [edges2[i] for i in ex]
 
         # connected components of γ̃_X (V_X ∪ aux, X-edges)
@@ -203,35 +172,21 @@ def indep_loops(edges, em, vm):
         rank = len(ex) - len(verts2) + c
         total_rank += rank
 
-        # 1VI (biconnected) blocks of γ̃_X
+        # 1VI blocks of γ̃_X
         blocks = []
-        for (bv, be) in biconnected_blocks(list(verts2), ge2):
+        for (bv, be) in find_1vi_blocks(list(verts2), ge2):
             tree, basis = _basis_of_block(bv, be, ge2)
-            blocks.append({'verts': sorted(bv, key=str),
-                           'tree': [ex[j] for j in tree],
-                           'basis': [ex[j] for j in basis]})
+            blocks.append({'verts': sorted(bv, key=str), 'tree': [ex[j] for j in tree], 'basis': [ex[j] for j in basis]})
         results.append({'mode': X, 'rank': rank, 'blocks': blocks})
 
+    # Sanity check: Σ_X r_X = L for every region.
     L = len(edges) - len({v for e in edges for v in e}) + 1
     return results, total_rank, L
 
 
+# A concrete basis containing the forced lines F (edge indices); returns (ok, failures, results).
+# ok=False iff removing F leaves a block unspanned (failures lists those blocks); results=None if not ok, else as in indep_loops().
 def forced_basis(edges, em, vm, F):
-    """A concrete basis containing the forced lines F (edge indices).
-
-    Returns (ok, failures, results):
-      ok       — True iff every block of every mode still admits a spanning
-                  tree after its forced lines are removed.
-      failures — list of (mode, block_verts, offending_forced_lines) for
-                  each block whose remaining edges do not span it.
-      results  — None if not ok; otherwise the same structure as
-                  indep_loops() (per-mode rank + blocks with tree/basis),
-                  with every line in F guaranteed to be in some basis list.
-
-    Construction: in each 1VI block, forced lines are placed in the basis
-    first; a spanning tree is then chosen among the REMAINING edges
-    (feasibility = such a tree exists); every non-tree remaining edge is
-    also a basis line.  Self-loops are always basis lines."""
     from primitives import eq
     H = (0, 0, 0)
     em2 = [m if m is not None else H for m in em]
@@ -247,8 +202,7 @@ def forced_basis(edges, em, vm, F):
         ex = emodes[X]
         vx = {v for v, jm in vm.items() if eq(jm, X)}
         verts2 = set(vx) | {'aux'}
-        edges2 = [('aux' if a not in vx else a,
-                   'aux' if b not in vx else b) for (a, b) in edges]
+        edges2 = [('aux' if a not in vx else a, 'aux' if b not in vx else b) for (a, b) in edges]
         ge2 = [edges2[i] for i in ex]
 
         # connected components of gamma~_X -> rank
@@ -273,18 +227,17 @@ def forced_basis(edges, em, vm, F):
         total_rank += rank
 
         blocks = []
-        for (bv, be) in biconnected_blocks(list(verts2), ge2):
+        for (bv, be) in find_1vi_blocks(list(verts2), ge2):
+            # forced lines enter the basis first; the remaining edges must still span the block
             forced_in = [j for j in be if ex[j] in F]
             rem = [j for j in be if ex[j] not in F]
             if not _connected_spanning(bv, rem, ge2):
-                failures.append((X, sorted(bv, key=str),
-                                 [ex[j] for j in forced_in]))
+                failures.append((X, sorted(bv, key=str), [ex[j] for j in forced_in]))
                 continue
             tree, extra = _basis_of_block(bv, rem, ge2)
+            # basis = forced lines + non-tree remaining edges; self-loops are always basis lines.
             basis = forced_in + extra       # ge2 indices
-            blocks.append({'verts': sorted(bv, key=str),
-                           'tree': [ex[j] for j in tree],
-                           'basis': [ex[j] for j in basis]})
+            blocks.append({'verts': sorted(bv, key=str), 'tree': [ex[j] for j in tree], 'basis': [ex[j] for j in basis]})
         results.append({'mode': X, 'rank': rank, 'blocks': blocks})
 
     if failures:
@@ -293,10 +246,7 @@ def forced_basis(edges, em, vm, F):
     return True, [], (results, total_rank, L)
 
 
+# Feasibility of forcing lines F (edge indices) into the independent-loop-momentum basis.
 def forced_feasible(edges, em, vm, F):
-    """Feasibility of forcing lines F (edge indices) into the independent-
-    loop-momentum basis.  Returns (ok, failures) where failures lists
-    (mode, block_verts, offending_forced_lines) for each block whose
-    remaining edges do not span it."""
     ok, failures, _ = forced_basis(edges, em, vm, F)
     return ok, failures

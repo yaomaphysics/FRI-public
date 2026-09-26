@@ -571,7 +571,7 @@ def _layout_rows(edges, verts, ext_attach, items, outdir):
 
 def render_atlas(edges, verts, items, ext_mode=None, ext_attach=None,
                  outdir=None, nrows=None, font=None,
-                 title='spacelike-collinear 2->2', verbose=False):
+                 title='collinear 2->2', verbose=False):
     """Render [(label, region), ...] as a single PDF atlas (A4, nrows/page;
     nrows=None -> auto by content aspect); returns the merged PDF path.
     Runs a font fidelity check first."""

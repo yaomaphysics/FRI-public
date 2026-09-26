@@ -24,12 +24,9 @@ from collections import defaultdict
 INF = 100   # sentinel for C_i^inf (infty); one value for the whole wide-angle tree (2026-09-24)
 
 # ---------------- mode parsing ----------------
+# Parse a mode string into (m, n, i) [S^m C_i^n; H = (0,0,0); C_i^inf -> n = INF]; accepts 'inf'/'infty'/'∞'/'\\infty' and the SC_i shorthand.
+# (Single implementation for the WA tree; primitives re-exports it — merged here 2026-09-24.)
 def parse_mode(s):
-    """Parse a mode string into the internal tuple (m, n, i): S^m C_i^n;
-    H = (0,0,0); C_i^inf -> n = INF.  Accepts 'inf' / 'infty' / '∞' / '\\infty',
-    and the SC_i shorthand.  (Single implementation for the wide-angle tree —
-    2026-09-24: the copies in primitives.py and facet_regions_interactive.py
-    were merged here; primitives.py re-exports this one.)"""
     s = s.strip().replace(' ', '')
     if s in ('H', 'h'):
         return (0, 0, 0)
@@ -56,8 +53,8 @@ def parse_mode(s):
         return (0, nval, i)
     raise ValueError(f"cannot parse mode: {s!r} (use e.g. C2^inf, C2^\\infty, SC4, S^2, H)")
 
+# Internal tuple back to a readable string (for verification echo).
 def mode_str(md):
-    """Internal tuple back to a readable string (for verification echo)."""
     m, n, i = md
     if m == 0 and n == 0:
         return 'H'
@@ -71,8 +68,8 @@ def mode_str(md):
 
 
 # ---------------- mode classes & short labels ----------------
+# Short label: (1,1)->SC, (1,2)->SC^2, (2,1)->S^2C, (m,0)->S^m.
 def sc_short(m, n):
-    """Short label: (1,1)->SC, (1,2)->SC^2, (2,1)->S^2C, (m,0)->S^m."""
     if n == 0:
         return 'S' if m == 1 else f'S^{m}'
     if m == 1:
@@ -82,9 +79,8 @@ def sc_short(m, n):
     return f'S^{m}C^{n}'
 
 
+# All (m,n) with m>=1, n>=0, m+n<=kappa, softest-first: (sigma=m+n desc, then m desc).
 def type_order(kappa):
-    """All (m,n) with m>=1, n>=0, m+n<=kappa, softest-first:
-    (sigma=m+n desc, then m desc)."""
     lst = []
     for m in range(1, kappa + 1):
         for n in range(0, kappa + 1 - m):
@@ -93,10 +89,9 @@ def type_order(kappa):
     return lst
 
 
+# Classify a region by its softest mode present (exclusion-style order); considers ALL mode components — vertex and edge modes.
+# (A soft component such as SC can live on a propagator.)
 def classify(vm, em, kappa):
-    """Classify a region by its softest mode present (exclusion-style order).
-    Considers ALL mode components: both vertex modes and edge modes (a soft
-    component such as SC can live on a propagator)."""
     order = type_order(kappa)
     present = set()
     for v, md in vm.items():
@@ -113,19 +108,17 @@ def classify(vm, em, kappa):
     return 'C/H'
 
 
+# Group regions (vm, em) by their softest-mode class label (classify).
 def group_by_type(results, kappa):
-    """Group regions (vm, em) by their softest-mode class label (classify)."""
     groups = defaultdict(list)
     for vm, em in results:
         groups[classify(vm, em, kappa)].append((vm, em))
     return groups
 
 # ---------------- parsing of user input ----------------
+# Parse '[1,6],[1,5],...' into a sorted list of frozenset pairs.
 def parse_edges(raw):
-    """Parse '[1,6],[1,5],...' into a sorted list of frozenset pairs."""
-    pairs = re.findall(
-        r'\[\s*([^,\]^]+?)\s*,\s*([^\]^]+?)\s*(?:,\s*(.*?)\s*)?\]',
-        raw)
+    pairs = re.findall(r'\[\s*([^,\]^]+?)\s*,\s*([^\]^]+?)\s*(?:,\s*(.*?)\s*)?\]', raw)
     edges = []
     for a, b, _mcol in pairs:
         a, b = a.strip(), b.strip()
@@ -143,16 +136,10 @@ def parse_edges(raw):
     edges = list(dict.fromkeys(edges))
     return sorted(edges, key=lambda e: tuple(sorted(e, key=str)))
 
+# Parse "['p1',1,C1],['p2',2,C2^2],..." into [(name, vertex, mode_tuple)]; tolerant (name may be quoted or bare, whitespace flexible).
+# Returns (entries, n_seen, n_parsed) so the caller can warn when some entries failed to parse.
 def parse_externals(raw):
-    """Parse "['p1',1,C1],['p2',2,C2^2],..." into [(name, vertex, mode_tuple)].
-
-    Tolerant: the external name may be quoted or bare (['p1' or [p1), and
-    whitespace is flexible.  Returns (entries, n_seen, n_parsed) so the
-    caller can warn when some entries failed to parse.
-    """
-    entries = re.findall(
-        r"\[\s*(?:'([^']+)'|([^',\]]+))\s*,\s*([^,\]]+?)\s*,\s*([^\]]+?)\s*\]",
-        raw)
+    entries = re.findall(r"\[\s*(?:'([^']+)'|([^',\]]+))\s*,\s*([^,\]]+?)\s*,\s*([^\]]+?)\s*\]", raw)
     out = []
     for qname, bname, v, md in entries:
         name = qname if qname else bname.strip()
@@ -166,19 +153,13 @@ def parse_externals(raw):
     return out, n_seen, len(out)
 
 
+# Derive the possible-modes structure from the external momenta; returns (kappa, softest_mode, (c_modes, s_modes, sc_modes), types).
+# Paper input (all derived, no region data):
+#   (i) mode-resolution: internal modes are S^m C_i^n like the externals;
+#   (ii) no-cascading: kappa = max{m_i + n_i}, S^kappa softest;
+#   (iii) IR-compat: S^kappa must be a degree-kappa messenger (>=3 harder components); SC_i = meet of two harder C-modes (or SC external);
+#         pure S^m (m<kappa) adjacent to >=2 jets; C/H has no soft component.
 def analyze_kinematics(exts):
-    """Derive the possible-modes structure from the external momenta.
-    Returns (kappa, softest_mode, types_list) with explanations.
-
-    Paper input used (all derived, no region data):
-      - mode-resolution corollary: all internal modes are S^m C_i^n with
-        (m,n) in N^2, same form as externals;
-      - no-cascading corollary: kappa = max{m_i + n_i} over externals, and
-        S^kappa is the softest possible mode;
-      - IR-compat: an S^kappa component must be a degree-kappa messenger,
-        relevant to >=3 harder components; SC_i arises as meet of two harder
-        C-type components or from an SC external; pure S^m (m<kappa) must be
-        adjacent to >=2 jets; C/H regions contain no soft component."""
     # kappa = max over external modes of (m + n), finite n only
     kappas = [m + n for (_, _, (m, n, i)) in exts if n < INF and (m, n, i) != (0, 0, 0)]
     kappa = max(kappas) if kappas else 1
@@ -188,26 +169,21 @@ def analyze_kinematics(exts):
     dirs = sorted({i for (_, _, (m, n, i)) in exts if i != 0})
 
     # ---- complete list of allowed internal modes ----
-    # no-cascading corollary: every internal mode is harder-or-equal to the
-    # softest mode S^kappa, i.e. its softness exponent sigma = m + n satisfies
-    # sigma <= kappa (this also implies V = 2m+n <= 2*kappa).
+    # No-cascading corollary: every internal mode is harder-or-equal to the softest mode S^kappa, i.e. sigma = m + n <= kappa (also V = 2m+n <= 2*kappa).
     # Families (i runs over the external directions):
     #   C_i^n :  m = 0, 1 <= n <= kappa
     #   S^m   :  n = 0, 1 <= m <= kappa
     #   S^m C_i^n (SC family):  m >= 1, n >= 1, m + n <= kappa
     c_modes = [(0, n, i) for n in range(1, kappa + 1) for i in dirs]
     s_modes = [(m, 0, 0) for m in range(1, kappa + 1)]
-    sc_modes = [(m, n, i) for m in range(1, kappa + 1)
-                 for n in range(1, kappa + 1 - m) for i in dirs]
+    sc_modes = [(m, n, i) for m in range(1, kappa + 1) for n in range(1, kappa + 1 - m) for i in dirs]
 
     # SC seeds from externals
     sc_seeds = [(name, md) for (name, _, md) in exts if md[0] >= 1 and md[1] >= 1]
 
     # ---- classification: one class per softest-mode (m,n) combination ----
-    # Order from softest to hardest: sigma = m+n descending, then m descending.
-    # (For fixed sigma, larger m means larger V = 2m+n, i.e. softer.)
-    # Classes: each (m,n) with m >= 1, n >= 0, m+n <= kappa gets its own class,
-    # defined by exclusion: "no softer class's mode, but contains (m,n)".
+    # Order from softest to hardest: sigma = m+n descending, then m descending (for fixed sigma, larger m means larger V = 2m+n, i.e. softer).
+    # Each (m,n) with m >= 1, n >= 0, m+n <= kappa gets its own class, defined by exclusion: "no softer class's mode, but contains (m,n)".
     # Pure C modes (m = 0) never define a class; they fall into C/H.
     mn_list = type_order(kappa)
 
@@ -222,16 +198,13 @@ def analyze_kinematics(exts):
         types.append((label, desc))
     # C/H class (no soft component at all)
     c_list = ', '.join(mode_str(md) for md in sorted(c_modes, key=lambda md: (md[1], md[2])))
-    types.append(('C/H-type',
-                  f'regions containing none of the above modes, i.e. only C-type and H modes '
-                  f'(C modes: {c_list}, i in {dirs})'))
+    types.append(('C/H-type', f'regions containing none of the above modes, i.e. only C-type and H modes (C modes: {c_list}, i in {dirs})'))
     return kappa, softest, (c_modes, s_modes, sc_modes), types
 
 # ---------------- interactive input (reusable) ----------------
+# Interactive graph input: returns (verts, edges, ext_attach, ext_mode).
 def input_graph():
-    """Interactive graph input: returns (verts, edges, ext_attach, ext_mode)."""
-    # Ensure arrow keys / line editing work (readline may not be active by
-    # default in some terminals / wrappers).
+    # Ensure arrow keys / line editing work (readline may not be active by default in some terminals / wrappers).
     try:
         import readline  # noqa: F401
     except ImportError:
@@ -260,10 +233,7 @@ def input_graph():
     if not exts:
         print('ERROR: could not parse any external momentum.'); sys.exit(1)
     if n_parsed < n_seen:
-        print(f'WARNING: parsed {n_parsed} of {n_seen} external entries. '
-              f'Each must look like [name,vertex,mode] with the name '
-              f'quoted or bare, e.g. [p1,1,C1] or [\'p1\',1,C1]. '
-              f'Continuing with {n_parsed}.')
+        print(f'WARNING: parsed {n_parsed} of {n_seen} external entries. Each must look like [name,vertex,mode] with the name quoted or bare, e.g. [p1,1,C1] or [\'p1\',1,C1]. Continuing with {n_parsed}.')
     ext_attach = {n: v for (n, v, md) in exts}
     ext_mode = {n: md for (n, v, md) in exts}
     return sorted(verts, key=str), edges, ext_attach, ext_mode
@@ -331,8 +301,7 @@ def main():
         print('=' * 64)
         print('POSSIBLE MODES ANALYSIS')
         print('=' * 64)
-        print(f'The possibly softest mode in this expansion is {mode_str(softest)} '
-              f'(kappa = {kappa}).')
+        print(f'The possibly softest mode in this expansion is {mode_str(softest)} (kappa = {kappa}).')
         print()
         print(f'All modes harder-or-equal to {mode_str(softest)} (softness exponent m+n <= {kappa}):')
         print(f'  H')
@@ -341,8 +310,7 @@ def main():
         if s_modes:
             print(f'  S-type: ' + ', '.join(mode_str(md) for md in s_modes))
         if sc_modes:
-            print(f'  SC-type (S^m C_i^n, m,n >= 1): ' +
-                  ', '.join(mode_str(md) for md in sorted(sc_modes, key=lambda md: (md[0], md[1]))))
+            print(f'  SC-type (S^m C_i^n, m,n >= 1): ' + ', '.join(mode_str(md) for md in sorted(sc_modes, key=lambda md: (md[0], md[1]))))
         print()
         print('Therefore, we classify the regions into the following types:')
         for i, (label, desc) in enumerate(types, 1):

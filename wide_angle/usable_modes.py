@@ -32,49 +32,12 @@ The result is the CONFIRMABLE set: a superset of what any specific graph
 realizes (realization is graph-dependent), and a subset of all algebraically
 possible modes.  It is exactly what layer compression should use.
 """
-from primitives import norm, eq, harder_or_eq
+from primitives import norm, eq, harder_or_eq, join, meet
 from read_graph import INF  # pipeline INF = 100 (C^inf/SC^inf marker)
 
 
-def _join_meet(X, Y):
-    """Lattice join/meet (same algebra as region_checker._join_meet).
-    Returns (join, meet)."""
-    X, Y = norm(X), norm(Y)
-    if X == (0, 0, 0): return (X, Y)
-    if Y == (0, 0, 0): return (Y, X)
-    if eq(X, Y): return (X, X)
-    iX = X[2] if X[1] != 0 else (Y[2] if Y[1] != 0 else 0)
-    iY = Y[2] if Y[1] != 0 else iX
-    if iX == iY:
-        A, B = (X[0], X[1], iX), (Y[0], Y[1], iX)
-        for (P, Q) in ((A, B), (B, A)):
-            m1, n1, _ = P; m2, n2, _ = Q
-            if m2 < m1 <= m1 + n1 < m2 + n2:
-                return (norm((m2, m1 + n1 - m2, iX)),
-                        norm((m1, m2 + n2 - m1, iX)))
-        if harder_or_eq(A, B) and not harder_or_eq(B, A):
-            return (norm(A), norm(B))
-        if harder_or_eq(B, A) and not harder_or_eq(A, B):
-            return (norm(B), norm(A))
-        return (norm(A), norm(B))
-    else:
-        if harder_or_eq(X, Y) and not harder_or_eq(Y, X):
-            return (norm(X), norm(Y))
-        if harder_or_eq(Y, X) and not harder_or_eq(X, Y):
-            return (norm(Y), norm(X))
-        if X[0] + X[1] <= Y[0] + Y[1]: P, Q = X, Y
-        else: P, Q = Y, X
-        m1, n1, i = P; m2, n2, j = Q
-        if m1 <= m2: jn = norm((m1, m2 - m1, i))
-        else: jn = norm((m2, m1 - m2, j))
-        mt = norm((m1 + n1, m2 + n2 - m1 - n1, j))
-        return (jn, mt)
-
-
+# 'Level' of an external mode: the minimal softness index it anchors (level(C_i^n)=n, C_i^inf=kappa, S^m C_i^n=m, S^m=m; H -> None).
 def external_level(md, kappa):
-    """The 'level' of an external mode: the minimal softness index it
-    anchors (level(C_i^n)=n, level(C_i^inf)=kappa, level(S^m C_i^n)=m,
-    level(S^m)=m, H -> None)."""
     m, n, i = md
     if m == 0 and n == 0:
         return None
@@ -85,8 +48,8 @@ def external_level(md, kappa):
     return m                           # SC: the S-part is the soft anchor
 
 
+# Deepest collinear level hosted by direction i (kappa for C^inf).
 def depth_of(external_modes, kappa, i):
-    """Deepest collinear level hosted by direction i (kappa for C^inf)."""
     d = 0
     for md in external_modes.values():
         m, n, ii = md
@@ -95,10 +58,9 @@ def depth_of(external_modes, kappa, i):
     return d
 
 
+# Iterative closure: external modes + IR compatibility -> usable modes.
+# ext_mode: {name: (m, n, i)}; kappa: max softness power; returns a set (finite n only, H in).
 def derive_usable_modes(ext_mode, kappa):
-    """Iterative closure: external modes + IR compatibility -> usable modes.
-    ext_mode: {name: (m, n, i)}; kappa: max softness power.
-    Returns a set of modes (finite n only; H included)."""
     H = (0, 0, 0)
     C = set()
     # R1: seeds
@@ -126,35 +88,29 @@ def derive_usable_modes(ext_mode, kappa):
                 if o_n == 0:
                     continue           # need a collinear C_i^N
                 if m < o_n:            # strict: m < N (lattice handles dir)
-                    jn, _ = _join_meet(other, md)
+                    jn = join(other, md)
                     if jn not in C:
                         C.add(jn); changed = True
         # R3: meets of confirmed pairs (cond 3)
         for a in range(len(L)):
             for b in range(a + 1, len(L)):
-                _, mt = _join_meet(L[a], L[b])
+                mt = meet(L[a], L[b])
                 if mt not in C:
                     C.add(mt); changed = True
         # R4: S^m messengers (cond 2)
         for m in range(1, kappa + 1):
             if (m, 0, 0) in C:
                 continue
-            # anchor: an external mode whose own level is EXACTLY m
-            # (a level-m collinear target must have an independent source —
-            # an external C_i^m, or an S^m/S^m C_i^n external feeding the
-            # kernel.  Without it the messenger's targets would all depend
-            # on S^m itself: pure circularity, no scale source.
-            # 2026-08-12 : case3 S^3 has no level-3 external -> dead.)
-            anchored = any(external_level(md, kappa) == m
-                           for md in ext_mode.values())
+            # Anchor: an external mode whose own level is EXACTLY m — a level-m collinear target must have an independent source (an external C_i^m, or an S^m/S^mC_i^n feeding the kernel).
+            # Without it, the messenger's targets would all depend on S^m itself: pure circularity, no scale source.
+            # (2026-08-12: case3 S^3 has no level-3 external -> dead.)
+            anchored = any(external_level(md, kappa) == m for md in ext_mode.values())
             if not anchored:
                 continue
-            # target directions, either:
+            # Target directions, either:
             #   (a) collinear depth >= m  (kernel/member targets C_i^{n'}), or
-            #   (b) an SC/S external S^{m'}C_i^{n'} with m' < m <= m' + n':
-            #       its own mode is a messenger target (m_i = m - m',
-            #       n_i = n' - m_i >= 0) — e.g. CheesePizza k1 S^2 uses
-            #       l1 = S^1C_4^1 as its 3rd direction (2026-08-12).
+            #   (b) an SC/S external S^{m'}C_i^{n'} with m' < m <= m' + n' — its own mode is a messenger target (m_i = m - m', n_i = n' - m_i >= 0).
+            #       Example: CheesePizza k1 S^2 uses l1 = S^1C_4^1 as its 3rd direction (2026-08-12).
             nd = 0
             for i in dirs:
                 if depth_of(ext_mode, kappa, i) >= m:
@@ -162,8 +118,7 @@ def derive_usable_modes(ext_mode, kappa):
                     continue
                 for md in ext_mode.values():
                     m2, n2, i2 = md
-                    if i2 == i and 1 <= m2 < m and \
-                       (n2 >= INF or m <= m2 + n2):
+                    if i2 == i and 1 <= m2 < m and (n2 >= INF or m <= m2 + n2):
                         nd += 1
                         break
             if nd >= 3:
@@ -174,12 +129,10 @@ def derive_usable_modes(ext_mode, kappa):
     return out
 
 
+# Per external: the cut-tower layers to keep (compression input).
+# Pure-C: {n : C_i^n usable} — dead levels below n0 are excluded by construction.
+# SC external (m>=1): its own tower S^mC_i^k, k=1..n_max, is always kept (containers hosting soft-attachment vertices, e.g. CrownASE l1=SC5^inf).
 def usable_layers(ext_mode, kappa, usable):
-    """Per external: the cut-tower layers to keep (compression input).
-    Pure-C external: {n : C_i^n usable} (dead levels below n0 are excluded
-    by construction of the usable set).  SC external (m>=1): its own tower
-    S^mC_i^k, k = 1..n_max, is always kept (these cuts are the containers
-    that host soft-attachment vertices, e.g. CrownASE l1=SC5^inf)."""
     layers = {}
     for name, md in ext_mode.items():
         if md == (0, 0, 0):

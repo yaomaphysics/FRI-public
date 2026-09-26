@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""facet_regions_interactive.py — interactive facet-region browser.
+"""
+facet_regions_interactive.py — interactive facet-region browser.
 
 Input: graph topology + external kinematics ONLY (the cut formalism is internal — the user never touches cuts).
 
@@ -50,7 +51,7 @@ def ask(label, default=None):
         return ask(label, default)
 
 # ---------------------------------------------------------------- enumeration
-# enumerates all regions of the graphs; return list of (vm, em).
+# Enumerate all regions of the graph; returns a list of (vm, em).
 def enumerate_regions(verts, edges, ext_attach, ext_mode):
     regs = {}
     regions, _nc, _dt = skeleton_run(verts, edges, ext_attach, ext_mode, verbose=False, overlap_strong=True)
@@ -114,8 +115,7 @@ def mode_subgraphs(edges, em, vm):
 def show_mode_subgraphs(edges, em, vm):
     results, total, L = indep_loops(edges, em, vm)
     rank = {r['mode']: r['rank'] for r in results}
-    for X in sorted(mode_subgraphs(edges, em, vm),
-                    key=lambda m: (m[0], m[1], m[2])):
+    for X in sorted(mode_subgraphs(edges, em, vm), key=lambda m: (m[0], m[1], m[2])):
         V, E = mode_subgraphs(edges, em, vm)[X]
         Vs = '{' + ', '.join(str(v) for v in sorted(V)) + '}'
         Es = '{' + ', '.join(f'({u},{v})' for u, v in sorted(E)) + '}'
@@ -124,16 +124,6 @@ def show_mode_subgraphs(edges, em, vm):
 
 
 # Express line momenta as linear combinations of the loop and external momenta.
-# More details: carrier lines are the chords (forced lines first in the k numbering,
-# remaining carriers chosen freely); the other |V|-1 lines form a spanning tree on
-# the ORIGINAL graph.  A carrier's loop momentum flows through every tree line on its
-# fundamental cycle — a "self-loop" of a contracted mode subgraph is NOT inert: it is
-# an ordinary line of the original graph and its momentum couples to the other lines.
-# Lines are oriented (a,b) with a<b; external momenta enter at their attachment
-# vertices (net-inflow convention: in - out = p_v).
-# Returns (True, order, momenta, verts), momenta[ei] = {term: coeff} (order = carrier
-# edge indices in k-numbering order), or (False, reason, None, None): |carriers| > L,
-# or the complement of the carriers is disconnected (a forced line is a bridge).
 def edge_momenta(edges, em, vm, carriers, ext_attach):
     verts = sorted({v for e in edges for v in e})
     E = len(edges)
@@ -144,8 +134,7 @@ def edge_momenta(edges, em, vm, carriers, ext_attach):
         return False, f'{len(F)} forced lines exceed L = {L}', None, None
     tree = spanning_tree(verts, edges, F)
     if tree is None:
-        return False, ('the remaining lines do not connect (a forced line is a bridge and cannot carry a loop momentum)'), \
-            None, None
+        return False, ('the remaining lines do not connect (a forced line is a bridge and cannot carry a loop momentum)'), None, None
     chords = [i for i in range(E) if i not in tree]
     # k-numbering: forced lines first (input order), then remaining chords in edge order
     order = sorted(F) + [i for i in chords if i not in F]
@@ -345,8 +334,7 @@ def inspect_regions(edges, regs, ext_attach):
     if input('Select a set of line momenta as independent loop momenta? (y/n) [n] > ').strip().lower() == 'y':
         asked = False
         while True:
-            prompt = ('Force lines into the basis? ((x,y) pairs; empty = show default basis) > ' if not asked
-                      else 'Force more lines? ((x,y) pairs; empty = done) > ')
+            prompt = ('Force lines into the basis? ((x,y) pairs; empty = show default basis) > ' if not asked else 'Force more lines? ((x,y) pairs; empty = done) > ')
             line = input(prompt).strip()
             if not line:
                 if not asked:
@@ -409,7 +397,7 @@ def visualize_regions(edges, regs, extmode, ext_attach):
     if fmt in ('p', 'png', 'files'):
         print(f'  rendering {len(sel)} region figure(s) via wolframscript ...')
         try:
-            paths = region_plot_wa.render_regions(edges, sorted({v for e in edges for v in e}), [(i, regs[i - 1]) for i in sel], ext_mode=extmode, ext_attach=ext_attach, outdir=outdir)
+            paths = region_plot_wa.render_individual_pngs(edges, sorted({v for e in edges for v in e}), [(i, regs[i - 1]) for i in sel], ext_mode=extmode, ext_attach=ext_attach, outdir=outdir)
         except Exception as e:
             print(f'  ! region rendering failed: {e}')
             return
@@ -417,10 +405,7 @@ def visualize_regions(edges, regs, extmode, ext_attach):
     else:
         print(f'  building the PDF atlas for {len(sel)} region(s) via wolframscript ...')
         try:
-            path = region_plot_wa.render_atlas(
-                edges, sorted({v for e in edges for v in e}),
-                [(i, regs[i - 1]) for i in sel],
-                ext_mode=extmode, ext_attach=ext_attach, outdir=outdir)
+            path = region_plot_wa.render_combined_pdf(edges, sorted({v for e in edges for v in e}), [(i, regs[i - 1]) for i in sel], ext_mode=extmode, ext_attach=ext_attach, outdir=outdir)
         except Exception as e:
             print(f'  ! atlas rendering failed: {e}')
             return
@@ -461,8 +446,7 @@ def main():
             print('    2) Show Lee-Pomeransky parametric representation')
             print('    3) Classify these regions based on their characteristic modes')
             print('    4) Visualize these regions (PDF atlas / PNGs)')
-            opt = input('  (1/2/3/4; empty or q = done with this graph) > ')\
-                .strip().lower()
+            opt = input('  (1/2/3/4; empty or q = done with this graph) > ').strip().lower()
             if opt in ('', 'q', 'quit'):
                 break
             if opt == '1':

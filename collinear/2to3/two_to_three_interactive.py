@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""fri23_interactive.py — interactive region browser for the spacelike-collinear 2->3 FRI enumerator (fri23).
+"""two_to_three_interactive.py — interactive region browser for the collinear 2->3 FRI enumerator (two_to_three).
 
 Input: graph topology + external kinematics ONLY (the cut formalism is
 internal — the user never touches cuts).  External momenta p1..p5 attach
@@ -14,7 +14,7 @@ at vertices 1,2,3,4,5.  The script:
           MODE SUBGRAPHS
             mode X: {vertices: {V_X}, edges: {E_X}}   loop number of X
           (r_X = sum of |E| - |V| + 1 over the 1VI blocks of the contracted
-          mode subgraph, computed with fri23's own mode_components; Σ r_X vs
+          mode subgraph, computed with two_to_three's own mode_components; Σ r_X vs
           L is checked), then optionally a concrete set of independent loop
           momenta (default basis) with optional FORCED lines ((x,y) endpoint
           pairs, square brackets also accepted),
@@ -33,7 +33,7 @@ enumeration statistics, 'q' quits.  Start with -v to have the statistics
 on from the beginning.
 Results are saved to fri_out/<timestamp>.txt after each graph.
 
-Usage: python3 fri23_interactive.py [-v]
+Usage: python3 two_to_three_interactive.py [-v]
   Example graph (the built-in Frog): 1-3,1-5,2-3,2-5,3-4,4-5
 """
 import ast
@@ -45,10 +45,10 @@ from collections import defaultdict
 
 BASE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, BASE)
-import fri23
+import two_to_three
 import kin23
 import skeleton23
-from fri23 import INF, V, m_of, name, n_of
+from two_to_three import INF, V, m_of, name, n_of
 
 EXT_ATTACH = {'p1': 1, 'p2': 2, 'p3': 3, 'p4': 4, 'p5': 5}
 KIN_CHOICES = list(kin23.KIN_ORDER)
@@ -99,7 +99,7 @@ def fmt_scaling(sc):
 
 
 def fmt_cuts(cuts):
-    """Non-empty cuts as a dict-of-lists string (native fri23 style)."""
+    """Non-empty cuts as a dict-of-lists string (native two_to_three style)."""
     return str({k: sorted(v) for k, v in cuts.items() if v})
 
 
@@ -163,7 +163,7 @@ def show_mode_subgraphs(edges, em, vm):
 
     r_X uses the contracted-subgraph rule (1VI blocks of gamma~_X with the
     aux vertex; r = |E| - |V| + 1 per block) — same rule as the 2->2
-    browser, computed with fri23's own mode_components."""
+    browser, computed with two_to_three's own mode_components."""
     verts = sorted({v for e in edges for v in e})
     results, total, L = indep_loops(edges, em, vm)
     rank = {r['mode']: r['rank'] for r in results}
@@ -180,7 +180,7 @@ def show_mode_subgraphs(edges, em, vm):
 
 # ---------------------------------------------------------------- basis machinery
 # (ported from the 2->2 browser's regge_indep_loops, minus the sH/G overlay:
-#  every fri23 mode is a lattice mode, so each mode is its own unit)
+#  every two_to_three mode is a lattice mode, so each mode is its own unit)
 
 def _basis_of_block(block_verts, block_edges, edges2):
     """Spanning tree of a connected block (aux included); returns
@@ -219,7 +219,7 @@ def _iter_units(em, vm, edges, verts):
     appearing in em/vm is one unit."""
     for mode in sorted(set(em) | set(vm.values()), key=_disp_key):
         blocks = []
-        for (bv, be, idxs) in fri23.mode_components(mode, vm, em, edges,
+        for (bv, be, idxs) in two_to_three.mode_components(mode, vm, em, edges,
                                                     verts):
             blocks.append((bv, list(be), list(idxs)))
         yield mode, blocks
@@ -678,7 +678,7 @@ def run_graph(edges_raw, kin_name, verbose=False):
     os.makedirs(fdir, exist_ok=True)
     fname = os.path.join(fdir, time.strftime('%Y%m%d-%H%M%S') + '.txt')
     with open(fname, 'w') as f:
-        f.write(f'# fri23 regions - {time.strftime("%Y-%m-%d %H:%M:%S")}\n')
+        f.write(f'# two_to_three regions - {time.strftime("%Y-%m-%d %H:%M:%S")}\n')
         f.write(f'# kinematics: {kin_name}\n')
         f.write(f'# edges: {edges}  ({len(edges)} edges, {len(verts)} '
                 f'verts, L={L})\n')
@@ -695,7 +695,7 @@ def run_graph(edges_raw, kin_name, verbose=False):
 def main():
     verbose = any(a in ('-v', '--verbose') for a in sys.argv[1:])
     print('=' * 72)
-    print('Spacelike-collinear 2->3 FRI region enumerator (k0..k4)')
+    print('collinear 2->3 FRI region enumerator (k0..k4)')
     print('external momenta: p1@1, p2@2, p3@3, p4@4, p5@5')
     print('type an edge list, e.g. 1-3,1-5,2-3,2-5,3-4,4-5 (the Frog)')
     print("commands: 'kin kX' switch kinematics, 'v' toggle stats, 'q' quit")

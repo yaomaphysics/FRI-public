@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# fri23.py — Spacelike-collinear 2->3 FRI enumerator.
+# two_to_three.py — collinear 2->3 FRI enumerator.
 #
 # Pipeline: cuts
 #   -> overlay (em/vm)
@@ -9,7 +9,7 @@
 #        condition 2 = messenger (incl. the SC23 special messenger);
 #        condition 3 = meet-of-two).
 #
-# Run:  python3 fri23.py [k0..k4] [-v]   (built-in example; default k1)
+# Run:  python3 two_to_three.py [k0..k4] [-v]   (built-in example; default k1)
 import re
 from itertools import combinations
 
@@ -127,7 +127,7 @@ def _decode_wide(m, sig, leg):
 
 def _wide23_join_meet(a, b):
     # wide×wide carrier vee/wedge for finite carrier powers — translated from
-    # wide_angle/region_checker._join_meet (aligned 2026-09-16; keep the two in sync).
+    # wide_angle/primitives._join_meet (aligned 2026-09-16; keep the two in sync).
     # tuple view: (m, n, i) = (soft index, carrier power, direction).
     def _norm(t):
         m, n, i = t
@@ -509,7 +509,7 @@ def meet23(a, b):
     # C x C
     if wide_like(a) and wide_like(b):
         if n_of(a) != INF and n_of(b) != INF:
-            # carrier wedge — same rules as wide_angle/_join_meet (aligned 2026-09-16).
+            # carrier wedge — same rules as wide_angle/primitives._join_meet (aligned 2026-09-16).
             return _wide23_join_meet(a, b)[1]
         # n = INF keeps the previous handling:
         if same_dir(a, b):
@@ -576,7 +576,7 @@ def join23(a, b):
         return P(nu2, mem_of(c_), mm)
     if wide_like(a) and wide_like(b):
         if n_of(a) != INF and n_of(b) != INF:
-            # carrier vee — same rules as wide_angle/_join_meet (aligned 2026-09-16).
+            # carrier vee — same rules as wide_angle/primitives._join_meet (aligned 2026-09-16).
             return _wide23_join_meet(a, b)[0]
         # n = INF keeps the previous handling:
         if same_dir(a, b):
@@ -952,7 +952,7 @@ def marginally_softer23(src, dst):
         return False
     if isC(src) and isS(dst):
         # soft-carrier -> pure soft: S^m X -> S^m (added 2026-09-23; was missing).
-        # Matches wide_angle.region_checker.marginal_softer and the regge MARGINAL_SOFTER
+        # Matches wide_angle.primitives.marginal_softer and the regge MARGINAL_SOFTER
         # rows ('S^1C13','S'), ('S^1C24','S'), ('S^1C1C13','S'), ('S^2C13','S^2')
         # (all reduce to: carrier soft power == target soft power).
         # (R066_v12 k3: without this branch the S#0 block could not be confirmed.)

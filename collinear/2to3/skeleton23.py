@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""skeleton23.py — skeleton-based cut enumeration for the spacelike-collinear
+"""skeleton23.py — skeleton-based cut enumeration for the collinear
 2->3 kinematics k0-k4 — one module since 2026-09-20: k0 by the union
 construction, k2-k4 by the chain construction, k1 by the engine moved here
 from skel23.py (2026-09-20; that file was removed after the merge).  Promoted
@@ -50,10 +50,10 @@ import os, sys
 from itertools import combinations, product
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
-import fri23 as F
+import two_to_three as F
 import kin23 as K
 import mode_levels as ML
-from fri23 import (build_overlay, momentum_ok, jets_ok, h_c23_connected_ok,
+from two_to_three import (build_overlay, momentum_ok, jets_ok, h_c23_connected_ok,
                    uncovered_ok, mojetic_all_ok, island_ok, ir_ok, INF)
 # ---- shared helpers (moved from skel23.py, 2026-09-20; that file was
 # removed) ----
@@ -906,13 +906,13 @@ def _k0_union(edges, verts, ext_attach,
 #       P1..P5  : the leg "jet" paths from each external vertex to H
 #                 (P2/P3 form a Y: a shared prefix out of H, then split; they
 #                  may pass through v2/v3, which are both roots of C23),
-#     then expand each leg's cut supersets inside its domain and run fri23's
+#     then expand each leg's cut supersets inside its domain and run two_to_three's
 #     standard check chain.  Canonical de-duplication skips repeated
 #     representations: identical cut tuples are skipped outright; after the
 #     coverage check, candidates with identical (em, vm) are skipped too —
 #     every check downstream of `uncovered_ok` is a function of (em, vm)
 #     alone, so the skip is safe.
-#   * validated against fri23 / pySecDec on the random-batch series of
+#   * validated against two_to_three / pySecDec on the random-batch series of
 #     2026-09 (spot checks plus full batches via run_random.py --engine skel).
 # ---------------------------------------------------------------------------
 
@@ -1165,7 +1165,7 @@ def enumerate_surv(edges, verts, ext_attach, kin):
     Returns (vecs, total, info); additionally
     info['survivors'] = [(vec, cuts, em, vm), ...] sorted by vec —
     the survivor shape the interactive browser and region_plot23 use.
-    [2026-09-21: takes over this role from fri23.enumerate_regions.]"""
+    [2026-09-21: takes over this role from two_to_three.enumerate_regions.]"""
     if kin == 'k0':
         return _k0_union(edges, verts, ext_attach, collect=True)
     if kin == 'k1':

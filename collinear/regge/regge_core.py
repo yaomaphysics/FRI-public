@@ -863,7 +863,7 @@ def sc_cond1_confirms(blk, mode, comps, confirmed, edges, em, vm,
     n = len(real)
     if n == 0:
         return False
-    # the third-port requirement is part of condition 1 (same as cond1_confirms; ported from wide-angle / fri23, 2026-09-13)
+    # the third-port requirement is part of condition 1 (same as cond1_confirms; ported from wide-angle / two_to_three, 2026-09-13)
     def _port_ok():
         return _port_ok_regge(blk, mode, edges, em, vm, ext_attach, ext_mode, confirmed, comps)
     def inflows_of(A):
@@ -1239,7 +1239,7 @@ def cond1_confirms(blk, mode, comps, confirmed, edges, em, vm,
 
 
 # ---- Third-port requirement (part of condition 1) ----
-# Ported from the wide-angle cond1_strong and the 2->3 enumerator (2026-09-13): a component whose scale is
+# Ported from the wide-angle cond1_confirms and the 2->3 enumerator (2026-09-13): a component whose scale is
 # assembled from momenta entering at {va, vb} must have a THIRD PORT w outside {va, vb} — either
 #   (A) a same-mode vertex of the block shared with another same-mode component, or
 #   (B) a harder-mode vertex reached by one of the block's own edges (the exit endpoint; G counts).
@@ -1514,7 +1514,7 @@ def ir_ok_region(edges, em, vm, ext_attach, ext_mode=None, sum_degrees=None):
     comps['H'] = [b for b in mode_components('H', vm, em, edges, verts)
                 if any(v != 'aux' for v in b[0])]
 
-    # ---- tadpole gate (PROTOTYPE 2026-09-13; translated from fri23 _tadp / wide-angle primitives.py) ----
+    # ---- tadpole gate (PROTOTYPE 2026-09-13; translated from two_to_three _tadp / wide-angle primitives.py) ----
     def _m_of(md):
         if md == 'S':
             return 1
@@ -2292,7 +2292,7 @@ def _build_region(edges, verts, ext_attach, ext_mode, cut13, cut24, cut1, cut3,
     if not hv: return None
     he = {e for e in edges if e[0] not in covered_v and e[1] not in covered_v}
     if not connected(hv, he): return None
-    # VM-FIRST EXPERIMENT (fri23-style): vm = ∧ of cuts containing v; then em = vm_u ∧ vm_v
+    # VM-FIRST EXPERIMENT (two_to_three-style): vm = ∧ of cuts containing v; then em = vm_u ∧ vm_v
     vm = {}
     for v in verts:
         acc = None
