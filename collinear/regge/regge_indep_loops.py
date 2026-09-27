@@ -42,10 +42,9 @@ UNION = 'sH∪G'        # combined semihard unit: gamma_sH ∪ gamma_G
 
 
 # ---------------------------------------------------------------- graph tools
-def biconnected_blocks(verts, edges):
-    """Biconnected components (blocks) of a MULTIGRAPH (verts, edges);
-    self-loops become single-vertex blocks, parallel edges distinguished
-    by INDEX.  Returns list of (vertex_set, edge_index_list)."""
+# 1VI blocks of a MULTIGRAPH: self-loops become single-vertex blocks; parallel edges are distinguished by index.
+# Returns list of (vertex_set, edge_index_list) pairs.
+def find_1vi_blocks(verts, edges):
     loops = [(i, e) for i, e in enumerate(edges) if e[0] == e[1]]
     other = [(i, e) for i, e in enumerate(edges) if e[0] != e[1]]
     other_map = dict(other)
@@ -101,9 +100,8 @@ def biconnected_blocks(verts, edges):
     return out
 
 
+# Spanning tree of a connected block (aux included); returns (tree_edge_indices, basis_edge_indices) — basis = deleted edges.
 def _basis_of_block(block_verts, block_edges, edges2):
-    """Spanning tree of a connected block (aux included); returns
-    (tree_edge_indices, basis_edge_indices) — basis = deleted edges."""
     parent = {}
 
     def find(a):
@@ -130,8 +128,6 @@ def _basis_of_block(block_verts, block_edges, edges2):
 
 
 def _connected_spanning(verts, edge_indices, edges2):
-    """True iff (verts, edges2[i] for i in edge_indices) is connected and
-    spans all of verts."""
     if not verts:
         return True
     parent = {v: v for v in verts}
@@ -152,25 +148,25 @@ def _connected_spanning(verts, edge_indices, edges2):
         if a in parent and b in parent and a != b:
             union(a, b)
     root = find(next(iter(verts)))
-    return all(find(v) == root for v in verts)
+    return all(find(v) == root for v in verts) # true iff (verts, edges2[i] for i in edge_indices) is connected and spans all of verts.
 
 
 # ------------------------------------------------------------- per-unit blocks
+# 1VI blocks of gamma~_mode as (bv, contracted_edges, original_idxs).
 def _lattice_blocks(mode, vm, em, edges, verts):
-    """1VI blocks of gamma~_mode as (bv, contracted_edges, original_idxs)."""
     out = []
     for (bv, be, idxs) in mode_components(mode, vm, em, edges, verts):
         out.append((bv, list(be), list(idxs)))
     return out
 
 
+# 1VI blocks of gamma_sH ∪ gamma_G on the ORIGINAL graph (no aux).
 def _union_blocks(edges, em, verts):
-    """1VI blocks of gamma_sH ∪ gamma_G on the ORIGINAL graph (no aux)."""
     idx = [i for i, m in enumerate(em) if m in ('sH', 'G')]
     sub = [edges[i] for i in idx]
     sv = sorted({v for e in sub for v in e})
     out = []
-    for (bv, be_idx) in biconnected_blocks(sv, sub):
+    for (bv, be_idx) in find_1vi_blocks(sv, sub):
         out.append((bv, [sub[j] for j in be_idx], [idx[j] for j in be_idx]))
     return out
 
@@ -179,10 +175,9 @@ def _rank_of(blocks):
     return sum(len(idxs) - len(bv) + 1 for (bv, be, idxs) in blocks)
 
 
+# Yield (unit_label, blocks) in canonical order.  If sH is present, ONE unit 'sH∪G' is yielded (G not repeated);
+# otherwise every mode appearing in em/vm is a unit (G included, standard rule).
 def _iter_units(em, vm, edges, verts):
-    """Yield (unit_label, blocks) in canonical order.  If sH is present,
-    ONE unit 'sH∪G' is yielded (G is not repeated); otherwise every mode
-    appearing in em/vm is a unit (G included, standard rule)."""
     modes = sorted(set(em) | set(vm.values()))
     if any(m == 'sH' for m in modes):
         yield UNION, _union_blocks(edges, em, verts)
@@ -195,19 +190,13 @@ def _iter_units(em, vm, edges, verts):
 
 
 # ------------------------------------------------------------------ the count
+# Per-unit independent loop momenta of a region: rank r_X and basis blocks per unit.
+# Inputs: edges = (u, v) lines (order = index space); em = edge-mode strings; vm = {vertex: mode string}.
+# Returns (results, total, L); results = [{'mode', 'rank', 'blocks': [{'verts', 'tree', 'basis'}]}] entries.
 def indep_loops(edges, em, vm):
-    """Per-unit independent loop momenta of a region.
-
-    edges: list of (u, v) internal lines (order = index space).
-    em:    list of edge-mode strings (one per edge).
-    vm:    {vertex: mode string}.
-
-    Returns (results, total_rank, L):
-      results = [{'mode': unit, 'rank': r_X,
-                  'blocks': [{'verts': ..., 'tree': [...], 'basis': [...]}]}]
-    and validates Σ r_X = L."""
     verts = sorted({v for e in edges for v in e})
     L = len(edges) - len(verts) + 1
+    # sanity: Σ r_X = L for every region
     results = []
     total = 0
     for unit, blocks in _iter_units(em, vm, edges, verts):
@@ -216,25 +205,15 @@ def indep_loops(edges, em, vm):
         out_blocks = []
         for (bv, be, idxs) in blocks:
             tree, basis = _basis_of_block(bv, list(range(len(be))), be)
-            out_blocks.append({'verts': sorted(bv, key=str),
-                               'tree': [idxs[j] for j in tree],
-                               'basis': [idxs[j] for j in basis]})
+            out_blocks.append({'verts': sorted(bv, key=str), 'tree': [idxs[j] for j in tree], 'basis': [idxs[j] for j in basis]})
         results.append({'mode': unit, 'rank': r, 'blocks': out_blocks})
     return results, total, L
 
 
+# A concrete basis containing the forced lines F (edge indices).  In each block, forced lines enter the basis first;
+# a spanning tree is chosen among the REMAINING edges, and every other non-tree edge is a basis line (self-loops always).
+# Returns (ok, failures, results): failures = [(unit, block_verts, offending_forced_lines)] of unspanned blocks; results = None unless ok.
 def forced_basis(edges, em, vm, F):
-    """A concrete basis containing the forced lines F (edge indices).
-
-    Returns (ok, failures, results):
-      ok       — True iff every block of every unit still admits a
-                  spanning tree after its forced lines are removed.
-      failures — list of (unit, block_verts, offending_forced_lines).
-      results  — None if not ok; else the indep_loops() structure with
-                  every line in F guaranteed to be in some basis list.
-    Construction: in each block, forced lines go to the basis first; a
-    spanning tree is then chosen among the REMAINING edges; every other
-    non-tree edge is also a basis line.  Self-loops are always basis."""
     verts = sorted({v for e in edges for v in e})
     L = len(edges) - len(verts) + 1
     F = set(F)
@@ -249,31 +228,26 @@ def forced_basis(edges, em, vm, F):
             forced_in = [j for j in range(len(idxs)) if idxs[j] in F]
             rem = [j for j in range(len(idxs)) if idxs[j] not in F]
             if not _connected_spanning(bv, rem, be):
-                failures.append((unit, sorted(bv, key=str),
-                                 [idxs[j] for j in forced_in]))
+                failures.append((unit, sorted(bv, key=str), [idxs[j] for j in forced_in]))
                 continue
             tree, extra = _basis_of_block(bv, rem, be)
             basis = forced_in + extra
-            out_blocks.append({'verts': sorted(bv, key=str),
-                               'tree': [idxs[j] for j in tree],
-                               'basis': [idxs[j] for j in basis]})
+            out_blocks.append({'verts': sorted(bv, key=str), 'tree': [idxs[j] for j in tree], 'basis': [idxs[j] for j in basis]})
         results.append({'mode': unit, 'rank': r, 'blocks': out_blocks})
     if failures:
         return False, failures, None
     return True, [], (results, total, L)
 
 
+# Feasibility of forcing lines F into the independent-loop-momentum basis; returns (ok, failures).
 def forced_feasible(edges, em, vm, F):
-    """Feasibility of forcing lines F into the independent-loop-momentum
-    basis.  Returns (ok, failures)."""
     ok, failures, _ = forced_basis(edges, em, vm, F)
     return ok, failures
 
 
 # ------------------------------------------- physical momentum parameterization
+# Spanning tree of (verts, edge_list) avoiding the skip set; None if no such tree exists (bridge / disconnection).
 def _spanning_tree(verts, edge_list, skip):
-    """Spanning tree of (verts, edge_list) avoiding the skip set; None if
-    no such tree exists (skip set contains a bridge / disconnects)."""
     parent = {v: v for v in verts}
 
     def find(a):
@@ -300,27 +274,11 @@ def _spanning_tree(verts, edge_list, skip):
     return tree if all(find(v) == root for v in verts) else None
 
 
+# Line momenta as {term: coeff} combinations of the loop momenta k1..kL and the externals; tree+chords parameterization
+# on the ORIGINAL graph: carriers = chords (forced lines first in the k numbering), the other |V|-1 lines form a spanning tree.
+# A contracted "self-loop" is NOT inert — it is an ordinary line of the original graph and couples to the other lines.
+# Returns (True, order, momenta, verts), or (False, reason, None, None) if |carriers| > L or the complement is disconnected.
 def edge_momenta(edges, em, vm, carriers, ext_attach):
-    """Momentum of every line as a linear combination of the loop momenta
-    k1..kL and the external momenta, self-consistent at every vertex.
-
-    Parameterization on the ORIGINAL graph (tree + chords): the carrier
-    lines are the chords (loop-momentum carriers; forced lines first in
-    the k numbering, remaining carriers chosen freely), the other |V|-1
-    lines form a spanning tree.  A carrier's loop momentum flows through
-    every tree line on its fundamental cycle — a "self-loop" of a
-    contracted mode subgraph is NOT inert: it is an ordinary line of the
-    original graph and its momentum couples to the other lines.
-
-    Lines are oriented (a,b) with a<b; the reported momentum is the flow
-    along that direction.  External momenta enter at their attachment
-    vertices (net-inflow convention: in - out = p_v).
-
-    Returns (True, order, momenta, verts) with momenta[ei] = {term: coeff}
-    (order = carrier edge indices in k-numbering order), or
-    (False, reason, None, None) if no such parameterization exists:
-    |carriers| > L, or the complement of the carriers is disconnected
-    (a carrier would be a bridge — it cannot carry a loop momentum)."""
     verts = sorted({v for e in edges for v in e})
     E = len(edges)
     V = len(verts)
@@ -330,9 +288,7 @@ def edge_momenta(edges, em, vm, carriers, ext_attach):
         return False, f'{len(F)} forced lines exceed L = {L}', None, None
     tree = _spanning_tree(verts, edges, F)
     if tree is None:
-        return False, ('the remaining lines do not connect (a forced line '
-                       'is a bridge and cannot carry a loop momentum)'), \
-            None, None
+        return False, ('the remaining lines do not connect (a forced line is a bridge and cannot carry a loop momentum)'), None, None
     chords = [i for i in range(E) if i not in tree]
     # k-numbering: forced lines first (input order), then remaining chords
     # in edge order
@@ -378,11 +334,9 @@ def edge_momenta(edges, em, vm, carriers, ext_attach):
     return True, order, momenta, verts
 
 
+# in - out = p_v at every vertex, up to Σ_v p_v = 0 (momentum conservation of the kinematics):
+# k-terms must vanish individually, p-terms must all have equal coefficients.
 def _check_conservation(edges, verts, momenta, ext_attach):
-    """in - out = p_v at every vertex, up to the external-momentum
-    identity Σ_v p_v = 0 (momentum conservation of the kinematics):
-    k-terms must vanish individually, p-terms must all have equal
-    coefficients."""
     for v in verts:
         flow = {}
         for ei, (a, b) in enumerate(edges):
@@ -410,8 +364,8 @@ def _term_key(t):
     return (0, int(t[1:]), '') if t.startswith('k') else (1, 0, t)
 
 
+# 'k1 - k2 + p2 + p3' from {term: coeff} (0 if empty).
 def fmt_expr(terms):
-    """'k1 - k2 + p2 + p3' from {term: coeff} (0 if empty)."""
     if not terms:
         return '0'
     items = sorted(terms.items(), key=lambda kv: _term_key(kv[0]))
@@ -429,25 +383,19 @@ def fmt_expr(terms):
     return s
 
 
+# Print line momenta (k1..kL carriers) and every line's momentum.
 def show_edge_momenta(edges, em, vm, carriers, ext_attach, forced=False):
-    """Print line momenta (k1..kL carriers) and every line's momentum."""
-    ok, payload, momenta, verts = edge_momenta(edges, em, vm, carriers,
-                                               ext_attach)
+    ok, payload, momenta, verts = edge_momenta(edges, em, vm, carriers, ext_attach)
     if not ok:
         reason = payload
         if forced:
-            print('  ✗ unfeasible: these line momenta do not form a basis '
-                  'for the loop momenta')
+            print('  ✗ unfeasible: these line momenta do not form a basis for the loop momenta')
         else:
-            print(f'  ! default basis cannot serve as loop-momentum '
-                  f'carriers: {reason}')
+            print(f'  ! default basis cannot serve as loop-momentum carriers: {reason}')
         return
     order = payload
-    print('  line momenta: ' + ', '.join(
-        f'{f"k{i + 1}"} ↦ {edges[ei]} along {edges[ei][0]}→{edges[ei][1]}'
-        for i, ei in enumerate(order)))
-    print('  edge momenta (flow along the displayed direction; '
-          'p_i = external):')
+    print('  line momenta: ' + ', '.join(f'{f"k{i + 1}"} ↦ {edges[ei]} along {edges[ei][0]}→{edges[ei][1]}' for i, ei in enumerate(order)))
+    print('  edge momenta (flow along the displayed direction; p_i = external):')
     for ei in range(len(edges)):
         a, b = edges[ei]
         print(f'    ({a},{b}) {a}→{b}: {fmt_expr(momenta[ei])}')
@@ -459,10 +407,9 @@ def show_edge_momenta(edges, em, vm, carriers, ext_attach, forced=False):
 
 
 # ------------------------------------------------------------------ display
+# A concrete basis: default per-unit 1VI-block algebraic basis, or forced lines F (physical tree+chords parameterization);
+# then every line's momentum in terms of k1..kL and the externals.
 def show_basis(edges, em, vm, F=None, ext_attach=None):
-    """A concrete basis: default (F=None, per-unit 1VI-block algebraic
-    basis) or forced lines F (physical tree+chords parameterization),
-    then every line's momentum in terms of k1..kL and the externals."""
     if F:
         show_edge_momenta(edges, em, vm, F, ext_attach, forced=True)
     else:
@@ -481,10 +428,8 @@ def show_basis(edges, em, vm, F=None, ext_attach=None):
                         s += ' [self-loop]'
                     desc.append(s)
                 print(f'    mode {mode}: basis = {", ".join(desc)}')
-        print(f'  Σ |basis| = {total}  vs  L = {L}  '
-              f'{"✓" if total == L else "✗ MISMATCH"}')
-        basis_all = [j for r in results for b in r['blocks']
-                     for j in b['basis']]
+        print(f'  Σ |basis| = {total}  vs  L = {L}  {"✓" if total == L else "✗ MISMATCH"}')
+        basis_all = [j for r in results for b in r['blocks'] for j in b['basis']]
         show_edge_momenta(edges, em, vm, basis_all, ext_attach)
 
 

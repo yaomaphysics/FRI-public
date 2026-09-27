@@ -389,7 +389,7 @@ def visualize_regions(edges, regs, extmode, ext_attach):
         return
     fmt = input('Output: [a] single PDF atlas (default) / [p] individual PNG files > ').strip().lower()
     try:
-        import region_plot_wa
+        import region_plot
     except Exception as e:
         print(f'  ! visualization module unavailable: {e}')
         return
@@ -397,7 +397,7 @@ def visualize_regions(edges, regs, extmode, ext_attach):
     if fmt in ('p', 'png', 'files'):
         print(f'  rendering {len(sel)} region figure(s) via wolframscript ...')
         try:
-            paths = region_plot_wa.render_individual_pngs(edges, sorted({v for e in edges for v in e}), [(i, regs[i - 1]) for i in sel], ext_mode=extmode, ext_attach=ext_attach, outdir=outdir)
+            paths = region_plot.render_individual_pngs(edges, sorted({v for e in edges for v in e}), [(i, regs[i - 1]) for i in sel], ext_mode=extmode, ext_attach=ext_attach, outdir=outdir)
         except Exception as e:
             print(f'  ! region rendering failed: {e}')
             return
@@ -405,7 +405,7 @@ def visualize_regions(edges, regs, extmode, ext_attach):
     else:
         print(f'  building the PDF atlas for {len(sel)} region(s) via wolframscript ...')
         try:
-            path = region_plot_wa.render_combined_pdf(edges, sorted({v for e in edges for v in e}), [(i, regs[i - 1]) for i in sel], ext_mode=extmode, ext_attach=ext_attach, outdir=outdir)
+            path = region_plot.render_combined_pdf(edges, sorted({v for e in edges for v in e}), [(i, regs[i - 1]) for i in sel], ext_mode=extmode, ext_attach=ext_attach, outdir=outdir)
         except Exception as e:
             print(f'  ! atlas rendering failed: {e}')
             return

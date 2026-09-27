@@ -79,7 +79,7 @@ Two kinematics classes are implemented — **wide-angle** and **collinear** (tim
   - *chain-level early kills* (Regge skeleton): most candidates are rejected by count/level conditions before the full overlap test (validated against the overlap condition in shadow mode — zero mis-kills);
   - *deduplication*: candidates are deduplicated by cut set and by vertex-mode assignment; the verdict depends only on the vertex modes, so repeats are skipped cheaply.
 
-In code: the pruned skeleton enumerators live in `wide_angle/skeleton.py` (the canonical implementation; soft externals included), `collinear/regge/skeleton.py` and `collinear/2to3/skeleton23.py`.
+In code: the pruned skeleton enumerators live in `wide_angle/skeleton.py` (the canonical implementation; soft externals included), `collinear/regge/skeleton.py` and `collinear/2to3/skeleton.py`.
 
 ### Checks (subgraph requirements)
 
@@ -112,7 +112,7 @@ python3 collinear/regge/mode_level_interactive.py
 
 # five-point 2->3: interactive enumerator for a new graph (kinematics k0..k4);
 # the built-in five-point example is the edge list 1-3,1-5,2-3,2-5,3-4,4-5
-python3 collinear/2to3/two_to_three_interactive.py
+python3 collinear/2to3/facet_regions_interactive.py
 
 # five-point 2->3: stepper for the mode first-appearance ladder
 python3 collinear/2to3/mode_level_interactive.py
@@ -146,18 +146,19 @@ FRI-project/
 │   ├── read_graph.py                  #   input parsing
 │   ├── indep_loops.py                 #   independent loop momenta per region
 │   ├── facet_regions_interactive.py   #   interactive browser (enumerate + menu)
-│   ├── region_plot_wa.py              #   region figures + PDF atlas
+│   ├── region_plot.py              #   region figures + PDF atlas
 │   ├── scaleless_diagnosis.py         #   why a non-region is scaleless
 │   └── tests/                         #   fast unit tests
 └── collinear/                         # class 2: collinear kinematics
     ├── 2to3/                          #   part 1: five-point 2->3
-    │   ├── skeleton23.py               #     skeleton cut enumerators (k0--k4; per-graph cut-chain levels)
+    │   ├── primitives.py               #     mode algebra + graph tools (zero-judgment base layer)
+    │   ├── skeleton.py                 #     skeleton cut enumerators (k0--k4; per-graph cut-chain levels)
+    │   ├── two_to_three.py             #     region checks / judgment (check chain shared with skeleton)
     │   ├── mode_levels.py              #     mode first-appearance ladder + cut-chain level derivation
     │   ├── mode_level_interactive.py   #     interactive stepper for the mode ladder
-    │   ├── two_to_three.py             #     mode algebra + region checks (check chain shared with skeleton23)
-    │   ├── two_to_three_interactive.py #     interactive enumerator for a new graph
+    │   ├── facet_regions_interactive.py #     interactive enumerator for a new graph
     │   ├── kin23.py                    #     kinematics table (k0--k4 presets; general virtuality patterns)
-    │   └── region_plot23.py            #     region figures + PDF atlas
+    │   └── region_plot.py              #     region figures + PDF atlas
     └── regge/                         #   part 2: Regge limit of 2->2
         ├── regge_core.py              #     engine: mode lattice, cuts, pipeline, IR fixpoint
         ├── regge_modes.py             #     S^m C_i^n C_ij mode algebra (meet/join)

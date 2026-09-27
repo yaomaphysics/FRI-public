@@ -55,8 +55,8 @@ from collections import defaultdict
 KIN_CHOICES = ['k0', 'k1', 'k2', 'k3', 'k4', 'k5']
 
 
+# Parse user input into a list of (int, int) edges.
 def parse_edges(s):
-    """Parse user input into a list of (int, int) edges."""
     s = s.strip()
     if not s:
         return []
@@ -79,9 +79,9 @@ def fmt_scaling(sc):
     return '(' + ', '.join(str(x) for x in sc) + ')'
 
 
+# '3, 8--10' -> [3, 4, 8, 10] (1-based). Supports ',' separators and '--' / '-' ranges. Returns None if any number is
+# out of range.
 def parse_region_select(s, n):
-    """'3, 8--10' -> [3, 4, 8, 10] (1-based).  Supports ',' separators and
-    '--' / '-' ranges.  Returns None if any number is out of range."""
     out = set()
     for part in s.split(','):
         part = part.strip()
@@ -105,8 +105,8 @@ def parse_region_select(s, n):
     return sorted(out)
 
 
+# Number of connected components of the (multi)graph.
 def _components(verts, edges):
-    """Number of connected components of the (multi)graph."""
     adj = {v: [] for v in verts}
     for (a, b) in edges:
         adj.setdefault(a, []).append(b)
@@ -127,21 +127,12 @@ def _components(verts, edges):
     return n
 
 
+# Per-mode subgraphs {{V_X}, {E_X}} with loop number r_X, plus the sum check vs L = |E| - |V| + 1. r_X uses the standard
+# contracted-subgraph rule for all lattice modes (1VI blocks of gamma~_X with aux; r = |E| - |V| + 1 per block).
+# sH is an OVERLAY product: its edges collapse onto aux and the standard rule overcounts (necklace: 2 parallel sH
+# edges -> r = 2, but they are ONE bubble). Fix [2026-09-01]: semihard loops = loops of gamma_{sH} U gamma_G on the
+# ORIGINAL graph (no aux); G is acyclic, so the union's loops are exactly the semihard ones.
 def show_mode_subgraphs(edges, em, vm):
-    """Per-mode subgraphs {{V_X}, {E_X}} with loop number r_X, plus the
-    sum check vs L = |E| - |V| + 1.
-
-    r_X uses the standard contracted-subgraph rule (1VI blocks of gamma~_X
-    with the aux vertex; r = |E| - |V| + 1 per block) for all lattice
-    modes.  sH is an OVERLAY product (not a lattice mode): its edges
-    collapse onto the aux vertex and the standard rule overcounts
-    (necklace: 2 parallel sH edges -> two contracted self-loops -> r = 2,
-    but they are ONE bubble, r = 1).  Fix (2026-09-01): the semihard
-    loops are the loops of the subgraph gamma_{sH} U gamma_{G} computed on
-    the ORIGINAL graph (no aux).  The G subgraph is the necklace string
-    (acyclic), so it has no loops by itself and the union's loops are
-    exactly the semihard ones.
-    """
     verts = sorted({v for e in edges for v in e})
     L = len(edges) - len(verts) + 1
     modes = sorted(set(em) | set(vm.values()))
@@ -157,16 +148,14 @@ def show_mode_subgraphs(edges, em, vm):
             idx = [i for i, m in enumerate(em) if m in ('sH', 'G')]
             sub_edges = [edges[i] for i in idx]
             sub_verts = sorted({v for e in sub_edges for v in e})
-            r = (len(sub_edges) - len(sub_verts)
-                 + _components(sub_verts, sub_edges))
+            r = (len(sub_edges) - len(sub_verts) + _components(sub_verts, sub_edges))
             note = '  [semihard loops = loops of gamma_sH U gamma_G]'
         else:
             blocks = mode_components(mode, vm, em, edges, verts)
             r = sum(len(idxs) - len(bv) + 1 for (bv, be, idxs) in blocks)
             note = ''
         tot += r
-        print(f'  mode {mode}: {{vertices: {Vs}, edges: {Es}}}   '
-              f'loop number = {r}{note}')
+        print(f'  mode {mode}: {{vertices: {Vs}, edges: {Es}}}   loop number = {r}{note}')
     if tot == L:
         flag = '✓'
     else:
@@ -174,14 +163,12 @@ def show_mode_subgraphs(edges, em, vm):
     print(f'  sum r_X = {tot}  vs  L = {L}  {flag}')
 
 
+# '[2,5],[7,8]' -> sorted edge indices (order-free endpoints). Returns None if nothing parses or an edge is unknown.
+# NB: for parallel edges, a (a,b) pair forces ALL copies (wide-angle behavior).
 def parse_forced_lines(edges, line):
-    """'[2,5],[7,8]' -> sorted edge indices (order-free endpoints).
-    Returns None if nothing parses or an edge is unknown.  NB: for
-    parallel edges, a (a,b) pair forces ALL copies (wide-angle behavior)."""
     pairs = re.findall(r'[\[(]\s*(\d+)\s*,\s*(\d+)\s*[\])]', line)
     if not pairs:
-        print('  ! no (x,y) pairs found — use e.g. (2,5),(7,8) '
-              '(square brackets ok too)')
+        print('  ! no (x,y) pairs found — use e.g. (2,5),(7,8) (square brackets ok too)')
         return None
     idx = {}
     for i, (a, b) in enumerate(edges):
@@ -195,17 +182,14 @@ def parse_forced_lines(edges, line):
         else:
             F.extend(got)
     if unknown:
-        print('  ! unknown edges: ' +
-              ', '.join(f'[{a},{b}]' for a, b in unknown))
+        print('  ! unknown edges: ' + ', '.join(f'[{a},{b}]' for a, b in unknown))
         return None
     return sorted(set(F))
 
 
+# Softness order for classification, softest first: lattice modes with m >= 1 by virtuality V desc (tie: m desc, n
+# desc, name), then sH (chain rank 1), then G (chain rank 2). Chain (regge_modes): H >- G >- sH >- every family mode.
 def _softness_key(mode):
-    """Softness order for classification, softest first: lattice modes
-    with m >= 1 by virtuality V desc (tie: m desc, n desc, name), then sH
-    (chain rank 1), then G (chain rank 2).  Chain (regge_modes):
-    H >- G >- sH >- every family mode."""
     if mode == 'sH':
         return (1, 0, 0, 0, mode)
     if mode == 'G':
@@ -217,13 +201,11 @@ def _softness_key(mode):
         return (0, -99, 0, 0, mode)
 
 
+# Softest characteristic mode of a region (exclusion-style): the softest lattice mode with m >= 1 present in em/vm;
+# if none, sH; if none, G; else 'C/H'.
 def classify(vm, em):
-    """Softest characteristic mode of a region (exclusion-style): the
-    softest lattice mode with m >= 1 present in em/vm; if none, sH; if
-    none, G; else 'C/H'."""
     cands = set(em) | set(vm.values())
-    soft = [m for m in cands
-            if m not in ('sH', 'G') and to_mode(m).m >= 1]
+    soft = [m for m in cands if m not in ('sH', 'G') and to_mode(m).m >= 1]
     if soft:
         return min(soft, key=_softness_key)
     if 'sH' in cands:
@@ -233,26 +215,21 @@ def classify(vm, em):
     return 'C/H'
 
 
+# Option 2: Lee-Pomeransky parametric representation per region: x_e ~ λ^{v_e} with v_e = -V(𝒳(e)), edge order,
+# trailing 1 = λ power of the single expansion scale (pySecDec style, same as the verified region files).
 def show_parametric(regs):
-    """Option 2: Lee-Pomeransky parametric representation per region:
-    x_e ~ λ^{v_e} with v_e = -V(𝒳(e)), edge order, trailing 1 = λ power
-    of the single expansion scale (pySecDec style, same as the verified
-    region files)."""
-    print('  Lee-Pomeransky parametric representation '
-          '(x_e ~ λ^{v_e}, v_e = -V, edge order):')
+    print('  Lee-Pomeransky parametric representation (x_e ~ λ^{v_e}, v_e = -V, edge order):')
     for i, (cut13, cut24, cut1, cut3, cut2, cut4, vm, em) in enumerate(regs, 1):
         print(f'    R{i}: v = {to_scaling(em)}')
 
 
+# Option 3: classify regions by their characteristic (softest) mode, grouped by type (softest first).
 def show_classify(regs, edges):
-    """Option 3: classify regions by their characteristic (softest) mode,
-    grouped by type (softest first)."""
     groups = defaultdict(list)
     for r in regs:
         cut13, cut24, cut1, cut3, cut2, cut4, vm, em = r
         groups[classify(vm, em)].append(r)
-    order = sorted(groups, key=lambda lab:
-                   (99,) if lab == 'C/H' else _softness_key(lab))
+    order = sorted(groups, key=lambda lab: (99,) if lab == 'C/H' else _softness_key(lab))
     total = 0
     for lab in order:
         g = groups[lab]
@@ -266,12 +243,11 @@ def show_classify(regs, edges):
     print(f'\nTOTAL: {total} regions')
 
 
+# Option 1: pick regions -> per-mode subgraphs with loop numbers, then optionally a concrete basis / forced lines /
+# line momenta.
 def inspect_regions(edges, regs, ext_attach):
-    """Option 1: pick regions -> per-mode subgraphs with loop numbers,
-    then optionally a concrete basis / forced lines / line momenta."""
     n = len(regs)
-    line = input('Region numbers (e.g. "3, 8--10" represents regions '
-                 '3, 8, 9, and 10; empty = all) > ').strip()
+    line = input('Region numbers (e.g. "3, 8--10" represents regions 3, 8, 9, and 10; empty = all) > ').strip()
     sel = parse_region_select(line, n) if line else list(range(1, n + 1))
     if sel is None:
         sel = list(range(1, n + 1))
@@ -279,14 +255,10 @@ def inspect_regions(edges, regs, ext_attach):
         cut13, cut24, cut1, cut3, cut2, cut4, vm, em = regs[i - 1]
         print(f'  --- region {i}:')
         show_mode_subgraphs(edges, em, vm)
-    if input('Select a set of line momenta as independent loop '
-             'momenta? (y/n) [n] > ').strip().lower() == 'y':
+    if input('Select a set of line momenta as independent loop momenta? (y/n) [n] > ').strip().lower() == 'y':
         asked = False
         while True:
-            prompt = ('Force lines into the basis? ((x,y) pairs; '
-                      'empty = show default basis) > ' if not asked
-                      else 'Force more lines? ((x,y) pairs; '
-                           'empty = done) > ')
+            prompt = ('Force lines into the basis? ((x,y) pairs; empty = show default basis) > ' if not asked else 'Force more lines? ((x,y) pairs; empty = done) > ')
             line = input(prompt).strip()
             if not line:
                 if not asked:
@@ -305,42 +277,32 @@ def inspect_regions(edges, regs, ext_attach):
                 show_basis(edges, em, vm, F, ext_attach)
 
 
+# Option 4: visualize the selected regions — PDF atlas or PNG files.
 def visualize_regions(edges, regs, ext_mode):
-    """Option 4: visualize the selected regions — PDF atlas or PNG files."""
     n = len(regs)
-    line = input('Region numbers (e.g. "3, 8--10" represents regions '
-                 '3, 8, 9, and 10; empty = all) > ').strip()
+    line = input('Region numbers (e.g. "3, 8--10" represents regions 3, 8, 9, and 10; empty = all) > ').strip()
     sel = parse_region_select(line, n) if line else list(range(1, n + 1))
     if sel is None:
         return
-    fmt = input('Output: [a] single PDF atlas (default) / '
-                '[p] individual PNG files > ').strip().lower()
+    fmt = input('Output: [a] single PDF atlas (default) / [p] individual PNG files > ').strip().lower()
     try:
         import region_plot
     except Exception as e:
         print(f'  ! visualization module unavailable: {e}')
         return
-    outdir = os.path.join(BASE, 'fri_out',
-                          'regions_' + time.strftime('%Y%m%d-%H%M%S'))
+    outdir = os.path.join(BASE, 'fri_out', 'regions_' + time.strftime('%Y%m%d-%H%M%S'))
     if fmt in ('p', 'png', 'files'):
         print(f'  rendering {len(sel)} region figure(s) via wolframscript ...')
         try:
-            paths = region_plot.render_regions(
-                edges, sorted({v for e in edges for v in e}),
-                [(i, regs[i - 1]) for i in sel],
-                ext_mode=ext_mode, outdir=outdir)
+            paths = region_plot.render_individual_pngs(edges, sorted({v for e in edges for v in e}), [(i, regs[i - 1]) for i in sel], ext_mode=ext_mode, outdir=outdir)
         except Exception as e:
             print(f'  ! region rendering failed: {e}')
             return
         print(f'  saved {len(paths)} region PNG(s) to: {outdir}')
     else:
-        print(f'  building the PDF atlas for {len(sel)} region(s) '
-              f'via wolframscript ...')
+        print(f'  building the PDF atlas for {len(sel)} region(s) via wolframscript ...')
         try:
-            path = region_plot.render_atlas(
-                edges, sorted({v for e in edges for v in e}),
-                [(i, regs[i - 1]) for i in sel],
-                ext_mode=ext_mode, outdir=outdir)
+            path = region_plot.render_combined_pdf(edges, sorted({v for e in edges for v in e}), [(i, regs[i - 1]) for i in sel], ext_mode=ext_mode, outdir=outdir)
         except Exception as e:
             print(f'  ! atlas rendering failed: {e}')
             return
@@ -356,8 +318,8 @@ def print_kin_menu():
         print(f'      ext modes: {modes}')
 
 
+# Ask for a kinematics label at startup; default k1.
 def choose_kinematics():
-    """Ask for a kinematics label at startup; default k1."""
     print_kin_menu()
     while True:
         try:
@@ -368,8 +330,7 @@ def choose_kinematics():
             return 'k1'
         if s in KIN_CHOICES:
             return s
-        print(f'  [error] unknown kinematics "{s}" — choose from '
-              f'{", ".join(KIN_CHOICES)}')
+        print(f'  [error] unknown kinematics "{s}" — choose from {", ".join(KIN_CHOICES)}')
 
 
 def run_graph(edges_raw, kin_name):
@@ -378,34 +339,29 @@ def run_graph(edges_raw, kin_name):
     verts = sorted({v for e in edges for v in e})
     missing = [v for v in (1, 2, 3, 4) if v not in verts]
     if missing:
-        print(f'  [warning] external-leg vertices {missing} not in the '
-              f'graph!  Regge 2->2 needs vertices 1,2,3,4.')
+        print(f'  [warning] external-leg vertices {missing} not in the graph!  Regge 2->2 needs vertices 1,2,3,4.')
         return
     ext_attach = {'p1': 1, 'p2': 2, 'p3': 3, 'p4': 4}
     ext_mode = kin['ext_mode']
     L = len(edges) - len(verts) + 1
     print(f'  kinematics: {kin_name} ({kin["note"]})')
-    print(f'  graph: {len(edges)} edges, {len(verts)} vertices, '
-          f'L = {L} loops')
+    print(f'  graph: {len(edges)} edges, {len(verts)} vertices, L = {L} loops')
     print(f'  edges: {edges}')
     if L >= 5:
         print('  [warning] L >= 5 may be slow')
     t0 = time.time()
     try:
         if kin_name == 'k1':
-            regs, _cnt, _depth = skel_regions_k1(edges, verts, ext_attach,
-                                                 ext_mode)
+            regs, _cnt, _depth = skel_regions_k1(edges, verts, ext_attach, ext_mode)
         else:
-            regs, _cnt, _depth = skel_regions(edges, verts, ext_attach,
-                                              ext_mode)
+            regs, _cnt, _depth = skel_regions(edges, verts, ext_attach, ext_mode)
     except (Exception, SystemExit) as e:
         print(f'  [error] skeleton engine could not handle this input: {e}')
         return
     dt = time.time() - t0
     # deterministic display order (scaling, then em); same convention as the
     # 2->3 browser after its skeleton switch (2026-09-21).
-    regs = sorted(regs, key=lambda r: (to_scaling(r[7]),
-                                       tuple(str(m) for m in r[7])))
+    regs = sorted(regs, key=lambda r: (to_scaling(r[7]), tuple(str(m) for m in r[7])))
     print(f'  FRI regions: {len(regs)}  ({dt:.1f}s)')
     scal = set()
     for i, (cut13, cut24, cut1, cut3, cut2, cut4, vm, em) in enumerate(regs, 1):
@@ -424,11 +380,9 @@ def run_graph(edges_raw, kin_name):
         print('  Options:')
         print('    1) Inspect specific regions')
         print('    2) Show Lee-Pomeransky parametric representation')
-        print('    3) Classify these regions based on their '
-              'characteristic modes')
+        print('    3) Classify these regions based on their characteristic modes')
         print('    4) Visualize these regions (PDF atlas / PNGs)')
-        opt = input('  (1/2/3/4; empty or q = done with this graph) > ')\
-            .strip().lower()
+        opt = input('  (1/2/3/4; empty or q = done with this graph) > ') .strip().lower()
         if opt in ('', 'q', 'quit'):
             break
         if opt == '1':
@@ -448,8 +402,7 @@ def run_graph(edges_raw, kin_name):
     with open(fname, 'w') as f:
         f.write(f'# Regge FRI regions - {time.strftime("%Y-%m-%d %H:%M:%S")}\n')
         f.write(f'# kinematics: {kin_name} ({kin["note"]})\n')
-        f.write(f'# edges: {edges}  ({len(edges)} edges, {len(verts)} '
-                f'verts, L={L})\n')
+        f.write(f'# edges: {edges}  ({len(edges)} edges, {len(verts)} verts, L={L})\n')
         f.write(f'# FRI regions: {len(regs)} ({dt:.1f}s)\n\n')
         for i, (cut13, cut24, cut1, cut3, cut2, cut4, vm, em) in enumerate(regs, 1):
             ref = ''
@@ -473,8 +426,7 @@ def main():
     print("commands: 'kin kX' switch kinematics, 'q' quit")
     print('=' * 70)
     kin_name = choose_kinematics()
-    print(f'-> using kinematics {kin_name} '
-          f'({KIN[kin_name]["note"]})')
+    print(f'-> using kinematics {kin_name} ({KIN[kin_name]["note"]})')
     while True:
         try:
             s = input(f'\nedge list [{kin_name}]> ').strip()
@@ -491,11 +443,9 @@ def main():
             k = low.split()[1]
             if k in KIN_CHOICES:
                 kin_name = k
-                print(f'-> kinematics switched to {kin_name} '
-                      f'({KIN[kin_name]["note"]})')
+                print(f'-> kinematics switched to {kin_name} ({KIN[kin_name]["note"]})')
             else:
-                print(f'  [error] unknown kinematics "{k}" — choose from '
-                      f'{", ".join(KIN_CHOICES)}')
+                print(f'  [error] unknown kinematics "{k}" — choose from {", ".join(KIN_CHOICES)}')
             continue
         try:
             edges = parse_edges(s)

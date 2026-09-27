@@ -109,13 +109,12 @@ FAM_LEGS = {13: (1, 3), 24: (2, 4)}
 LEG_FAM = {1: 13, 3: 13, 2: 24, 4: 24}
 
 
+# Canonical mode. Stored as (m, n, leg, fam); leg/fam are None when the corresponding label is meaningless (n <= 0
+# kills leg, n = -1 kills fam).
 class Mode(tuple):
-    """Canonical mode.  Stored as (m, n, leg, fam); leg/fam are None when the
-    corresponding label is meaningless (n <= 0 kills leg, n = -1 kills fam)."""
     __slots__ = ()
 
-    def __new__(cls, m: int, n, leg: Optional[int] = None,
-                fam: Optional[int] = None):
+    def __new__(cls, m: int, n, leg: Optional[int] = None, fam: Optional[int] = None):
         if n != INF:
             n = int(n)
             if n < -1:
@@ -147,13 +146,13 @@ class Mode(tuple):
     fam = property(lambda self: self[3])
     sigma = property(lambda self: self[0] + self[1])
 
+    # Virtuality 2m + n + 1 = m + sigma + 1.
     @property
     def V(self):
-        """Virtuality 2m + n + 1 = m + sigma + 1."""
         return INF if self.n == INF else 2 * self.m + self.n + 1
 
+    # Exponents of (k.betabar_i, k.beta_i, k.beta_iperp) in units of lambda.
     def scaling(self):
-        """Exponents of (k.betabar_i, k.beta_i, k.beta_iperp) in units of lambda."""
         if self.n == INF:
             return (self.m, INF, INF)
         return (self.m, self.m + self.n + 1, self.m + (self.n + 1) / 2)
@@ -196,9 +195,9 @@ _OLD_REV = {v: k for k, v in _OLD.items()}
 LEG_BLIND = {'S^1C13^2': 13, 'S^1C24^2': 24}
 
 
+# Old regge_core string -> Mode. Leg-blind symbols return a tuple of the two possible readings (the information was
+# not in the old symbol).
 def from_old(name: str):
-    """Old regge_core string -> Mode.  Leg-blind symbols return a tuple of the
-    two possible readings (the information was not in the old symbol)."""
     if name in _OLD:
         return _OLD[name]
     if name in LEG_BLIND:
@@ -210,10 +209,9 @@ def from_old(name: str):
     raise KeyError(name)
 
 
+# Parse a leg-explicit mode string like 'S^1C4C24', 'C1^2C13', 'C3∞C13', 'S^2C24', 'C24', 'S^3', 'H' into a Mode, or
+# None if it does not parse (e.g. the old leg-blind 'S^1C13^2').
 def _parse(name: str):
-    """Parse a leg-explicit mode string like 'S^1C4C24', 'C1^2C13',
-    'C3∞C13', 'S^2C24', 'C24', 'S^3', 'H' into a Mode, or None if it does
-    not parse (e.g. the old leg-blind 'S^1C13^2')."""
     import re
     if name == 'H':
         return Mode(0, -1)
@@ -263,8 +261,8 @@ def to_old(x: Mode) -> str:
     return str(x)
 
 
+# Old regge_core mode string -> Mode, including the G / sH sentinels.
 def to_mode(name: str) -> Mode:
-    """Old regge_core mode string -> Mode, including the G / sH sentinels."""
     if name in ('G', 'sH'):
         return G if name == 'G' else SH
     x = from_old(name)
@@ -273,10 +271,9 @@ def to_mode(name: str) -> Mode:
     return x[0]                                    # leg-blind: first reading
 
 
+# regge_core-facing meet (string in, string out). meet must NEVER see G/sH in the regge_core pipeline (they are
+# assigned only after the self-consistency check), so this is the enforcement point.
 def old_meet(a: str, b: str) -> str:
-    """regge_core-facing meet (string in, string out).  meet must NEVER
-    see G/sH in the regge_core pipeline (they are assigned only after the
-    self-consistency check), so this is the enforcement point."""
     if a in SPECIAL or b in SPECIAL:
         raise AssertionError(
             f'meet called with G/sH: ({a}, {b}). G/sH are overlay products '
@@ -285,15 +282,15 @@ def old_meet(a: str, b: str) -> str:
     return to_old(meet(to_mode(a), to_mode(b)))
 
 
+# regge_core-facing join (string in, string out). G/sH are legal here: glauber_adjust / necklace_detect recompute
+# vertex modes with vee.
 def old_join(a: str, b: str) -> str:
-    """regge_core-facing join (string in, string out).  G/sH are legal
-    here: glauber_adjust / necklace_detect recompute vertex modes with vee."""
     return to_old(join(to_mode(a), to_mode(b)))
 
 
 # ----------------------------------------------------------------------- order
+# 'same' (same leg / label-free), 'xleg', or 'xfam'.
 def _relation(a: Mode, b: Mode) -> str:
-    """'same' (same leg / label-free), 'xleg', or 'xfam'."""
     if a.n == -1 or b.n == -1:
         return 'same'                             # isotropic
     if a.fam != b.fam:
@@ -303,8 +300,8 @@ def _relation(a: Mode, b: Mode) -> str:
     return 'same' if a.leg == b.leg else 'xleg'
 
 
+# a softer-or-equal than b (2026-08-29 wide-angle-inherited rules).
 def softer(a: Mode, b: Mode) -> bool:
-    """a softer-or-equal than b (2026-08-29 wide-angle-inherited rules)."""
     if a == b:
         return True
     r = _relation(a, b)
@@ -341,9 +338,9 @@ def _rank(x):
     return 0 if x == H else 3
 
 
+# Softer of the two under the chain H >- G >- sH >- L. NB: never invoked by regge_core -- meet runs before G/sH are
+# assigned (see module docstring).
 def _chain_meet(a, b):
-    """Softer of the two under the chain H >- G >- sH >- L.  NB: never invoked
-    by regge_core -- meet runs before G/sH are assigned (see module docstring)."""
     if a == b:
         return a
     ra, rb = _rank(a), _rank(b)
@@ -352,8 +349,8 @@ def _chain_meet(a, b):
     return a if a in SPECIAL else b
 
 
+# Harder of the two under the chain (reachable: step 3/4 vm recomputation).
 def _chain_join(a, b):
-    """Harder of the two under the chain (reachable: step 3/4 vm recomputation)."""
     if a == b:
         return a
     ra, rb = _rank(a), _rank(b)
@@ -362,33 +359,23 @@ def _chain_join(a, b):
     return a if a in SPECIAL else b
 
 
+# Guard for the step-1/2 code paths (vertex modes and the em == vm/\vm self-consistency check): G/sH must not appear
+# there, otherwise the lub of C13 and C24 would collapse to sH instead of H.
 def assert_family(*modes):
-    """Guard for the step-1/2 code paths (vertex modes and the em == vm/\\vm
-    self-consistency check): G/sH must not appear there, otherwise the lub of
-    C13 and C24 would collapse to sH instead of H."""
     bad = [m for m in modes if m in SPECIAL]
     if bad:
-        raise AssertionError(
-            f'G/sH reached a lattice-only code path: {bad}. '
-            'Vertex-mode joins and the em==meet(vm,vm) check must run before '
-            'glauber_adjust / necklace_detect.')
+        raise AssertionError(f'G/sH reached a lattice-only code path: {bad}. Vertex-mode joins and the em==meet(vm,vm) check must run before glauber_adjust / necklace_detect.')
 
 
 # ------------------------------------------------------------- meet / join
-_DIRS = ([('iso', None, None)]
-         + [('lf', fam, None) for fam in (13, 24)]
-         + [('leg', fam, leg) for fam, legs in FAM_LEGS.items() for leg in legs])
+_DIRS = ([('iso', None, None)] + [('lf', fam, None) for fam in (13, 24)] + [('leg', fam, leg) for fam, legs in FAM_LEGS.items() for leg in legs])
 
 
+# Closed-form glb, O(1), ONLY for unconditional cases: comparable pairs, and same-direction pairs (product order glb =
+# componentwise max, label from the labelled side). Cross-leg / cross-family overlap -> None; the caller falls back to
+# the full direction scan. Boundaries are subtle (sigma ties kill the leg label; leg-free inputs can give leg-free
+# cross-family results; comparability first -- meet(C13, S^2C24) = S^2C24 since C13 is harder).
 def _meet_fast(a: Mode, b: Mode):
-    """Closed-form glb, O(1), but ONLY for the cases where the formula is
-    unconditional: comparable pairs, and same-direction pairs (product order
-    glb = componentwise max, label from the labelled side).  Cross-leg and
-    cross-family overlap return None -> the caller falls back to the full
-    direction scan.  (The three-case formulas are subtle at the boundaries:
-    sigma ties kill the leg label, leg-free inputs can make the result
-    leg-free even in cross-family overlap, and the comparability check must
-    come first -- meet(C13, S^2C24) is S^2C24 itself since C13 is harder.)"""
     if a == b:
         return a
     if softer(a, b):
@@ -509,15 +496,13 @@ def _candidates(a: Mode, b: Mode, mode: str):
         out.append(cand)
     uniq = set(out)
     if mode == 'glb':
-        return sorted({x for x in uniq
-                       if not any(y != x and harder(y, x) for y in uniq)})
-    return sorted({x for x in uniq
-                   if not any(y != x and softer(y, x) for y in uniq)})
+        return sorted({x for x in uniq if not any(y != x and harder(y, x) for y in uniq)})
+    return sorted({x for x in uniq if not any(y != x and softer(y, x) for y in uniq)})
 
 
+# Greatest lower bound (softest common ... hardest common softer mode).
 @lru_cache(maxsize=None)
 def meet(a: Mode, b: Mode) -> Mode:
-    """Greatest lower bound (softest common ... hardest common softer mode)."""
     if a in SPECIAL or b in SPECIAL:
         return _chain_meet(a, b)
     r = _meet_fast(a, b)
@@ -542,8 +527,8 @@ def join(a: Mode, b: Mode) -> Mode:
     return c[0]
 
 
+# Mode set generated from `seed` by meet and join.
 def closure(seed):
-    """Mode set generated from `seed` by meet and join."""
     cur = set(seed)
     while True:
         new = set()
@@ -578,11 +563,10 @@ def _precomp_set():
     return sorted(set(out))
 
 
+# Fill the meet/join caches over the common range, closed under meet/join (m, sigma bounded, so the closure
+# terminates). Subsequent calls anywhere inside the closure are O(1) lru_cache hits; anything outside falls back to
+# the fast path / direction scan.
 def _warm_cache(verbose=False):
-    """Fill the meet/join caches over the common range, closed under meet/join
-    (m, sigma bounded, so the closure terminates).  Subsequent calls anywhere
-    inside the closure are O(1) lru_cache hits; anything outside falls back to
-    the fast path / direction scan."""
     M = _precomp_set()
     seen = set(M)
     frontier = list(M)
@@ -598,9 +582,7 @@ def _warm_cache(verbose=False):
                     seen.add(r)
                     frontier.append(r)
     if verbose:
-        print(f'[regge_modes] precomputed meet/join over {len(seen)} modes '
-              f'({len(seen) * len(seen)} pairs), '
-              f'meet cache {meet.cache_info()}, join cache {join.cache_info()}')
+        print(f'[regge_modes] precomputed meet/join over {len(seen)} modes ({len(seen) * len(seen)} pairs), meet cache {meet.cache_info()}, join cache {join.cache_info()}')
     return len(seen)
 
 
@@ -621,13 +603,9 @@ def self_test(mmax=4, nmax=3, verbose=True):
     res = {}
     res['modes'] = len(M)
     res['V_formula'] = all(x.V == 2 * x.m + x.n + 1 for x in M)
-    res['scaling_gives_V'] = all(
-        x.scaling()[0] + x.scaling()[1] == x.V and 2 * x.scaling()[2] == x.V
-        for x in M)
-    res['antisymmetry'] = sum(1 for a, b in itertools.combinations(M, 2)
-                              if softer(a, b) and softer(b, a))
-    res['transitivity'] = sum(1 for a, b, c in itertools.permutations(M, 3)
-                              if softer(a, b) and softer(b, c) and not softer(a, c))
+    res['scaling_gives_V'] = all(x.scaling()[0] + x.scaling()[1] == x.V and 2 * x.scaling()[2] == x.V for x in M)
+    res['antisymmetry'] = sum(1 for a, b in itertools.combinations(M, 2) if softer(a, b) and softer(b, a))
+    res['transitivity'] = sum(1 for a, b, c in itertools.permutations(M, 3) if softer(a, b) and softer(b, c) and not softer(a, c))
     nonuniq = 0
     for a, b in itertools.combinations_with_replacement(M, 2):
         for op in (meet, join):
@@ -641,31 +619,23 @@ def self_test(mmax=4, nmax=3, verbose=True):
     for a, b in itertools.combinations_with_replacement(M, 2):
         for op in ('meet', 'join'):
             try:
-                scan = (_candidates(a, b, 'glb') if op == 'meet'
-                        else _candidates(a, b, 'lub'))
-                fast = (_meet_fast(a, b) if op == 'meet'
-                        else _join_fast(a, b))
+                scan = (_candidates(a, b, 'glb') if op == 'meet' else _candidates(a, b, 'lub'))
+                fast = (_meet_fast(a, b) if op == 'meet' else _join_fast(a, b))
             except (ArithmeticError, ValueError):
                 continue
             if fast is not None and (len(scan) != 1 or scan[0] != fast):
                 bad_fast += 1
     res['fastpath_mismatch'] = bad_fast
     res['idempotence'] = sum(1 for a in M if meet(a, a) != a or join(a, a) != a)
-    res['V_identity'] = sum(1 for a, b in itertools.combinations(M, 2)
-                            if a.V + b.V != meet(a, b).V + join(a, b).V)
-    res['absorption'] = sum(1 for a, b in itertools.permutations(M, 2)
-                            if meet(a, join(a, b)) != a or join(a, meet(a, b)) != a)
-    res['meet_assoc'] = sum(1 for a, b, c in itertools.permutations(M, 3)
-                            if meet(meet(a, b), c) != meet(a, meet(b, c)))
-    res['join_assoc'] = sum(1 for a, b, c in itertools.permutations(M, 3)
-                            if join(join(a, b), c) != join(a, join(b, c)))
+    res['V_identity'] = sum(1 for a, b in itertools.combinations(M, 2) if a.V + b.V != meet(a, b).V + join(a, b).V)
+    res['absorption'] = sum(1 for a, b in itertools.permutations(M, 2) if meet(a, join(a, b)) != a or join(a, meet(a, b)) != a)
+    res['meet_assoc'] = sum(1 for a, b, c in itertools.permutations(M, 3) if meet(meet(a, b), c) != meet(a, meet(b, c)))
+    res['join_assoc'] = sum(1 for a, b, c in itertools.permutations(M, 3) if join(join(a, b), c) != join(a, join(b, c)))
     if verbose:
         print(f'self_test: {res["modes"]} modes (m<={mmax}, n<={nmax})')
         for k in ('V_formula', 'scaling_gives_V'):
             print(f'  {k:20} {res[k]}')
-        for k in ('antisymmetry', 'transitivity', 'non_unique_glb_lub',
-                  'idempotence', 'V_identity', 'absorption',
-                  'meet_assoc', 'join_assoc', 'fastpath_mismatch'):
+        for k in ('antisymmetry', 'transitivity', 'non_unique_glb_lub', 'idempotence', 'V_identity', 'absorption', 'meet_assoc', 'join_assoc', 'fastpath_mismatch'):
             flag = 'ok' if res[k] == 0 else '*** FAIL'
             print(f'  {k:20} {res[k]:>6}  {flag}')
     return res
@@ -705,8 +675,7 @@ def check_physics(verbose=True):
         sym = '/\\' if op == 'meet' else '\\/'
         note = '' if op == 'join' else '   (dead path in regge_core)'
         if verbose:
-            print(f'  {str(a):4} {sym} {str(b):6} = {got:5} (want {want:5})'
-                  f' {"ok" if good else "*** FAIL"}{note}')
+            print(f'  {str(a):4} {sym} {str(b):6} = {got:5} (want {want:5}) {"ok" if good else "*** FAIL"}{note}')
     try:
         assert_family(C(13), G)
         ok = False
@@ -722,8 +691,7 @@ def check_physics(verbose=True):
         good = -r.V == want
         ok &= good
         if verbose:
-            print(f'  {lbl:30} {a} /\\ {b} = {str(r):11} -> {-r.V:>3}'
-                  f'   want {want:>3}   {"ok" if good else "*** FAIL"}')
+            print(f'  {lbl:30} {a} /\\ {b} = {str(r):11} -> {-r.V:>3}   want {want:>3}   {"ok" if good else "*** FAIL"}')
     if verbose:
         print('\nbasic entries (old table / established):')
     for a, b, wm, wj in BASICS:
@@ -731,8 +699,7 @@ def check_physics(verbose=True):
         good = (gm == wm and gj == wj)
         ok &= good
         if verbose:
-            print(f'  {str(a):9} /\\ {str(b):9} = {gm:11} (want {wm:11})'
-                  f'  \\/ = {gj:8} (want {wj:6}) {"ok" if good else "*** FAIL"}')
+            print(f'  {str(a):9} /\\ {str(b):9} = {gm:11} (want {wm:11})  \\/ = {gj:8} (want {wj:6}) {"ok" if good else "*** FAIL"}')
     return ok
 
 
@@ -745,6 +712,5 @@ if __name__ == '__main__':
     good = check_physics()
     # careful: isinstance(True, int) is True in Python -- separate the flags
     bad = [k for k, v in r.items() if v is False]
-    bad += [k for k, v in r.items()
-            if not isinstance(v, bool) and k != 'modes' and v]
+    bad += [k for k, v in r.items() if not isinstance(v, bool) and k != 'modes' and v]
     print('\nRESULT:', 'ALL GREEN' if not bad and good else f'FAILURES: {bad}')

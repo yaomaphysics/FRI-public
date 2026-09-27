@@ -43,8 +43,8 @@ def _fmt_cost(c):
     return 'tree' if c == 0 else ('1 loop' if c == 1 else '%d loops' % c)
 
 
+# True when mode m is admissible as the momentum mode of leg i.
 def leg_check(i, m):
-    """True when mode m is admissible as the momentum mode of leg i."""
     if not isinstance(m, Mode):
         return False
     fam = 13 if i in (1, 3) else 24
@@ -54,8 +54,7 @@ def leg_check(i, m):
 
 
 def ask_momenta():
-    print('Enter the four external-momentum modes '
-          '(Enter = regge k1 defaults; examples: C13 / C1C13 / C2∞C24 / S^1C13):')
+    print('Enter the four external-momentum modes (Enter = regge k1 defaults; examples: C13 / C1C13 / C2∞C24 / S^1C13):')
     out = {}
     for i, dflt in enumerate(DEFAULT_MOMENTA, 1):
         while True:
@@ -72,17 +71,15 @@ def ask_momenta():
                 continue
             if not leg_check(i, m):
                 fam = 13 if i in (1, 3) else 24
-                print('  ↑ p%d expects a %d-family mode '
-                      '(C%d, C%dC%d, C%d^2C%d, C%d∞C%d, ...) — try again'
-                      % (i, fam, fam, i, fam, i, fam, i, fam))
+                print('  ↑ p%d expects a %d-family mode (C%d, C%dC%d, C%d^2C%d, C%d∞C%d, ...) — try again' % (i, fam, fam, i, fam, i, fam, i, fam))
                 continue
             out[i] = s
             break
     return out
 
 
+# single keypress on a tty; line-based fallback otherwise ('' line = space).
 def read_key():
-    """single keypress on a tty; line-based fallback otherwise ('' line = space)."""
     if not sys.stdin.isatty():
         try:
             s = input('▶ (SPACE=advance, J=jump, A=all, Q=quit): ')
@@ -124,8 +121,8 @@ class Stepper:
     def modes_at(self, k):
         return self.levels.get(k, [])
 
+    # One-line origin of mode `name` (route records set by mode_levels).
     def source_text(self, name):
-        """One-line origin of mode `name` (route records set by mode_levels)."""
         if name == 'G':
             return 'tree level (Glauber)'
         if name == 'sH':
@@ -152,21 +149,18 @@ class Stepper:
             A, B = ('C2', 'C4') if branch == '24' else ('C1', 'C3')
             p = '' if m == 1 else '^%d' % m
             A, B = A + p + 'C' + branch, B + p + 'C' + branch
-            return ('messenger: relevant to %s, %s, and %s simultaneously, '
-                    'with %s confirmed IR-compatible' % (A, B, third, third))
+            return ('messenger: relevant to %s, %s, and %s simultaneously, with %s confirmed IR-compatible' % (A, B, third, third))
         if kind == 'vee':
             _, a, ca, b, cb = r
             if a.n == INF or b.n == INF:
                 nc, cc = (b, a) if a.n == INF else (a, b)
                 return 'vee (member extension): %s ∨ %s' % (to_old(nc), to_old(cc))
-            return 'vee: %s (%s) ∨ %s (%s)' % (to_old(a), _fmt_cost(ca),
-                                               to_old(b), _fmt_cost(cb))
+            return 'vee: %s (%s) ∨ %s (%s)' % (to_old(a), _fmt_cost(ca), to_old(b), _fmt_cost(cb))
         if kind == 'wedge':
             _, a, ca, b, cb = r
             if (cb, to_old(b)) < (ca, to_old(a)):
                 a, ca, b, cb = b, cb, a, ca
-            return ('wedge: %s (%s) + %s (%s) + an additional loop'
-                    % (to_old(a), _fmt_cost(ca), to_old(b), _fmt_cost(cb)))
+            return ('wedge: %s (%s) + %s (%s) + an additional loop' % (to_old(a), _fmt_cost(ca), to_old(b), _fmt_cost(cb)))
         return '—'
 
     def _other_legs(self, branch):
@@ -206,8 +200,7 @@ def main():
         else:
             print('L=%d — (no new modes)' % k)
         n_le = sum(len(st.modes_at(lv)) for lv in st.levels if lv <= k)
-        print('   cumulative: %d modes (≤L=%d) | SPACE=+1, ENTER=next non-empty, A=all, Q=quit'
-              % (n_le, k))
+        print('   cumulative: %d modes (≤L=%d) | SPACE=+1, ENTER=next non-empty, A=all, Q=quit' % (n_le, k))
 
     show(cur)
     while True:

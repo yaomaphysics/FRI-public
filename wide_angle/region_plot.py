@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""region_plot_wa.py — render wide-angle FRI regions as PNG figures with per-mode colors.
+"""region_plot.py — render wide-angle FRI regions as PNG figures with per-mode colors.
 
 Style spec (final, 2026-09-15) — wide-angle edition:
 

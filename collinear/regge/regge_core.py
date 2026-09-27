@@ -1,18 +1,20 @@
-#!/usr/bin/env python3
-# Regge-limit region enumerator core.
-#
-# OVERVIEW
-# Mode space, two classes:
-#   (1) lattice modes S^m C_i^n C_ij — H (hard), C13, C24, S, SC, S²C, refinements; algebra in regge_modes.py;
-#   (2) G (Glauber) and sH (semihard), representing t-channel Glauber-momentum transfer.
-# Lattice modes come from overlaying cuts; G and sH are assigned afterwards by glauber_adjust and/or necklace_detect.
-# Cut rules: C13 surrounds p1&p3 (nonempty => contains both, induced-subgraph connected), may be empty, never contains p2/p4 vertices; C24 symmetric.
-# Region requirements (see _build_region for the pipeline):
-#   (1) every connected component of each jet J13/J24 contains at least one of its external vertices (jet_components_ok);
-#   (2) the subgraph not included in any cut is nonempty and connected;
-#   (3) mojetic — k0 (all externals C13/C24): mojetic_k0_ok; non-k0: mojetic_ok;
-#   (4) no C13/C24 component whose adjacent modes are all softer than it (c13_c24_island_ok);
-#   (5) IR compatibility (ir_ok_region).
+'''
+!/usr/bin/env python3
+ Regge-limit region enumerator core.
+
+ OVERVIEW
+ Mode space, two classes:
+   (1) lattice modes S^m C_i^n C_ij — H (hard), C13, C24, S, SC, S²C, refinements; algebra in regge_modes.py;
+   (2) G (Glauber) and sH (semihard), representing t-channel Glauber-momentum transfer.
+ Lattice modes come from overlaying cuts; G and sH are assigned afterwards by glauber_adjust and/or necklace_detect.
+ Cut rules: C13 surrounds p1&p3 (nonempty => contains both, induced-subgraph connected), may be empty, never contains p2/p4 vertices; C24 symmetric.
+ Region requirements (see _build_region for the pipeline):
+   (1) every connected component of each jet J13/J24 contains at least one of its external vertices (jet_components_ok);
+   (2) the subgraph not included in any cut is nonempty and connected;
+   (3) mojetic — k0 (all externals C13/C24): mojetic_k0_ok; non-k0: mojetic_ok;
+   (4) no C13/C24 component whose adjacent modes are all softer than it (c13_c24_island_ok);
+   (5) IR compatibility (ir_ok_region).
+'''
 
 from itertools import combinations
 from functools import lru_cache
@@ -251,9 +253,7 @@ def _glauber_semihard(edges, em, vm, big_idx, big_verts, verts, ext_attach, ext_
                         comp.add(w)
                         stack.append(w)
             seen |= comp
-            att = {g for g in Gset if any(
-                (g == a and b in comp) or (g == b and a in comp)
-                for i in big_idx for (a, b) in (edges[i],))}
+            att = {g for g in Gset if any((g == a and b in comp) or (g == b and a in comp) for i in big_idx for (a, b) in (edges[i],))}
             if len(att) >= 2:
                 for i in big_idx:
                     a, b = edges[i]
@@ -289,8 +289,7 @@ def _glauber_cut_vertices(edges, em, vm, ext_attach, ext_mode, big_edges, big_ve
         s24 = [p for p in (p2, p4) if p != v]
         if not s13 or not s24:
             if (v == p1 == p3 or v == p2 == p4): # if p1 and p3 (or p2 and p4) are incident with the same vertex, then it must be a Glauber vertex.
-                inc = [em[i] for i, (a, b) in enumerate(edges)
-                       if (a == v or b == v) and ((a, b) in big_edges or (b, a) in big_edges)]
+                inc = [em[i] for i, (a, b) in enumerate(edges) if (a == v or b == v) and ((a, b) in big_edges or (b, a) in big_edges)]
                 if inc:
                     vm2[v] = 'G'
                     changed = True
@@ -327,16 +326,14 @@ def necklace_detect(edges, em, vm, ext_attach):
         seen |= comp
         comps.append(comp)
     for comp in comps:
-        comp_edges = [i for i in H_edges
-                      if edges[i][0] in comp and edges[i][1] in comp]
+        comp_edges = [i for i in H_edges if edges[i][0] in comp and edges[i][1] in comp]
         # NOT a necklace if it carries an external momentum: a self-energy loop strung between two Glauber lines; the jets' boundary G edge is the bridge
         if comp & set(ext_attach.values()):
             continue
         if len(comp_edges) < len(comp):  # (a) needs a cycle: a connected component has |E| >= |V| (parallel edges count separately)
             continue
         # (b) all boundary edges (one endpoint inside, one outside) are G
-        bnd = [i for i, (a, b) in enumerate(edges)
-               if (a in comp) != (b in comp)]
+        bnd = [i for i, (a, b) in enumerate(edges) if (a in comp) != (b in comp)]
         if not bnd:
             continue
         if not all(em[i] == 'G' for i in bnd):
@@ -368,15 +365,12 @@ def mojetic_k0_ok(edges, em, vm, fam13, fam24, ext_attach, ext_mode, verts):
         adj = set()
         for v in vm:
             if vm[v] in ('H', 'G') and v not in fv:
-                if any(v == a or v == b for (a, b) in fe) or any(
-                        (v == a or v == b) and (a in fv or b in fv)
-                        for (a, b) in edges):
+                if any(v == a or v == b for (a, b) in fe) or any((v == a or v == b) and (a in fv or b in fv) for (a, b) in edges):
                     adj.add(v)
         vs = set(fv) | {'aux1', 'aux2'}
         es = set()
         for (a, b) in fe:
-            es.add(('aux1' if a in adj or a not in vs else a,
-                    'aux1' if b in adj or b not in vs else b))
+            es.add(('aux1' if a in adj or a not in vs else a, 'aux1' if b in adj or b not in vs else b))
         for n in ext_names:
             vv = ext_attach[n]
             vv2 = 'aux2' if vv in adj or vv not in vs else vv
@@ -420,11 +414,9 @@ def mojetic_k0_ok(edges, em, vm, fam13, fam24, ext_attach, ext_mode, verts):
 def mojetic_ok(hv, he, jv, je, gv, edges, ext_attach, ext_names):
     vs = set(hv) | set(jv) | {'aux'}
     es = set(he) | set(je)
-    adj = {v for v in gv if v not in vs and any(
-        (v == a and b in jv) or (v == b and a in jv) for (a, b) in edges)}
+    adj = {v for v in gv if v not in vs and any((v == a and b in jv) or (v == b and a in jv) for (a, b) in edges)}
     if adj:
-        es = {('aux' if a in adj else a, 'aux' if b in adj else b)
-              for (a, b) in es}
+        es = {('aux' if a in adj else a, 'aux' if b in adj else b) for (a, b) in es}
     for n in ext_names:
         vv = ext_attach[n]
         if vv in vs:
@@ -433,8 +425,8 @@ def mojetic_ok(hv, he, jv, je, gv, edges, ext_attach, ext_names):
 
 
 
-# Biconnected components (blocks) of (verts, edges): bridges appear as single-edge blocks; self-loops and isolated vertices as single-vertex blocks.
-def biconnected_blocks(verts, edges):
+# 1VI blocks of (verts, edges): bridges appear as single-edge blocks; self-loops and isolated vertices as single-vertex blocks.
+def find_1vi_blocks(verts, edges):
     loops = [(a, b) for (a, b) in edges if a == b]
     other = [(a, b) for (a, b) in edges if a != b]
     out = []
@@ -476,7 +468,7 @@ def biconnected_blocks(verts, edges):
             out.append(({v}, []))
     return out
 
-# 1VI blocks (biconnected components) of the contracted X-subgraph γ̃_X: X edges + X vertices (join-mode), non-X endpoints absorbed into aux.
+# 1VI blocks of the contracted X-subgraph γ̃_X: X edges + X vertices (join-mode), non-X endpoints absorbed into aux.
 # Blocks sharing a cut vertex stay SEPARATE — NOT connected components; IR compatibility is per-component (each block confirmed separately).
 # Each block is (vertex_set, contracted_edge_list, original_edge_indices): the ORIGINAL indices are needed because distinct self-loops (1,3) and (7,8) both contract to (aux,aux) and are otherwise indistinguishable.
 def mode_components(mode, vm, em, edges, verts):
@@ -489,7 +481,7 @@ def mode_components(mode, vm, em, edges, verts):
     edges2 = []
     for (a, b) in ge:
         edges2.append(('aux' if a not in gv else a, 'aux' if b not in gv else b))
-    raw = biconnected_blocks(verts2, edges2)
+    raw = find_1vi_blocks(verts2, edges2)
     out = []
     used = set()
     for (bv, be) in raw:
@@ -587,8 +579,7 @@ def s_comp_confirmed(blk, comps, confirmed, edges, em, vm):
 
 # Component confirmed by momentum flow of a CONFIRMED SC component: an SC edge of the confirmed block touches vertex v in blk (or the SC component is relevant to blk, path-based) and join(sc_mode, vm[v]) == vm[v] (vee rule keeps the mode).
 # For C13/C24 (ext_names given) an external momentum must also be inside or relevant to the block, and the vee over the relevant external modes must keep the mode too.
-def sc_flow_confirms(mode, sc_mode, blk, comps, confirmed, edges, em, vm,
-                     ext_attach=None, ext_names=None, ext_mode=None):
+def sc_flow_confirms(mode, sc_mode, blk, comps, confirmed, edges, em, vm, ext_attach=None, ext_names=None, ext_mode=None):
     blk_verts = blk[0]
     if ext_names is not None:
         if not any(ext_attach[ext] in blk_verts for ext in ext_names):
@@ -598,8 +589,7 @@ def sc_flow_confirms(mode, sc_mode, blk, comps, confirmed, edges, em, vm,
                 for ext in ext_names:
                     vext = ext_attach[ext]
                     ext_comp = ({vext, 'aux'}, [(vext, 'aux')])
-                    if relevant(ext_comp, blk, mode, edges, em, vm,
-                                ext_mode_for(ext_attach, ext_mode, ext)):
+                    if relevant(ext_comp, blk, mode, edges, em, vm, ext_mode_for(ext_attach, ext_mode, ext)):
                         ok = True
                         break
             if not ok:
@@ -628,14 +618,11 @@ def sc_flow_confirms(mode, sc_mode, blk, comps, confirmed, edges, em, vm,
             for v in blk_verts:
                 if v != 'aux' and join(sc_mode, vm.get(v)) == vm.get(v):  # vee rule: needs a real v whose mode is kept (join == vm[v])
                     # vee inputs confirmed: vm[v] is circular for refined modes (C13/C24 get identity from ext_names)
-                    if ext_names is None and not _vee_identity_ok(
-                            v, vm.get(v), ext_attach, ext_mode, comps,
-                            confirmed):
+                    if ext_names is None and not _vee_identity_ok(v, vm.get(v), ext_attach, ext_mode, comps, confirmed):
                         continue
                     if ext_names is not None and not _vee_ok(sc_mode):
                         continue
-                    if _scflow_gate_port_ok(blk, mode, v, sv, se, sidx,
-                                            edges, em, vm, comps):
+                    if _scflow_gate_port_ok(blk, mode, v, sv, se, sidx, edges, em, vm, comps):
                         return True
                     continue
         # legacy direct-contact fallback (relevant() already covers it; kept explicit for clarity)
@@ -655,14 +642,11 @@ def sc_flow_confirms(mode, sc_mode, blk, comps, confirmed, edges, em, vm,
                     if join(sc_mode, vm.get(v)) != vm.get(v):
                         continue
                     # vee inputs confirmed: vm[v] is circular for refined modes (C13/C24 get identity from ext_names)
-                    if ext_names is None and not _vee_identity_ok(
-                            v, vm.get(v), ext_attach, ext_mode, comps,
-                            confirmed):
+                    if ext_names is None and not _vee_identity_ok(v, vm.get(v), ext_attach, ext_mode, comps, confirmed):
                         continue
                     if ext_names is not None and not _vee_ok(sc_mode):
                         continue
-                    if _scflow_gate_port_ok(blk, mode, v, sv, se, sidx,
-                                            edges, em, vm, comps):
+                    if _scflow_gate_port_ok(blk, mode, v, sv, se, sidx, edges, em, vm, comps):
                         return True
                     continue
     return False
@@ -780,9 +764,7 @@ def relevant(blk, comp, dst_mode, edges, em, vm, sc_mode):
     return False
 
 
-def sc_hidden_path_confirms(blk, i, comps, confirmed, edges, em, vm,
-                             ext_attach, ext_mode, sc_mode, pair_mode,
-                             ext_a, ext_b, fam_modes, ext_a_fam, ext_b_fam):
+def sc_hidden_path_confirms(blk, i, comps, confirmed, edges, em, vm, ext_attach, ext_mode, sc_mode, pair_mode, ext_a, ext_b, fam_modes, ext_a_fam, ext_b_fam):
     # Generic SC "hidden path", Regge-only: if an SC component (sc_mode) is relevant to TWO DISTINCT pair_mode components — one attached by ext_a's C_a^{m_a}·pair external momentum (mode in ext_a_fam), the other by ext_b's C_b^{m_b}·pair (in ext_b_fam), m>=0 incl. ∞ — and to at least one component of a fam_modes mode, then ONE pair component confirmed ⟹ the OTHER is confirmed too.
     # The SC itself is NOT confirmed by this rule: the path only conducts confirmation between the two pair components.  Called for an unconfirmed pair block i; returns True iff a qualifying SC exists and the partner pair component is confirmed.
     va = ext_attach[ext_a]
@@ -793,8 +775,7 @@ def sc_hidden_path_confirms(blk, i, comps, confirmed, edges, em, vm,
     if ma not in ext_a_fam or mb not in ext_b_fam:
         return False
     # receiver must still pass the port requirement (conduction is not an exemption); excludes the union of all source entries  (R068_v8 k3, 2026-09-13)
-    if not _hp_receiver_port_ok(blk, pair_mode, edges, em, vm, ext_attach, ext_mode,
-                                confirmed, comps):
+    if not _hp_receiver_port_ok(blk, pair_mode, edges, em, vm, ext_attach, ext_mode, confirmed, comps):
         return False
     cv = {v for v in blk[0] if v != 'aux'}
     has_a = va in cv
@@ -821,8 +802,7 @@ def sc_hidden_path_confirms(blk, i, comps, confirmed, edges, em, vm,
     for sblk in comps[sc_mode]:
         if not relevant(sblk, blk, pair_mode, edges, em, vm, sc_mode):
             continue
-        if not relevant(sblk, comps[pair_mode][partner], pair_mode, edges,
-                        em, vm, sc_mode):
+        if not relevant(sblk, comps[pair_mode][partner], pair_mode, edges, em, vm, sc_mode):
             continue
         ok_fam = False
         for fm in fam_modes:
@@ -855,8 +835,7 @@ def adjacent(blk, comp, edges, em, vm, sc_mode):
 
 # SC13/SC24 cond-1 — momentum-flow confirmation: EXISTS a cut of the SC component into two pieces such that for ONE piece, the line momenta of CONFIRMED components crossing into it (edge belongs to a confirmed component, relevant to the piece) have ∨(inflows) == mode.
 # Single-real-vertex blocks take the degenerate cut (whole block one piece, aux alone).  External momenta do not participate: an external alone can never ∨ to an SC mode.
-def sc_cond1_confirms(blk, mode, comps, confirmed, edges, em, vm,
-                      ext_attach, ext_mode):
+def sc_cond1_confirms(blk, mode, comps, confirmed, edges, em, vm, ext_attach, ext_mode):
     bv, be, *rest = blk
     sidx = rest[0] if rest else []
     real = [v for v in bv if v != 'aux']
@@ -888,13 +867,11 @@ def sc_cond1_confirms(blk, mode, comps, confirmed, edges, em, vm,
                             inflow.append(m)
                         else:
                             line_comp = ({a, b}, [(a, b)])
-                            if relevant(line_comp, tgt, mode, edges, em,
-                                        vm, m):
+                            if relevant(line_comp, tgt, mode, edges, em, vm, m):
                                 inflow.append(m)
                     break
         return inflow
-    if n == 1 or not any((a in set(real)) != (b in set(real))
-                         for (a, b) in be):
+    if n == 1 or not any((a in set(real)) != (b in set(real)) for (a, b) in be):
         inflow = inflows_of(set(real))
         if not inflow:
             return False
@@ -921,23 +898,19 @@ def sc_cond1_confirms(blk, mode, comps, confirmed, edges, em, vm,
 
 
 # SC13/SC24 component confirmation: (1) relevant to all of {C24, C1C13, C3C13} (resp. {C13, C2C24, C4C24}) with >=1 confirmed; (2) relevant to two of them, both confirmed.  Relevance is path-based (mode monotone), not geometric adjacency.
-def sc_confirmed_rule(blk, rel_modes, comps, confirmed, edges, em, vm,
-                      sc_mode):
+def sc_confirmed_rule(blk, rel_modes, comps, confirmed, edges, em, vm, sc_mode):
     adj = {}
     for mode in rel_modes:
         for i, comp in enumerate(comps[mode]):
             if relevant(blk, comp, mode, edges, em, vm, sc_mode):
                 adj.setdefault(mode, set()).add(i)
     if all(mode in adj for mode in rel_modes):
-        if any(confirmed.get((mode, i)) for mode in rel_modes
-               for i in adj[mode]):
+        if any(confirmed.get((mode, i)) for mode in rel_modes for i in adj[mode]):
             return True
-    for (m1, m2) in ((rel_modes[0], rel_modes[1]), (rel_modes[0], rel_modes[2]),
-                     (rel_modes[1], rel_modes[2])):
+    for (m1, m2) in ((rel_modes[0], rel_modes[1]), (rel_modes[0], rel_modes[2]), (rel_modes[1], rel_modes[2])):
         if m1 in adj and m2 in adj:
             # any confirmed block per target mode suffices — the other (unconfirmed) blocks it touches need not be confirmed first
-            if any(confirmed.get((m1, i)) for i in adj[m1]) and \
-               any(confirmed.get((m2, i)) for i in adj[m2]):
+            if any(confirmed.get((m1, i)) for i in adj[m1]) and any(confirmed.get((m2, i)) for i in adj[m2]):
                 return True
     return False
 
@@ -946,16 +919,14 @@ def sc_confirmed_rule(blk, rel_modes, comps, confirmed, edges, em, vm,
 # S²C13 (req=C1²C13,C3²C13, fam=SC24,C2C24,C4C24): (1) relevant to all req_modes AND at least one fam_mode, with >=1 confirmed among all targets; (2) relevant to two confirmed target modes from req+fam, NOT both from fam (at least one from req).
 # S²C24 symmetric (req=C2²C24,C4²C24, fam=SC13,C1C13,C3C13).
 # The 24-side flow need not be SC24 itself: relevant to C2C24/C4C24 via a monotone path is equally valid.
-def s2c_confirmed_rule(blk, fam_modes, req_modes, comps, confirmed,
-                       edges, em, vm, sc_mode):
+def s2c_confirmed_rule(blk, fam_modes, req_modes, comps, confirmed, edges, em, vm, sc_mode):
     adj = {}
     for mode in fam_modes + req_modes:
         for i, comp in enumerate(comps[mode]):
             if relevant(blk, comp, mode, edges, em, vm, sc_mode):
                 adj.setdefault(mode, set()).add(i)
     # (1) all required modes + at least one family mode
-    if all(mode in adj for mode in req_modes) and \
-       any(mode in adj for mode in fam_modes):
+    if all(mode in adj for mode in req_modes) and any(mode in adj for mode in fam_modes):
         targets = [m for m in fam_modes + req_modes if m in adj]
         if any(confirmed.get((m, i)) for m in targets for i in adj[m]):
             return True
@@ -967,8 +938,7 @@ def s2c_confirmed_rule(blk, fam_modes, req_modes, comps, confirmed,
             if m1 in fam_modes and m2 in fam_modes:
                 continue
             if m1 in adj and m2 in adj:
-                if any(confirmed.get((m1, i)) for i in adj[m1]) and \
-                   any(confirmed.get((m2, i)) for i in adj[m2]):
+                if any(confirmed.get((m1, i)) for i in adj[m1]) and any(confirmed.get((m2, i)) for i in adj[m2]):
                     return True
     return False
 
@@ -976,8 +946,7 @@ def s2c_confirmed_rule(blk, fam_modes, req_modes, comps, confirmed,
 # Relevance to an H block: like relevant(), but the path may START at an H/G vertex of the source (an external-momentum vertex can be H-mode) and may END at the H target.
 # G/sH still cannot be traversed mid-path (G carries no longitudinal info; sH lives inside a necklace); H vertices ARE traversable (hard momentum flows inside the blob).
 # The path may not pass through EXTERNAL-MOMENTUM vertices (sources/sinks — except H-mode externals and allow_ext_mid), nor use the cut's crossing edges (inflows enter without crossing the cut).
-def h_relevant(comp, tgt, edges, em, vm, extvs, sc_mode, start_V=None,
-               cross_idx=(), allow_ext_mid=False):
+def h_relevant(comp, tgt, edges, em, vm, extvs, sc_mode, start_V=None, cross_idx=(), allow_ext_mid=False):
     bv, be, *rest = comp
     sidx = rest[0] if rest else None
     src = {v for v in bv if v != 'aux'}
@@ -1019,8 +988,7 @@ def h_relevant(comp, tgt, edges, em, vm, extvs, sc_mode, start_V=None,
     for i, (a, b) in enumerate(edges):
         adj[a].append((b, i)); adj[b].append((a, i))
     seen = set(src)
-    stack = [(v, start_V if start_V is not None else V[vm.get(v, 'H')])
-             for v in src]
+    stack = [(v, start_V if start_V is not None else V[vm.get(v, 'H')]) for v in src]
     while stack:
         v, last_V = stack.pop()
         for w, ei in adj[v]:
@@ -1053,8 +1021,7 @@ def h_relevant(comp, tgt, edges, em, vm, extvs, sc_mode, start_V=None,
 #   (1) there EXISTS a cut of the component (a proper bipartition with crossing component edges) that does NOT cut the whole diagram (removing the crossing edges keeps the whole graph connected);
 #   (2) for one piece, the inflows — external momenta sitting in the piece + line momenta of CONFIRMED components with a raw endpoint in the piece (G/sH lines don't conduct) — have ∨(inflows) == H.
 # The hard blob confirms as a whole; the cut is only a test device.
-def h_comp_confirmed(blk, comps, confirmed, edges, em, vm, ext_attach,
-                    ext_mode, all_verts):
+def h_comp_confirmed(blk, comps, confirmed, edges, em, vm, ext_attach, ext_mode, all_verts):
     bv, be, *rest = blk
     hidxs = rest[0] if rest else []
     verts = [v for v in bv if v != 'aux']
@@ -1071,9 +1038,8 @@ def h_comp_confirmed(blk, comps, confirmed, edges, em, vm, ext_attach,
         if vv in A:
             return True
         ext_comp = ({vv, 'aux'}, [(vv, 'aux')])
-        return h_relevant(ext_comp, A, edges, em, vm, extvs, m_ext,
-                          start_V=V[vm.get(vv, 'H')],  # path starts at the external vertex with ITS OWN mode (H-mode external steps only on H edges)
-                          cross_idx=cross_idx)
+        # path starts at the external vertex with ITS OWN mode (H-mode external steps only on H edges)
+        return h_relevant(ext_comp, A, edges, em, vm, extvs, m_ext, start_V=V[vm.get(vv, 'H')], cross_idx=cross_idx)
 
     if n == 1:  # degenerate: a single-vertex H component is a plain hard junction, trivially IR compatible
         return True
@@ -1111,8 +1077,7 @@ def h_comp_confirmed(blk, comps, confirmed, edges, em, vm, ext_attach,
             return seen == Sv
         if not h_connected(HA) or not h_connected(HB):
             continue
-        cross = [j for j, (a, b) in enumerate(edges)
-                 if (a in A) != (b in A)]
+        cross = [j for j, (a, b) in enumerate(edges) if (a in A) != (b in A)]
         exA = [e for e in ext_attach if ext_attach[e] in A]
         exB = [e for e in ext_attach if ext_attach[e] in B]
         # per-piece: ∨(inflows) == H — externals sitting/relevant in the piece, plus line momenta of CONFIRMED non-H components (G/sH don't conduct)
@@ -1131,8 +1096,7 @@ def h_comp_confirmed(blk, comps, confirmed, edges, em, vm, ext_attach,
                         continue
                     if sidx and j in sidx[0]:
                         # line momentum conducts within the hard blob regardless of the cut (crossing edges block only EXTERNAL paths)
-                        if h_relevant((sv, se, *sidx), piece, edges, em, vm,
-                                      extvs, m, allow_ext_mid=True):
+                        if h_relevant((sv, se, *sidx), piece, edges, em, vm, extvs, m, allow_ext_mid=True):
                             inflows.append(m)
                         break
             if not inflows:
@@ -1152,9 +1116,8 @@ def h_comp_confirmed(blk, comps, confirmed, edges, em, vm, ext_attach,
 # IR compatibility cond1 for C13/C24 (replaces the older separate cut-check / external-relevance / flow rules): an X component is confirmed if there EXISTS a cut of this component (not cutting the whole diagram) into two pieces, such that for one piece, some external momenta or some line momenta of already-confirmed mode components are RELEVANT to it, and the vee of these momentum modes is precisely X.
 # Implementation: enumerate bipartitions of the block's real vertices; one side A gathers inflows = external momenta sitting in A (or relevant to A) + line momenta (edges of CONFIRMED components crossing into A, with the edge's far endpoint in the confirmed component).
 # The cut edges of X itself are not inflows.  ∨(inflows) == mode ⟹ confirmed.
-def cond1_confirms(blk, mode, comps, confirmed, edges, em, vm,
-                   ext_attach, ext_mode):
-    # NEW FORM v3 (2026-09-13 晚, 小马): no "cut".  Two momenta — external or
+def cond1_confirms(blk, mode, comps, confirmed, edges, em, vm, ext_attach, ext_mode):
+    # NEW FORM v3 (2026-09-13 晚): no "cut".  Two momenta — external or
     # already-confirmed line momenta — must ENTER the component (strict
     # monotone entry walk with edge modes checked, first-touch stop), their
     # join == mode; a third port must remain for ONE admissible choice of
@@ -1366,8 +1329,7 @@ def _rule3_gate_entry_walk(blk, start_vs, edges, em, vm):
     return touch
 
 
-def _refined_flow2_confirms(mode, blk, comps, confirmed, edges, em, vm,
-                            ext_attach, ext_mode, ext):
+def _refined_flow2_confirms(mode, blk, comps, confirmed, edges, em, vm, ext_attach, ext_mode, ext):
     # cond1-skeleton flow for refined components (2026-09-14): the momenta that may
     # enter the block are the associated external and/or lines of already-confirmed
     # components (SC lines included, per-line not per-component), entering via strict
@@ -1504,15 +1466,12 @@ def ir_ok_region(edges, em, vm, ext_attach, ext_mode=None, sum_degrees=None):
     p1, p2 = ext_attach['p1'], ext_attach['p2']
     p3, p4 = ext_attach['p3'], ext_attach['p4']
     comps = {}
-    for m in ('H', 'C13', 'C24', 'C1C13', 'C3C13', 'C2C24', 'C4C24', 'S^1C13', 'S^1C24', 'S', 'S^2',
-              'C1^2C13', 'C3^2C13', 'C2^2C24', 'C4^2C24', 'S^2C13', 'S^2C24',
-              # leg-explicit SC² family (S^m C_i^n C_ij, m,n >= 1): confirmed by the generic meet-of-two rule
-              'S^1C1C13', 'S^1C3C13', 'S^1C2C24', 'S^1C4C24'):
+    # leg-explicit SC² family (S^m C_i^n C_ij, m,n >= 1): confirmed by the generic meet-of-two rule
+    for m in ('H', 'C13', 'C24', 'C1C13', 'C3C13', 'C2C24', 'C4C24', 'S^1C13', 'S^1C24', 'S', 'S^2', 'C1^2C13', 'C3^2C13', 'C2^2C24', 'C4^2C24', 'S^2C13', 'S^2C24', 'S^1C1C13', 'S^1C3C13', 'S^1C2C24', 'S^1C4C24'):
         # an X-mode component = a 1VI block of the contracted X-subgraph Γ̃_X (NOT a connected component)
         comps[m] = mode_components(m, vm, em, edges, verts)
     # H components: 1VI blocks like every other mode — each block needs its OWN confirming cut (a cut that confirms one block does not confirm another sharing a cut vertex with it).  aux-only blocks are contraction artifacts.
-    comps['H'] = [b for b in mode_components('H', vm, em, edges, verts)
-                if any(v != 'aux' for v in b[0])]
+    comps['H'] = [b for b in mode_components('H', vm, em, edges, verts) if any(v != 'aux' for v in b[0])]
 
     # ---- tadpole gate (PROTOTYPE 2026-09-13; translated from two_to_three _tadp / wide-angle primitives.py) ----
     def _m_of(md):
@@ -1605,8 +1564,7 @@ def ir_ok_region(edges, em, vm, ext_attach, ext_mode=None, sum_degrees=None):
     # initial round: C13/C24 by cond1 (cut-check).
     for m in ('C13', 'C24'):
         for i in range(len(comps[m])):
-            if cond1_confirms(comps[m][i], m, comps, confirmed, edges, em, vm,
-                              ext_attach, ext_mode):
+            if cond1_confirms(comps[m][i], m, comps, confirmed, edges, em, vm, ext_attach, ext_mode):
                 confirmed[(m, i)] = True
     for e, m in zip(edges, em):
         if m == 'G':
@@ -1615,100 +1573,77 @@ def ir_ok_region(edges, em, vm, ext_attach, ext_mode=None, sum_degrees=None):
     for _ in range(30):
         changed = False
         # refined-collinear components: direct p-attach, same-mode reach, SC momentum flow, or p-ext + confirmed SC relevant
-        for mode, ext, sc_mode in (('C1C13', 'p1', 'S^1C13'), ('C3C13', 'p3', 'S^1C13'),
-                                   ('C2C24', 'p2', 'S^1C24'), ('C4C24', 'p4', 'S^1C24')):
+        for mode, ext, sc_mode in (('C1C13', 'p1', 'S^1C13'), ('C3C13', 'p3', 'S^1C13'), ('C2C24', 'p2', 'S^1C24'), ('C4C24', 'p4', 'S^1C24')):
             for i, blk in enumerate(comps[mode]):
                 if (mode, i) in confirmed: continue
                 ok = False
                 # direct p-attach: an external whose mode EQUALS the block mode (p_i itself C1C13 etc., p_i² ~ λ²) confirms it without SC inflow
                 vext = ext_attach[ext]
-                if vext in blk[0] and \
-                        ext_mode_for(ext_attach, ext_mode, ext) == mode:
+                if vext in blk[0] and ext_mode_for(ext_attach, ext_mode, ext) == mode:
                     ok = True
                 # Rule 4: same-mode external propagation — monotone path from v_ext along its own mode confirms the block
-                if not ok and \
-                        ext_mode_for(ext_attach, ext_mode, ext) == mode and \
-                        same_mode_reaches(vext, blk, mode, edges, em, vm):
+                if not ok and ext_mode_for(ext_attach, ext_mode, ext) == mode and same_mode_reaches(vext, blk, mode, edges, em, vm):
                     ok = True
                 # Rule 2: SC momentum flow keeping the refined mode (∨(SC, vm[v]) = vm[v]); Rule 1 (p-attach + SC line) deleted — rule 3 covers it
-                if not ok and sc_flow_confirms(mode, sc_mode, blk, comps, confirmed,
-                                      edges, em, vm):
+                if not ok and sc_flow_confirms(mode, sc_mode, blk, comps, confirmed, edges, em, vm):
                     ok = True
                 if not ok:
                     # Rule 3 (cond1 skeleton, per-line; 2026-09-14): associated p-ext + a
                     # line of an already-confirmed component (SC lines included), entries =
                     # strict first-touch walks, third port required for one admissible combo.
-                    ok = _refined_flow2_confirms(mode, blk, comps, confirmed, edges,
-                                                 em, vm, ext_attach, ext_mode, ext)
+                    ok = _refined_flow2_confirms(mode, blk, comps, confirmed, edges, em, vm, ext_attach, ext_mode, ext)
                 if ok:
                     confirmed[(mode, i)] = True
                     changed = True
         # refined-collinear C³ components (C1²C13 etc.): same rules as C² with SC -> S²C
-        for mode, ext, s2c_mode in (('C1^2C13', 'p1', 'S^2C13'),
-                                    ('C3^2C13', 'p3', 'S^2C13'),
-                                    ('C2^2C24', 'p2', 'S^2C24'),
-                                    ('C4^2C24', 'p4', 'S^2C24')):
+        for mode, ext, s2c_mode in (('C1^2C13', 'p1', 'S^2C13'), ('C3^2C13', 'p3', 'S^2C13'), ('C2^2C24', 'p2', 'S^2C24'), ('C4^2C24', 'p4', 'S^2C24')):
             for i, blk in enumerate(comps[mode]):
                 if (mode, i) in confirmed: continue
                 ok = False
                 # direct p-attach for m_i-finite externals whose mode equals the block mode
                 vext = ext_attach[ext]
-                if vext in blk[0] and \
-                        ext_mode_for(ext_attach, ext_mode, ext) == mode:
+                if vext in blk[0] and ext_mode_for(ext_attach, ext_mode, ext) == mode:
                     ok = True
                 # Rule 4: same-mode external propagation (as above)
-                if not ok and \
-                        ext_mode_for(ext_attach, ext_mode, ext) == mode and \
-                        same_mode_reaches(vext, blk, mode, edges, em, vm):
+                if not ok and ext_mode_for(ext_attach, ext_mode, ext) == mode and same_mode_reaches(vext, blk, mode, edges, em, vm):
                     ok = True
-                if not ok and sc_flow_confirms(mode, s2c_mode, blk, comps, confirmed,
-                                    edges, em, vm):
+                if not ok and sc_flow_confirms(mode, s2c_mode, blk, comps, confirmed, edges, em, vm):
                     ok = True
                 if not ok:
                     # Rule 3 (cond1 skeleton, per-line; 2026-09-14) — as above, for C³ blocks.
-                    ok = _refined_flow2_confirms(mode, blk, comps, confirmed, edges,
-                                                 em, vm, ext_attach, ext_mode, ext)
+                    ok = _refined_flow2_confirms(mode, blk, comps, confirmed, edges, em, vm, ext_attach, ext_mode, ext)
                 if ok:
                     confirmed[(mode, i)] = True
                     changed = True
         # SC components via relevance
-        for mode, rel_modes in (('S^1C13', ('C24', 'C1C13', 'C3C13')),
-                                ('S^1C24', ('C13', 'C2C24', 'C4C24'))):
+        for mode, rel_modes in (('S^1C13', ('C24', 'C1C13', 'C3C13')), ('S^1C24', ('C13', 'C2C24', 'C4C24'))):
             for i, blk in enumerate(comps[mode]):
                 if (mode, i) in confirmed: continue
-                if _cond_allowed(mode, blk) and sc_confirmed_rule(blk, rel_modes, comps, confirmed,
-                                     edges, em, vm, mode):
+                if _cond_allowed(mode, blk) and sc_confirmed_rule(blk, rel_modes, comps, confirmed, edges, em, vm, mode):
                     confirmed[(mode, i)] = True
                     changed = True
-                elif sc_cond1_confirms(blk, mode, comps, confirmed,
-                                       edges, em, vm, ext_attach, ext_mode):
+                elif sc_cond1_confirms(blk, mode, comps, confirmed, edges, em, vm, ext_attach, ext_mode):
                     # SC cond-1: momentum flow of confirmed components, ∨(inflows) == mode
                     confirmed[(mode, i)] = True
                     changed = True
         # S²C components via relevance (see s2c_confirmed_rule).
-        for mode, req_modes, fam_modes in (
-                ('S^2C13', ('C1^2C13', 'C3^2C13'), ('S^1C24', 'C2C24', 'C4C24')),
-                ('S^2C24', ('C2^2C24', 'C4^2C24'), ('S^1C13', 'C1C13', 'C3C13'))):
+        for mode, req_modes, fam_modes in (('S^2C13', ('C1^2C13', 'C3^2C13'), ('S^1C24', 'C2C24', 'C4C24')), ('S^2C24', ('C2^2C24', 'C4^2C24'), ('S^1C13', 'C1C13', 'C3C13'))):
             for i, blk in enumerate(comps[mode]):
                 if (mode, i) in confirmed: continue
-                if _cond_allowed(mode, blk) and s2c_confirmed_rule(
-                        blk, fam_modes, req_modes, comps,
-                        confirmed, edges, em, vm, mode):
+                if _cond_allowed(mode, blk) and s2c_confirmed_rule(blk, fam_modes, req_modes, comps, confirmed, edges, em, vm, mode):
                     confirmed[(mode, i)] = True
                     changed = True
         # S² components: relevant to confirmed X1 (13-family) and X2 (24-family) with S² = X1 ∧ X2
         for i, blk in enumerate(comps['S^2']):
             if ('S^2', i) in confirmed: continue
-            if _cond_allowed('S^2', blk) and s2_comp_confirmed(
-                    blk, comps, confirmed, edges, em, vm):
+            if _cond_allowed('S^2', blk) and s2_comp_confirmed(blk, comps, confirmed, edges, em, vm):
                 confirmed[('S^2', i)] = True
                 changed = True
         # SC²-family components (S^m C_i^n C_ij, m,n>=1): generic meet-of-two rule
         for mode in ('S^1C1C13', 'S^1C3C13', 'S^1C2C24', 'S^1C4C24'):
             for i, blk in enumerate(comps[mode]):
                 if (mode, i) in confirmed: continue
-                if _cond_allowed(mode, blk) and sc2_gen_confirmed(
-                        blk, comps, confirmed, edges, em, vm, mode):
+                if _cond_allowed(mode, blk) and sc2_gen_confirmed(blk, comps, confirmed, edges, em, vm, mode):
                     confirmed[(mode, i)] = True
                     changed = True
         # S components: relevant to confirmed 13-family + 24-family
@@ -1720,16 +1655,14 @@ def ir_ok_region(edges, em, vm, ext_attach, ext_mode=None, sum_degrees=None):
         # H components: full cond1 — a cut of the component (not cutting the diagram) with a piece whose inflows ∨ to H
         for i, blk in enumerate(comps['H']):
             if ('H', i) in confirmed: continue
-            if h_comp_confirmed(blk, comps, confirmed, edges, em, vm,
-                                ext_attach, ext_mode, verts):
+            if h_comp_confirmed(blk, comps, confirmed, edges, em, vm, ext_attach, ext_mode, verts):
                 confirmed[('H', i)] = True
                 changed = True
         # C13/C24 again: cond1 with the full fixpoint state (SC/S flow + refined-collinear inflow when externals were refined away)
         for mode in ('C13', 'C24'):
             for i, blk in enumerate(comps[mode]):
                 if (mode, i) in confirmed: continue
-                if cond1_confirms(blk, mode, comps, confirmed, edges, em, vm,
-                                  ext_attach, ext_mode):
+                if cond1_confirms(blk, mode, comps, confirmed, edges, em, vm, ext_attach, ext_mode):
                     confirmed[(mode, i)] = True
                     changed = True
         # SC hidden path: an SC bridges two distinct pair-mode components (p1/p3-attached C13 for SC24, p2/p4-attached C24 for SC13; also S between two distinct C13s/C24s) + one same-side refined component; one confirmed ⟹ the other too.  Regge-only.
@@ -1749,10 +1682,7 @@ def ir_ok_region(edges, em, vm, ext_attach, ext_mode=None, sum_degrees=None):
                  ('C24', 'C4C24', 'C4^2C24', 'C4∞C24'))):
             for i, blk in enumerate(comps[pair_mode]):
                 if (pair_mode, i) in confirmed: continue
-                if sc_hidden_path_confirms(blk, i, comps, confirmed, edges,
-                                           em, vm, ext_attach, ext_mode,
-                                           sc_mode, pair_mode, ext_a, ext_b,
-                                           fam_modes, fam_a, fam_b):
+                if sc_hidden_path_confirms(blk, i, comps, confirmed, edges, em, vm, ext_attach, ext_mode, sc_mode, pair_mode, ext_a, ext_b, fam_modes, fam_a, fam_b):
                     confirmed[(pair_mode, i)] = True
                     changed = True
         if not changed:
@@ -1806,8 +1736,7 @@ def has_sc_vertex(cut_sets):
 # Enumerate regions under the cut rules + IR compatibility; from 3-loop level, refined single-external cuts are allowed (C1C13/C3C13 inside C13, C2C24/C4C24 inside C24).
 # M: (p_i+p_j)² ~ λ^M (default 1).
 def fri_regions(edges, verts, ext_attach, ext_mode, M=1, verbose=False):
-    return [(cut13, cut24, vm, em) for (cut13, cut24, cut1, cut3, cut2, cut4, vm, em)
-            in fri_regions_full(edges, verts, ext_attach, ext_mode, M=M)]
+    return [(cut13, cut24, vm, em) for (cut13, cut24, cut1, cut3, cut2, cut4, vm, em) in fri_regions_full(edges, verts, ext_attach, ext_mode, M=M)]
 
 
 # Enumerate all regions of the Regge 2->2 kinematics given by ext_mode; each region is (cut13, cut24, cut1, cut3, cut2, cut4, vm, em).
@@ -1820,13 +1749,10 @@ def fri_regions(edges, verts, ext_attach, ext_mode, M=1, verbose=False):
 def fri_regions_full(edges, verts, ext_attach, ext_mode, M=1, verbose=False):
     ms = {n: ext_m(ext_mode.get(n)) for n in ext_attach}
     if all(m is None for m in ms.values()):
-        return fri_regions_onshell(edges, verts, ext_attach, ext_mode,
-                                   verbose=verbose)
+        return fri_regions_onshell(edges, verts, ext_attach, ext_mode, verbose=verbose)
     # off-shell: possibly_softest depth limits + nested refine towers; ext_m returns 𝒱=m+1 (C13->1), possibly_softest needs m (C13->0) — convert back
-    ms_m = {n: (None if v is None else v - 1)
-            for n, v in ms.items()}
-    return fri_regions_offshell(edges, verts, ext_attach, ext_mode, ms_m,
-                                verbose=verbose)
+    ms_m = {n: (None if v is None else v - 1) for n, v in ms.items()}
+    return fri_regions_offshell(edges, verts, ext_attach, ext_mode, ms_m, verbose=verbose)
 
 # k1 enumerator: all external momenta lightlike (p_i² = 0).  Each region is (cut13, cut24, cut1, cut3, cut2, cut4, vm, em) — the C13/C24 cuts plus the refined single-external cuts C1C13/C3C13/C2C24/C4C24.
 #
@@ -1873,32 +1799,23 @@ def fri_regions_onshell(edges, verts, ext_attach, ext_mode, verbose=False):
                 verts_set = set(verts)
                 e_set = set(edges) | set((b, a) for (a, b) in edges)
                 # 3-regular check: degree-3 vertices (external legs counted) tighten the Cond-1/2/3 H requirement to >=2 edge-connected H vertices
-                reg3 = all(
-                    sum(1 for (a, b) in edges if a == v or b == v)
-                    + sum(1 for n, vv in ext_attach.items() if vv == v) == 3
-                    for v in verts)
+                reg3 = all(sum(1 for (a, b) in edges if a == v or b == v) + sum(1 for n, vv in ext_attach.items() if vv == v) == 3 for v in verts)
                 # layered pruning: an SC/S²C vertex must lie in ALL nonempty cuts; I0 = main-cut intersection (empty cut = full set)
                 I0 = (cut13 if cut13 else verts_set) & (cut24 if cut24 else verts_set)
                 # pure main-cut combos (all refinements empty) always run — the source of the non-SC regions
-                reg = _build_region(edges, verts, ext_attach, ext_mode,
-                                    cut13, cut24, frozenset(), frozenset(),
-                                    frozenset(), frozenset())
+                reg = _build_region(edges, verts, ext_attach, ext_mode, cut13, cut24, frozenset(), frozenset(), frozenset(), frozenset())
                 if reg is not None:
                     key = (tuple(reg[1]), tuple(sorted(reg[0].items())))
                     if key not in seen:
                         seen.add(key)
-                        regs.append((set(cut13), set(cut24),
-                                     frozenset(), frozenset(),
-                                     frozenset(), frozenset(),
-                                     reg[0], reg[1]))
+                        regs.append((set(cut13), set(cut24), frozenset(), frozenset(), frozenset(), frozenset(), reg[0], reg[1]))
                 if not I0:
                     # no possible SC/S²C vertex: prune the whole refinement subtree (k1 only — finite m_i need no common SC vertex)
                     continue
                 for cut1 in r1:
                     for cut3 in r3:
                         # I1: intersection after the 13-side refinements; empty ⟹ skip cut2/cut4 entirely
-                        I1 = I0 & (cut1 if cut1 else verts_set) \
-                               & (cut3 if cut3 else verts_set)
+                        I1 = I0 & (cut1 if cut1 else verts_set) & (cut3 if cut3 else verts_set)
                         if not I1:
                             continue
                         for cut2 in r2:
@@ -1907,133 +1824,73 @@ def fri_regions_onshell(edges, verts, ext_attach, ext_mode, verbose=False):
                                 if not (cut1 or cut3 or cut2 or cut4):
                                     continue
                                 # I2 = intersection of ALL nonempty cuts (Cond-1 v); I2x4/I2x2 = minus C4C24/C2C24 (Cond-2/3 v); I2x3/I2x1 = branch-24 Cond-2/3 (minus C3C13/C1C13)
-                                I2 = I1 & (cut2 if cut2 else verts_set) \
-                                       & (cut4 if cut4 else verts_set)
+                                I2 = I1 & (cut2 if cut2 else verts_set) & (cut4 if cut4 else verts_set)
                                 I2x4 = I1 & (cut2 if cut2 else verts_set)
                                 I2x2 = I1 & (cut4 if cut4 else verts_set)
-                                I2x3 = I0 & (cut1 if cut1 else verts_set) \
-                                           & (cut2 if cut2 else verts_set) \
-                                           & (cut4 if cut4 else verts_set)
-                                I2x1 = I0 & (cut3 if cut3 else verts_set) \
-                                           & (cut2 if cut2 else verts_set) \
-                                           & (cut4 if cut4 else verts_set)
+                                I2x3 = I0 & (cut1 if cut1 else verts_set) & (cut2 if cut2 else verts_set) & (cut4 if cut4 else verts_set)
+                                I2x1 = I0 & (cut3 if cut3 else verts_set) & (cut2 if cut2 else verts_set) & (cut4 if cut4 else verts_set)
                                 if not (I2 or I2x4 or I2x2 or I2x3 or I2x1):
                                     continue
                                 # H-vertex pruning after refinements
                                 if cut13 | cut24 | cut1 | cut3 | cut2 | cut4 >= verts_set:
                                     continue
                                 # branch 0: no second-power refinement (first-power SC regions)
-                                reg = _build_region(edges, verts, ext_attach,
-                                                    ext_mode, cut13, cut24, cut1, cut3,
-                                                    cut2, cut4)
+                                reg = _build_region(edges, verts, ext_attach, ext_mode, cut13, cut24, cut1, cut3, cut2, cut4)
                                 if reg is not None:
-                                    key = (tuple(reg[1]),
-                                           tuple(sorted(reg[0].items())))
+                                    key = (tuple(reg[1]), tuple(sorted(reg[0].items())))
                                     if key not in seen:
                                         seen.add(key)
-                                        regs.append((set(cut13), set(cut24),
-                                                     set(cut1), set(cut3),
-                                                     set(cut2), set(cut4),
-                                                     reg[0], reg[1]))
+                                        regs.append((set(cut13), set(cut24), set(cut1), set(cut3), set(cut2), set(cut4), reg[0], reg[1]))
                                 # branch 13: S²C13 target — Cond 1/2/3 (any one suffices):
                                 #   Cond 1 (relevant to SC24): v ∈ all nonempty cuts (I2), u an SC24 vertex with edge u-v;
                                 #   Cond 2 (relevant to C2C24): v ∈ I2x4 (all but C4C24), w ∈ C2C24\C13 adjacent (S²C13 inflow entry);
                                 #   Cond 3 (relevant to C4C24): symmetric — v ∈ I2x2, w ∈ C4C24\C13.
                                 # C1²C13 := C1C13, C3²C13 := C3C13; H vertices: >=2 edge-connected under 3-regularity
                                 if (cut1 or cut3):
-                                    u13 = [u for u in inner
-                                           if u in cut2 and u in cut4 and u in cut13
-                                           and u not in cut1 and u not in cut3]
+                                    u13 = [u for u in inner if u in cut2 and u in cut4 and u in cut13 and u not in cut1 and u not in cut3]
                                     if u13:
-                                        hv13 = verts_set - (cut13 | cut24 | cut1
-                                                             | cut3 | cut2 | cut4)
-                                        h_ok = (not reg3) or any(
-                                            a in hv13 and b in hv13
-                                            for (a, b) in edges)
+                                        hv13 = verts_set - (cut13 | cut24 | cut1 | cut3 | cut2 | cut4)
+                                        h_ok = (not reg3) or any(a in hv13 and b in hv13 for (a, b) in edges)
                                         if h_ok:
-                                            ok13 = any(
-                                                (u, v) in e_set
-                                                for u in u13 for v in I2)
+                                            ok13 = any((u, v) in e_set for u in u13 for v in I2)
                                             if not ok13:
-                                                ok13 = bool(I2x4) and any(  # Cond 2: v in all but C4C24
-                                                    (w, v) in e_set
-                                                    for w in (cut2 - cut13)
-                                                    for v in I2x4)
+                                                # Cond 2: v in all but C4C24
+                                                ok13 = bool(I2x4) and any((w, v) in e_set for w in (cut2 - cut13) for v in I2x4)
                                             if not ok13:
-                                                ok13 = bool(I2x2) and any(  # Cond 3: v in all but C2C24
-                                                    (w, v) in e_set
-                                                    for w in (cut4 - cut13)
-                                                    for v in I2x2)
+                                                # Cond 3: v in all but C2C24
+                                                ok13 = bool(I2x2) and any((w, v) in e_set for w in (cut4 - cut13) for v in I2x2)
                                             if ok13:
-                                                reg = _build_region(
-                                                    edges, verts, ext_attach,
-                                                    ext_mode, cut13, cut24, cut1,
-                                                    cut3, cut2, cut4, cut1, cut3)
+                                                reg = _build_region(edges, verts, ext_attach, ext_mode, cut13, cut24, cut1, cut3, cut2, cut4, cut1, cut3)
                                                 if reg is not None:
-                                                    key = (tuple(reg[1]),
-                                                           tuple(sorted(
-                                                               reg[0].items())))
+                                                    key = (tuple(reg[1]), tuple(sorted(reg[0].items())))
                                                     if key not in seen:
                                                         seen.add(key)
-                                                        regs.append(
-                                                            (set(cut13),
-                                                             set(cut24),
-                                                             set(cut1),
-                                                             set(cut3),
-                                                             set(cut2),
-                                                             set(cut4),
-                                                             reg[0],
-                                                             reg[1]))
+                                                        regs.append((set(cut13), set(cut24), set(cut1), set(cut3), set(cut2), set(cut4), reg[0], reg[1]))
                                 # branch 24: S²C24 target, symmetric:
                                 #   Cond 1: v ∈ all nonempty cuts (I2) + SC13 vertex u adjacent;
                                 #   Cond 2: v ∈ I2x3 (all but C3C13), w ∈ C1C13\C24 adjacent;
                                 #   Cond 3: v ∈ I2x1 (all but C1C13), w ∈ C3C13\C24 adjacent;
                                 #   C2²C24 := C2C24, C4²C24 := C4C24.
                                 if (cut2 or cut4):
-                                    u24 = [u for u in inner
-                                           if u in cut1 and u in cut3 and u in cut24
-                                           and u not in cut2 and u not in cut4]
+                                    u24 = [u for u in inner if u in cut1 and u in cut3 and u in cut24 and u not in cut2 and u not in cut4]
                                     if u24:
-                                        hv24 = verts_set - (cut13 | cut24 | cut1
-                                                             | cut3 | cut2 | cut4)
-                                        h_ok = (not reg3) or any(
-                                            a in hv24 and b in hv24
-                                            for (a, b) in edges)
+                                        hv24 = verts_set - (cut13 | cut24 | cut1 | cut3 | cut2 | cut4)
+                                        h_ok = (not reg3) or any(a in hv24 and b in hv24 for (a, b) in edges)
                                         if h_ok:
-                                            ok24 = any(
-                                                (u, v) in e_set
-                                                for u in u24 for v in I2)
+                                            ok24 = any((u, v) in e_set for u in u24 for v in I2)
                                             if not ok24:
-                                                ok24 = bool(I2x3) and any(  # Cond 2: v in all but C3C13
-                                                    (w, v) in e_set
-                                                    for w in (cut1 - cut24)
-                                                    for v in I2x3)
+                                                # Cond 2: v in all but C3C13
+                                                ok24 = bool(I2x3) and any((w, v) in e_set for w in (cut1 - cut24) for v in I2x3)
                                             if not ok24:
-                                                ok24 = bool(I2x1) and any(  # Cond 3: v in all but C1C13
-                                                    (w, v) in e_set
-                                                    for w in (cut3 - cut24)
-                                                    for v in I2x1)
+                                                # Cond 3: v in all but C1C13
+                                                ok24 = bool(I2x1) and any((w, v) in e_set for w in (cut3 - cut24) for v in I2x1)
                                             if ok24:
-                                                reg = _build_region(
-                                                    edges, verts, ext_attach,
-                                                    ext_mode, cut13, cut24, cut1,
-                                                    cut3, cut2, cut4, None,
-                                                    None, cut2, cut4)
+                                                reg = _build_region(edges, verts, ext_attach, ext_mode, cut13, cut24, cut1, cut3, cut2, cut4, None, None, cut2, cut4)
                                                 if reg is not None:
-                                                    key = (tuple(reg[1]),
-                                                           tuple(sorted(
-                                                               reg[0].items())))
+                                                    key = (tuple(reg[1]), tuple(sorted(reg[0].items())))
                                                     if key not in seen:
                                                         seen.add(key)
-                                                        regs.append(
-                                                            (set(cut13),
-                                                             set(cut24),
-                                                             set(cut1),
-                                                             set(cut3),
-                                                             set(cut2),
-                                                             set(cut4),
-                                                             reg[0],
-                                                             reg[1]))
+                                                        regs.append((set(cut13), set(cut24), set(cut1), set(cut3), set(cut2), set(cut4), reg[0], reg[1]))
                 continue
             for refine in ((0, 1, 2) if use_refined else (0,)):
                 r1 = r3 = r2 = r4 = [frozenset()]
@@ -2050,26 +1907,17 @@ def fri_regions_onshell(edges, verts, ext_attach, ext_mode, verbose=False):
                                 # all-empty refinement ≡ refine=0 (pure main cut, already built there)
                                 if refine != 0 and not (cut1 or cut3 or cut2 or cut4):
                                     continue
-                                if refine != 0 and not has_sc_vertex(
-                                        {'C13': cut13, 'C24': cut24,
-                                         'C1C13': cut1, 'C3C13': cut3,
-                                         'C2C24': cut2, 'C4C24': cut4}):
+                                if refine != 0 and not has_sc_vertex({'C13': cut13, 'C24': cut24, 'C1C13': cut1, 'C3C13': cut3, 'C2C24': cut2, 'C4C24': cut4}):
                                     continue
                                 if cut13 | cut24 | cut1 | cut3 | cut2 | cut4 >= set(verts):
                                     continue
-                                reg = _build_region(edges, verts, ext_attach,
-                                                    ext_mode, cut13, cut24, cut1, cut3,
-                                                    cut2, cut4)
+                                reg = _build_region(edges, verts, ext_attach, ext_mode, cut13, cut24, cut1, cut3, cut2, cut4)
                                 if reg is not None:
-                                    key = (tuple(reg[1]),
-                                           tuple(sorted(reg[0].items())))
+                                    key = (tuple(reg[1]), tuple(sorted(reg[0].items())))
                                     if key in seen:
                                         continue
                                     seen.add(key)
-                                    regs.append((set(cut13), set(cut24),
-                                                 set(cut1), set(cut3),
-                                                 set(cut2), set(cut4),
-                                                 reg[0], reg[1]))
+                                    regs.append((set(cut13), set(cut24), set(cut1), set(cut3), set(cut2), set(cut4), reg[0], reg[1]))
     return regs
 
 
@@ -2112,10 +1960,7 @@ def fri_regions_offshell(edges, verts, ext_attach, ext_mode, ms, verbose=False):
         else:
             d13, d24 = Mside - 1, Mside
     if d13 > 2 or d24 > 2:
-        raise NotImplementedError(
-            f"fri_regions_offshell: depth {max(d13, d24)} > 2 — meet/vee "
-            f"tables stop at C_i²C_ij (possibly_softest={ps}); extend the "
-            f"mode tables first.")
+        raise NotImplementedError(f"fri_regions_offshell: depth {max(d13, d24)} > 2 — meet/vee tables stop at C_i²C_ij (possibly_softest={ps}); extend the mode tables first.")
 
     # C_ij cut candidates (off-shell): may be DISCONNECTED, with at most two connected components — one around va, one around vb — and every connected component of S must contain va or vb.
     # This lets Glauber/hard vertices stay OUTSIDE all cuts, so requirement 2 (nonempty off-shell subgraph) is satisfied automatically.
@@ -2164,31 +2009,22 @@ def fri_regions_offshell(edges, verts, ext_attach, ext_mode, ms, verbose=False):
                             cut2sq = t2[1] if len(t2) >= 2 else frozenset()
                             cut4 = t4[0] if len(t4) >= 1 else frozenset()
                             cut4sq = t4[1] if len(t4) >= 2 else frozenset()
-                            if (cut13 | cut24 | cut1 | cut3 | cut2 | cut4
-                                    | cut1sq | cut3sq | cut2sq | cut4sq) >= verts_set:
+                            if (cut13 | cut24 | cut1 | cut3 | cut2 | cut4 | cut1sq | cut3sq | cut2sq | cut4sq) >= verts_set:
                                 continue
-                            reg = _build_region(edges, verts, ext_attach,
-                                                ext_mode, cut13, cut24, cut1, cut3,
-                                                cut2, cut4, cut1sq, cut3sq, cut2sq,
-                                                cut4sq)
+                            reg = _build_region(edges, verts, ext_attach, ext_mode, cut13, cut24, cut1, cut3, cut2, cut4, cut1sq, cut3sq, cut2sq, cut4sq)
                             if reg is None:
                                 continue
-                            key = (tuple(reg[1]),
-                                   tuple(sorted(reg[0].items())))
+                            key = (tuple(reg[1]), tuple(sorted(reg[0].items())))
                             if key in seen:
                                 continue
                             seen.add(key)
-                            regs.append((set(cut13), set(cut24), set(cut1),
-                                         set(cut3), set(cut2), set(cut4),
-                                         reg[0], reg[1]))
+                            regs.append((set(cut13), set(cut24), set(cut1), set(cut3), set(cut2), set(cut4), reg[0], reg[1]))
     return regs
 
 
 # Glauber/semihard-vertex momentum rule: at a G/sH vertex all components are small, so >=2 small line momenta + exactly one large (O(1)) one is unbalanced.
 # Large = H + collinear family (incl. refined and lightlike-external modes); everything else is small.
-_GV_LARGE = {'H', 'C13', 'C24', 'C1C13', 'C3C13', 'C2C24', 'C4C24',
-             'C1^2C13', 'C3^2C13', 'C2^2C24', 'C4^2C24',
-             'C1∞C13', 'C3∞C13', 'C2∞C24', 'C4∞C24'}
+_GV_LARGE = {'H', 'C13', 'C24', 'C1C13', 'C3C13', 'C2C24', 'C4C24', 'C1^2C13', 'C3^2C13', 'C2^2C24', 'C4^2C24', 'C1∞C13', 'C3∞C13', 'C2∞C24', 'C4∞C24'}
 
 
 def glauber_vertex_mom_ok(inc):
@@ -2207,8 +2043,7 @@ def momentum_ok_regge(edges, em, vm, ext_attach, ext_mode=None):
         for i, (a, b) in enumerate(edges):
             if a == v or b == v:
                 inc.append(em[i])
-        ext = [ext_mode_for(ext_attach, ext_mode, n)
-               for n, vv in ext_attach.items() if vv == v]
+        ext = [ext_mode_for(ext_attach, ext_mode, n) for n, vv in ext_attach.items() if vv == v]
         inc = inc + ext
         if vm.get(v) in ('G', 'sH'):
             if not glauber_vertex_mom_ok(inc):  # G/sH: >=2 small lines + exactly one large (O(1)) line is forbidden — it cannot cancel
@@ -2240,8 +2075,7 @@ def momentum_ok_regge(edges, em, vm, ext_attach, ext_mode=None):
 
 # Every cut vertex separating p1,p3 from p2,p4 must be of G mode.
 def family_cut_vertex_ok(edges, verts, vm, ext_attach):
-    p1, p2, p3, p4 = (ext_attach['p1'], ext_attach['p2'],
-                       ext_attach['p3'], ext_attach['p4'])
+    p1, p2, p3, p4 = (ext_attach['p1'], ext_attach['p2'], ext_attach['p3'], ext_attach['p4'])
     extvs = set(ext_attach.values())
     for v in verts:
         if v in extvs:
@@ -2251,8 +2085,7 @@ def family_cut_vertex_ok(edges, verts, vm, ext_attach):
         rem_v = [vv for vv in verts if vv != v]
         rem_e = [e for e in edges if v not in e]
         comp = components(rem_e, rem_v)
-        if (comp[p1] == comp[p3] and comp[p2] == comp[p4]
-                and comp[p1] != comp[p2]):
+        if (comp[p1] == comp[p3] and comp[p2] == comp[p4] and comp[p1] != comp[p2]):
             return False
     return True
 
@@ -2270,8 +2103,7 @@ def jet_components_ok(jv, je, ext_verts):
             return False
     return True
 
-def _build_region(edges, verts, ext_attach, ext_mode, cut13, cut24, cut1, cut3,
-                  cut2, cut4, cut1sq=None, cut3sq=None, cut2sq=None, cut4sq=None):
+def _build_region(edges, verts, ext_attach, ext_mode, cut13, cut24, cut1, cut3, cut2, cut4, cut1sq=None, cut3sq=None, cut2sq=None, cut4sq=None):
     cuts = []
     if cut13: cuts.append(('C13', cut13))
     if cut24: cuts.append(('C24', cut24))
@@ -2323,11 +2155,9 @@ def _build_region(edges, verts, ext_attach, ext_mode, cut13, cut24, cut1, cut3,
         return None
     # (1) jets: every connected component contains its external vertices (legs may be bridged by soft·collinear lines)
     je13 = {e for e, m in zip(edges, em) if m in J13_FAM}
-    jv13 = ({v for v in verts if vm[v] in J13_FAM}
-            | {v for e in je13 for v in e})
+    jv13 = ({v for v in verts if vm[v] in J13_FAM} | {v for e in je13 for v in e})
     je24 = {e for e, m in zip(edges, em) if m in J24_FAM}
-    jv24 = ({v for v in verts if vm[v] in J24_FAM}
-            | {v for e in je24 for v in e})
+    jv24 = ({v for v in verts if vm[v] in J24_FAM} | {v for e in je24 for v in e})
     if not jet_components_ok(jv13, je13, {ext_attach['p1'], ext_attach['p3']}):
         return None
     if not jet_components_ok(jv24, je24, {ext_attach['p2'], ext_attach['p4']}):
@@ -2335,20 +2165,16 @@ def _build_region(edges, verts, ext_attach, ext_mode, cut13, cut24, cut1, cut3,
     # (3) mojetic (REGGE_NO_MOJETIC=1 disables, for tests)
     if os.environ.get('REGGE_NO_MOJETIC') != '1':
         # k0 (all externals finite C13/C24): each contracted jet 1VI, each H component needs jet edges of BOTH families adjacent
-        k0 = all(ext_mode_for(ext_attach, ext_mode, n) in ('C13', 'C24')
-                 for n in ext_attach)
+        k0 = all(ext_mode_for(ext_attach, ext_mode, n) in ('C13', 'C24') for n in ext_attach)
         if k0:
-            if not mojetic_k0_ok(edges, em, vm, J13_FAM, J24_FAM,
-                                 ext_attach, ext_mode, verts):
+            if not mojetic_k0_ok(edges, em, vm, J13_FAM, J24_FAM, ext_attach, ext_mode, verts):
                 return None
         else:
             gv = {v for v in verts if vm[v] == 'G'}
             hv_m = {v for v in verts if vm[v] == 'H'}
             he_m = {e for e, m in zip(edges, em) if m == 'H'}
-            for jv, je, ext_names in ((jv13, je13, ('p1', 'p3')),
-                                      (jv24, je24, ('p2', 'p4'))):
-                if not mojetic_ok(hv_m, he_m, jv, je, gv, edges, ext_attach,
-                                  ext_names):
+            for jv, je, ext_names in ((jv13, je13, ('p1', 'p3')), (jv24, je24, ('p2', 'p4'))):
+                if not mojetic_ok(hv_m, he_m, jv, je, gv, edges, ext_attach, ext_names):
                     return None
     # no C13/C24 scaleless-island check (see c13_c24_island_ok).
     if not c13_c24_island_ok(edges, em, vm, verts):
@@ -2366,8 +2192,7 @@ def c13_c24_island_ok(edges, em, vm, verts):
             real = {v for v in bv if v != 'aux'}
             if not real:
                 continue
-            incident = [em[i] for i, (a, b) in enumerate(edges)
-                        if a in real or b in real]
+            incident = [em[i] for i, (a, b) in enumerate(edges) if a in real or b in real]
             if incident and all(V[m] > V[mode] for m in incident):
                 return False
     return True

@@ -2,7 +2,7 @@
 """mode_levels.py -- first-appearance (loop-level) prediction for the
 regge mode ladder, for a given kinematics.
 
-Rules (settled with 小马, 2026-09-21/22):
+Rules (settled 2026-09-21/22):
 
   seeds
     L0: G, H, and every external mode without INF
@@ -21,7 +21,7 @@ Rules (settled with 小马, 2026-09-21/22):
     messenger at L=2:  S^mC24 @ 2 when m = 1 + min(n over the FINITE 13-legs)
                        (k2/k3: S^1C24; k4: S^2C24), gated by [3]; relevant
                        to {C2^mC24, C4^mC24, one finite 13-leg structure}
-                       (小马 2026-09-22).  (symmetric for S^mC13 over the
+                       (2026-09-22).  (symmetric for S^mC13 over the
                        24-legs.)
 
   [3] gate for S^mC_fam (m >= 1):
@@ -63,13 +63,13 @@ class Predictor:
     def n(self, leg):
         return self.ext[leg].n          # 0,1,2,... or INF
 
+    # [3] gate for producing S^mC13.
     def gate13(self, m):
-        """[3] gate for producing S^mC13."""
         n1, n2, n3, n4 = (self.n(l) for l in (1, 2, 3, 4))
         return (n1 >= m) and (n3 >= m) and (min(n2, n4) >= (m - 1))
 
+    # [3] gate for producing S^mC24.
     def gate24(self, m):
-        """[3] gate for producing S^mC24."""
         n1, n2, n3, n4 = (self.n(l) for l in (1, 2, 3, 4))
         return (n2 >= m) and (n4 >= m) and (min(n1, n3) >= (m - 1))
 
@@ -95,24 +95,20 @@ class Predictor:
             c[v] = 0                 # finite modes; carriers kept for joins only
         c[H] = 0
         for x in c:
-            self.route[x] = (('ext',) if to_old(x) in ext_old else
-                             ('base',) if x in (C(13), C(24)) else ('hard',))
+            self.route[x] = (('ext',) if to_old(x) in ext_old else ('base',) if x in (C(13), C(24)) else ('hard',))
 
     def towers(self):
         ch = False
         for m in range(1, self.mmax + 1):
             if self.gate13(m):
-                ch |= self.upd(C(13, m), self.cost[C(24)] + 2 * m,
-                               ('messenger', m, 'C24', self.cost[C(24)]))
+                ch |= self.upd(C(13, m), self.cost[C(24)] + 2 * m, ('messenger', m, 'C24', self.cost[C(24)]))
             if self.gate24(m):
-                ch |= self.upd(C(24, m), self.cost[C(13)] + 2 * m,
-                               ('messenger', m, 'C13', self.cost[C(13)]))
+                ch |= self.upd(C(24, m), self.cost[C(13)] + 2 * m, ('messenger', m, 'C13', self.cost[C(13)]))
         return ch
 
+    # Messenger born at L=2 (k2/k3 S^1C24@2, k4 S^2C24@2): degree m = 1 + min(n over the FINITE legs of the other
+    # family); relevant to {C2^mC24, C4^mC24, one finite 13-leg structure} (2026-09-22).
     def seats(self):
-        """Messenger born at L=2 (k2/k3 S^1C24@2, k4 S^2C24@2): degree
-        m = 1 + min(n over the FINITE legs of the other family); relevant
-        to {C2^mC24, C4^mC24, one finite 13-leg structure} (小马 2026-09-22)."""
         ch = False
         fin13 = [v for v in (self.n(1), self.n(3)) if v != INF]
         if fin13:
@@ -142,15 +138,12 @@ class Predictor:
                         # carrier-carrier / structure-structure joins are NOT
                         # free (C1C13 v C3C13 = C13, S^2C13 v S^2C24 = S^2).
                         try:
-                            ch |= self.upd(join(a, b), max(ca, cb),
-                                           ('vee', a, ca, b, cb))
+                            ch |= self.upd(join(a, b), max(ca, cb), ('vee', a, ca, b, cb))
                         except Exception:
                             pass
-                if (a.n != INF and b.n != INF
-                        and ca + cb + 1 <= self.Lmax + BUDGET_SLACK):
+                if (a.n != INF and b.n != INF and ca + cb + 1 <= self.Lmax + BUDGET_SLACK):
                     try:
-                        ch |= self.upd(meet(a, b), ca + cb + 1,
-                                       ('wedge', a, ca, b, cb))
+                        ch |= self.upd(meet(a, b), ca + cb + 1, ('wedge', a, ca, b, cb))
                     except Exception:
                         pass
             if not ch:

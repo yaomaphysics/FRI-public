@@ -10,7 +10,6 @@ Contents:
       read_graph.py; re-exported);
   - graph representation + helpers: Graph (vertex_mode, vee, softer_v,
       is_sc_type, allowed);
-  - component machinery: _components;
   - graph utilities: find_1vi_blocks (Tarjan; used by the 1VI checks),
       spanning_tree.
 
@@ -23,6 +22,7 @@ moved to region_checker.py; the standalone 5pt6loop enumerator was retired
 2026-09-25; archived in private/_trash/cleanup_20260925.)
 """
 from collections import defaultdict
+from functools import lru_cache
 
 from read_graph import parse_mode  # re-export; single implementation (2026-09-24)
 
@@ -55,6 +55,8 @@ def join(X, Y): return _join_meet(X, Y)[0]
 
 def meet(X, Y): return _join_meet(X, Y)[1]
 
+# Memoised: the same (X, Y) pairs recur heavily in the enumerators; join/meet share this cache.
+@lru_cache(maxsize=None)
 def _join_meet(X, Y):
     X, Y = norm(X), norm(Y)
     if X == (0, 0, 0): return (X, Y)
@@ -170,32 +172,6 @@ def allowed(va, vb):
     mt = meet(va, vb)
     if mt not in opts: opts.append(mt)
     return opts
-
-# =========================== component machinery =========================
-
-
-# Vertex sets of the connected components (isolated real vertices kept).
-def _components(verts, edges):
-    adj = {v: set() for v in verts}
-    for u, v in edges:
-        if u in adj and v in adj:
-            adj[u].add(v)
-            adj[v].add(u)
-    seen = set()
-    comps = []
-    for v in verts:
-        if v in seen:
-            continue
-        stack, c = [v], set()
-        while stack:
-            x = stack.pop()
-            if x in c:
-                continue
-            c.add(x)
-            stack.extend(adj[x] - c)
-        comps.append(c)
-        seen |= c
-    return comps
 
 
 # ======================== graph utilities ========================

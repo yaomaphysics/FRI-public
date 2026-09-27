@@ -13,7 +13,7 @@ ext_modes()/mass_exprs(); no table edit is needed to use a new kinematics.
 
 Cut levels are NOT part of this file: the refinement depth of every cut
 chain is derived per graph from the mode first-appearance table —
-mode_levels.cut_chain_levels(ext_mode, L), L = E - V + 1 (see skeleton23).
+mode_levels.cut_chain_levels(ext_mode, L), L = E - V + 1 (see skeleton).
 
 The named shortcuts below are presets used by the test corpora (each batch
 is swept over k0..k4) and as defaults in the interactive browser:
@@ -29,7 +29,7 @@ Usage:  import kin23 as K
         K.ext_modes((1, 2, INF, INF, INF))   -> the same, built directly
         K.mass_exprs('k3')                   -> pySecDec m_i**2 expressions
 """
-from two_to_three import W, P, INF
+from primitives import W, P, INF
 
 KIN = {
     # ---- the two special cases (dedicated engines) ----
@@ -48,20 +48,15 @@ KIN = {
 KIN_ORDER = ['k0', 'k1', 'k2', 'k3', 'k4']
 
 
+# The five m_i**2 expressions handed to pySecDec; accepts a preset name or a raw (m1, ..., m5) virtuality tuple.
 def mass_exprs(kind_or_ms):
-    """The five m_i**2 expressions handed to pySecDec.
-    Accepts a preset name or a raw (m1, ..., m5) virtuality tuple."""
     if not isinstance(kind_or_ms, str):
-        return ['0' if m == INF else
-                ('t1*m%dsq' % (i + 1) if m == 1
-                 else 't1**%d*m%dsq' % (m, i + 1))
-                for i, m in enumerate(kind_or_ms)]
+        return ['0' if m == INF else ('t1*m%dsq' % (i + 1) if m == 1 else 't1**%d*m%dsq' % (m, i + 1)) for i, m in enumerate(kind_or_ms)]
     return list(KIN[kind_or_ms]['mass_exprs'])
 
 
+# two_to_three ext_mode dict {'p1'..'p5'} for a preset name or a raw (m1, ..., m5) virtuality tuple (general kinematics).
 def ext_modes(kind_or_ms):
-    """two_to_three ext_mode dict {'p1'..'p5'} for a preset name or a raw
-    (m1, ..., m5) virtuality tuple (general kinematics)."""
     ms = KIN[kind_or_ms]['ms'] if isinstance(kind_or_ms, str) else tuple(kind_or_ms)
     m1, m2, m3, m4, m5 = ms
 
@@ -69,5 +64,4 @@ def ext_modes(kind_or_ms):
         k = m - 1 # note that INF - 1 = INF
         return P(k, mem if k >= 1 else 0)
 
-    return {'p1': W(1, m1), 'p2': pair(m2, 2), 'p3': pair(m3, 3),
-            'p4': W(4, m4), 'p5': W(5, m5)}
+    return {'p1': W(1, m1), 'p2': pair(m2, 2), 'p3': pair(m3, 3), 'p4': W(4, m4), 'p5': W(5, m5)}

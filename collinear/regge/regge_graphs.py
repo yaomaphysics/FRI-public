@@ -92,10 +92,7 @@ DEFAULT_EXT_ATTACH = {'p1': 1, 'p2': 2, 'p3': 3, 'p4': 4}
 # Per-graph external attachments; only graphs deviating from the default
 # p1@1..p4@4 are listed.  Necklace1: p1,p3 co-located at 5; Necklace2:
 # p1,p3 at 5 and p2,p4 at 8 (2026-09-02).
-EXT_ATTACHES = {
-    'Necklace1': {'p1': 5, 'p2': 2, 'p3': 5, 'p4': 4},
-    'Necklace2': {'p1': 5, 'p2': 8, 'p3': 5, 'p4': 8},
-}
+EXT_ATTACHES = { 'Necklace1': {'p1': 5, 'p2': 2, 'p3': 5, 'p4': 4}, 'Necklace2': {'p1': 5, 'p2': 8, 'p3': 5, 'p4': 8}, }
 
 # k0..k5 kinematics: ext_mode = external momentum modes fed to the FRI
 # pipeline; rules = momentum-invariant scalings (powers of lmd), for

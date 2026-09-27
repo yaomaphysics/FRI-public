@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""two_to_three_interactive.py — interactive region browser for the collinear 2->3 FRI enumerator (two_to_three).
+"""facet_regions_interactive.py — interactive region browser for the collinear 2->3 FRI enumerator (two_to_three).
 
 Input: graph topology + external kinematics ONLY (the cut formalism is
 internal — the user never touches cuts).  External momenta p1..p5 attach
 at vertices 1,2,3,4,5.  The script:
 
-  1. enumerates ALL regions of the graph (skeleton23: k0 union /
+  1. enumerates ALL regions of the graph (skeleton: k0 union /
      k1 engine / k2-k4 chain; the fri enumerator was retired 2026-09-21),
   2. lists them with numbers (scaling vector + non-empty cuts + edge-mode
      sequence), then offers a menu:
@@ -33,7 +33,7 @@ enumeration statistics, 'q' quits.  Start with -v to have the statistics
 on from the beginning.
 Results are saved to fri_out/<timestamp>.txt after each graph.
 
-Usage: python3 two_to_three_interactive.py [-v]
+Usage: python3 facet_regions_interactive.py [-v]
   Example graph (the built-in Frog): 1-3,1-5,2-3,2-5,3-4,4-5
 """
 import ast
@@ -47,8 +47,8 @@ BASE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, BASE)
 import two_to_three
 import kin23
-import skeleton23
-from two_to_three import INF, V, m_of, name, n_of
+import skeleton
+from primitives import INF, V, m_of, name, n_of
 
 EXT_ATTACH = {'p1': 1, 'p2': 2, 'p3': 3, 'p4': 4, 'p5': 5}
 KIN_CHOICES = list(kin23.KIN_ORDER)
@@ -61,21 +61,19 @@ KIN_NOTES = {
 }
 
 
+# Display order of modes: H first, then S, then carriers by direction (1, 4, 5, then the 23 pair family).
 def _disp_key(m):
-    """Display order of modes: H first, then S, then carriers by direction
-    (1, 4, 5, then the 23 pair family)."""
     if m[0] == 'H':
         return (0, 0, 0, 0, 0)
     if m[0] == 'S':
         return (1, 0, 0, m[1], 0)
     _, d, n, mem, sm = m
-    return (2, d, 10**9 if n == INF else (n if n is not None else 0),
-            -1 if mem is None else mem, sm)
+    return (2, d, 10**9 if n == INF else (n if n is not None else 0), -1 if mem is None else mem, sm)
 
 
 # ---------------------------------------------------------------- input helpers
+# Parse user input into a list of (int, int) edges.
 def parse_edges(s):
-    """Parse user input into a list of (int, int) edges."""
     s = s.strip()
     if not s:
         return []
@@ -98,14 +96,14 @@ def fmt_scaling(sc):
     return '(' + ', '.join(str(x) for x in sc) + ')'
 
 
+# Non-empty cuts as a dict-of-lists string (native two_to_three style).
 def fmt_cuts(cuts):
-    """Non-empty cuts as a dict-of-lists string (native two_to_three style)."""
     return str({k: sorted(v) for k, v in cuts.items() if v})
 
 
+# '3, 8--10' -> [3, 4, 8, 10] (1-based). Supports ',' separators and '--' / '-' ranges. Returns None if any number is
+# out of range.
 def parse_region_select(s, n):
-    """'3, 8--10' -> [3, 4, 8, 10] (1-based).  Supports ',' separators and
-    '--' / '-' ranges.  Returns None if any number is out of range."""
     out = set()
     for part in s.split(','):
         part = part.strip()
@@ -129,14 +127,12 @@ def parse_region_select(s, n):
     return sorted(out)
 
 
+# '[2,5],[7,8]' -> sorted edge indices (order-free endpoints). Returns None if nothing parses or an edge is unknown.
+# NB: for parallel edges, a (a,b) pair forces ALL copies.
 def parse_forced_lines(edges, line):
-    """'[2,5],[7,8]' -> sorted edge indices (order-free endpoints).
-    Returns None if nothing parses or an edge is unknown.  NB: for
-    parallel edges, a (a,b) pair forces ALL copies."""
     pairs = re.findall(r'[\[(]\s*(\d+)\s*,\s*(\d+)\s*[\])]', line)
     if not pairs:
-        print('  ! no (x,y) pairs found — use e.g. (2,5),(7,8) '
-              '(square brackets ok too)')
+        print('  ! no (x,y) pairs found — use e.g. (2,5),(7,8) (square brackets ok too)')
         return None
     idx = {}
     for i, (a, b) in enumerate(edges):
@@ -150,20 +146,16 @@ def parse_forced_lines(edges, line):
         else:
             F.extend(got)
     if unknown:
-        print('  ! unknown edges: ' +
-              ', '.join(f'[{a},{b}]' for a, b in unknown))
+        print('  ! unknown edges: ' + ', '.join(f'[{a},{b}]' for a, b in unknown))
         return None
     return sorted(set(F))
 
 
 # ---------------------------------------------------------------- mode display
+# Per-mode subgraphs {{V_X}, {E_X}} with loop numbers r_X, plus the sum check vs L = |E| - |V| + 1. r_X uses the
+# contracted-subgraph rule (1VI blocks of gamma~_X with the aux vertex; r = |E| - |V| + 1 per block) — same rule as
+# the 2->2 browser, computed with two_to_three's own mode_components.
 def show_mode_subgraphs(edges, em, vm):
-    """Per-mode subgraphs {{V_X}, {E_X}} with loop numbers r_X, plus the
-    sum check vs L = |E| - |V| + 1.
-
-    r_X uses the contracted-subgraph rule (1VI blocks of gamma~_X with the
-    aux vertex; r = |E| - |V| + 1 per block) — same rule as the 2->2
-    browser, computed with two_to_three's own mode_components."""
     verts = sorted({v for e in edges for v in e})
     results, total, L = indep_loops(edges, em, vm)
     rank = {r['mode']: r['rank'] for r in results}
@@ -172,8 +164,7 @@ def show_mode_subgraphs(edges, em, vm):
         Vset = [v for v in verts if vm.get(v) == mode]
         Es = '{' + ', '.join(f'{i}:{edges[i]}' for i in E_idx) + '}'
         Vs = '{' + ', '.join(str(v) for v in Vset) + '}'
-        print(f'  mode {name(mode)}: {{vertices: {Vs}, edges: {Es}}}   '
-              f'loop number = {rank[mode]}')
+        print(f'  mode {name(mode)}: {{vertices: {Vs}, edges: {Es}}}   loop number = {rank[mode]}')
     flag = '✓' if total == L else '✗ MISMATCH'
     print(f'  Σ loop numbers = {total}  vs  L = {L}  {flag}')
 
@@ -182,9 +173,9 @@ def show_mode_subgraphs(edges, em, vm):
 # (ported from the 2->2 browser's regge_indep_loops, minus the sH/G overlay:
 #  every two_to_three mode is a lattice mode, so each mode is its own unit)
 
+# Spanning tree of a connected block (aux included); returns (tree_edge_indices, basis_edge_indices) — basis =
+# deleted edges.
 def _basis_of_block(block_verts, block_edges, edges2):
-    """Spanning tree of a connected block (aux included); returns
-    (tree_edge_indices, basis_edge_indices) — basis = deleted edges."""
     parent = {}
 
     def find(a):
@@ -214,24 +205,18 @@ def _rank_of(blocks):
     return sum(len(idxs) - len(bv) + 1 for (bv, be, idxs) in blocks)
 
 
+# Yield (unit_label, blocks) in canonical order — every mode appearing in em/vm is one unit.
 def _iter_units(em, vm, edges, verts):
-    """Yield (unit_label, blocks) in canonical order — every mode
-    appearing in em/vm is one unit."""
     for mode in sorted(set(em) | set(vm.values()), key=_disp_key):
         blocks = []
-        for (bv, be, idxs) in two_to_three.mode_components(mode, vm, em, edges,
-                                                    verts):
+        for (bv, be, idxs) in two_to_three.mode_components(mode, vm, em, edges, verts):
             blocks.append((bv, list(be), list(idxs)))
         yield mode, blocks
 
 
+# Per-unit independent loop momenta of a region. Returns (results, total_rank, L): results = [{'mode': unit, 'rank':
+# r_X, 'blocks': [{'verts': ..., 'tree': [...], 'basis': [...]}]}] and validates Σ r_X = L.
 def indep_loops(edges, em, vm):
-    """Per-unit independent loop momenta of a region.
-
-    Returns (results, total_rank, L):
-      results = [{'mode': unit, 'rank': r_X,
-                  'blocks': [{'verts': ..., 'tree': [...], 'basis': [...]}]}]
-    and validates Σ r_X = L."""
     verts = sorted({v for e in edges for v in e})
     L = len(edges) - len(verts) + 1
     results = []
@@ -242,17 +227,15 @@ def indep_loops(edges, em, vm):
         out_blocks = []
         for (bv, be, idxs) in blocks:
             tree, basis = _basis_of_block(bv, list(range(len(be))), be)
-            out_blocks.append({'verts': sorted(bv, key=str),
-                               'tree': [idxs[j] for j in tree],
-                               'basis': [idxs[j] for j in basis]})
+            out_blocks.append({'verts': sorted(bv, key=str), 'tree': [idxs[j] for j in tree], 'basis': [idxs[j] for j in basis]})
         results.append({'mode': unit, 'rank': r, 'blocks': out_blocks})
     return results, total, L
 
 
 # ------------------------------------------- physical momentum parameterization
+# Spanning tree of (verts, edge_list) avoiding the skip set; None if no such tree exists (skip set contains a bridge
+# / disconnects).
 def _spanning_tree(verts, edge_list, skip):
-    """Spanning tree of (verts, edge_list) avoiding the skip set; None if
-    no such tree exists (skip set contains a bridge / disconnects)."""
     parent = {v: v for v in verts}
 
     def find(a):
@@ -279,24 +262,11 @@ def _spanning_tree(verts, edge_list, skip):
     return tree if all(find(v) == root for v in verts) else None
 
 
+# Momentum of every line as a combination of the loop momenta k1..kL and the externals; tree+chords parameterization on
+# the ORIGINAL graph: carriers = chords (forced lines first in the k numbering), the other |V|-1 lines form a spanning
+# tree (flow along a<b, in - out = p_v). Returns (True, order, momenta, verts) with momenta[ei] = {term: coeff}, or
+# (False, reason, None, None) if unfeasible: |carriers| > L, or the complement of the carriers is disconnected.
 def edge_momenta(edges, carriers, ext_attach):
-    """Momentum of every line as a linear combination of the loop momenta
-    k1..kL and the external momenta, self-consistent at every vertex.
-
-    Parameterization on the ORIGINAL graph (tree + chords): the carrier
-    lines are the chords (loop-momentum carriers; forced lines first in
-    the k numbering, remaining carriers chosen freely), the other |V|-1
-    lines form a spanning tree.  A carrier's loop momentum flows through
-    every tree line on its fundamental cycle.
-
-    Lines are oriented (a,b) with a<b; the reported momentum is the flow
-    along that direction.  External momenta enter at their attachment
-    vertices (net-inflow convention: in - out = p_v).
-
-    Returns (True, order, momenta, verts) with momenta[ei] = {term: coeff}
-    (order = carrier edge indices in k-numbering order), or
-    (False, reason, None, None) if no such parameterization exists:
-    |carriers| > L, or the complement of the carriers is disconnected."""
     verts = sorted({v for e in edges for v in e})
     E = len(edges)
     V = len(verts)
@@ -306,9 +276,7 @@ def edge_momenta(edges, carriers, ext_attach):
         return False, f'{len(F)} forced lines exceed L = {L}', None, None
     tree = _spanning_tree(verts, edges, F)
     if tree is None:
-        return False, ('the remaining lines do not connect (a forced line '
-                       'is a bridge and cannot carry a loop momentum)'), \
-            None, None
+        return False, ('the remaining lines do not connect (a forced line is a bridge and cannot carry a loop momentum)'), None, None
     chords = [i for i in range(E) if i not in tree]
     # k-numbering: forced lines first (input order), then remaining chords
     # in edge order
@@ -353,9 +321,9 @@ def edge_momenta(edges, carriers, ext_attach):
     return True, order, momenta, verts
 
 
+# in - out = p_v at every vertex, up to Σ_v p_v = 0: k-terms must vanish individually, p-terms must all have equal
+# coefficients.
 def _check_conservation(edges, verts, momenta, ext_attach):
-    """in - out = p_v at every vertex, up to Σ_v p_v = 0: k-terms must
-    vanish individually, p-terms must all have equal coefficients."""
     for v in verts:
         flow = {}
         for ei, (a, b) in enumerate(edges):
@@ -383,8 +351,8 @@ def _term_key(t):
     return (0, int(t[1:]), '') if t.startswith('k') else (1, 0, t)
 
 
+# 'k1 - k2 + p2 + p3' from {term: coeff} (0 if empty).
 def fmt_expr(terms):
-    """'k1 - k2 + p2 + p3' from {term: coeff} (0 if empty)."""
     if not terms:
         return '0'
     items = sorted(terms.items(), key=lambda kv: _term_key(kv[0]))
@@ -402,24 +370,19 @@ def fmt_expr(terms):
     return s
 
 
+# Print line momenta (k1..kL carriers) and every line's momentum.
 def show_edge_momenta(edges, carriers, ext_attach, forced=False):
-    """Print line momenta (k1..kL carriers) and every line's momentum."""
     ok, payload, momenta, verts = edge_momenta(edges, carriers, ext_attach)
     if not ok:
         reason = payload
         if forced:
-            print('  ✗ unfeasible: these line momenta do not form a basis '
-                  'for the loop momenta')
+            print('  ✗ unfeasible: these line momenta do not form a basis for the loop momenta')
         else:
-            print(f'  ! default basis cannot serve as loop-momentum '
-                  f'carriers: {reason}')
+            print(f'  ! default basis cannot serve as loop-momentum carriers: {reason}')
         return
     order = payload
-    print('  line momenta: ' + ', '.join(
-        f'{f"k{i + 1}"} ↦ {edges[ei]} along {edges[ei][0]}→{edges[ei][1]}'
-        for i, ei in enumerate(order)))
-    print('  edge momenta (flow along the displayed direction; '
-          'p_i = external):')
+    print('  line momenta: ' + ', '.join(f'{f"k{i + 1}"} ↦ {edges[ei]} along {edges[ei][0]}→{edges[ei][1]}' for i, ei in enumerate(order)))
+    print('  edge momenta (flow along the displayed direction; p_i = external):')
     for ei in range(len(edges)):
         a, b = edges[ei]
         print(f'    ({a},{b}) {a}→{b}: {fmt_expr(momenta[ei])}')
@@ -430,10 +393,9 @@ def show_edge_momenta(edges, carriers, ext_attach, forced=False):
     print('  These line momenta can form a loop-momentum basis.')
 
 
+# A concrete basis: default (F=None, per-mode 1VI-block basis) or forced lines F (physical tree+chords
+# parameterization), then every line's momentum in terms of k1..kL and the external momenta.
 def show_basis(edges, em, vm, F=None, ext_attach=None):
-    """A concrete basis: default (F=None, per-mode 1VI-block basis) or
-    forced lines F (physical tree+chords parameterization), then every
-    line's momentum in terms of k1..kL and the external momenta."""
     if F:
         show_edge_momenta(edges, F, ext_attach, forced=True)
     else:
@@ -452,18 +414,16 @@ def show_basis(edges, em, vm, F=None, ext_attach=None):
                         s += ' [self-loop]'
                     desc.append(s)
                 print(f'    mode {name(mode)}: basis = {", ".join(desc)}')
-        basis_all = [j for r in results for b in r['blocks']
-                     for j in b['basis']]
+        basis_all = [j for r in results for b in r['blocks'] for j in b['basis']]
         show_edge_momenta(edges, basis_all, ext_attach)
 
 
 # ---------------------------------------------------------------- menus
+# Option 1: pick regions -> per-mode subgraphs with loop numbers, then optionally a concrete basis / forced lines /
+# line momenta.
 def inspect_regions(edges, regs, ext_attach):
-    """Option 1: pick regions -> per-mode subgraphs with loop numbers,
-    then optionally a concrete basis / forced lines / line momenta."""
     n = len(regs)
-    line = input('Region numbers (e.g. "3, 8--10" represents regions '
-                 '3, 8, 9, and 10; empty = all) > ').strip()
+    line = input('Region numbers (e.g. "3, 8--10" represents regions 3, 8, 9, and 10; empty = all) > ').strip()
     sel = parse_region_select(line, n) if line else list(range(1, n + 1))
     if sel is None:
         sel = list(range(1, n + 1))
@@ -471,14 +431,10 @@ def inspect_regions(edges, regs, ext_attach):
         vec, cuts, em, vm = regs[i - 1]
         print(f'  --- region {i}:')
         show_mode_subgraphs(edges, em, vm)
-    if input('Select a set of line momenta as independent loop '
-             'momenta? (y/n) [n] > ').strip().lower() == 'y':
+    if input('Select a set of line momenta as independent loop momenta? (y/n) [n] > ').strip().lower() == 'y':
         asked = False
         while True:
-            prompt = ('Force lines into the basis? ((x,y) pairs; '
-                      'empty = show default basis) > ' if not asked
-                      else 'Force more lines? ((x,y) pairs; '
-                           'empty = done) > ')
+            prompt = ('Force lines into the basis? ((x,y) pairs; empty = show default basis) > ' if not asked else 'Force more lines? ((x,y) pairs; empty = done) > ')
             line = input(prompt).strip()
             if not line:
                 if not asked:
@@ -497,26 +453,23 @@ def inspect_regions(edges, regs, ext_attach):
                 show_basis(edges, em, vm, F, ext_attach)
 
 
+# Option 2: Lee-Pomeransky parametric representation per region: x_e ~ λ^{v_e}, v_e = -V (edge order, trailing 1 =
+# expansion scale).
 def show_parametric(regs):
-    """Option 2: Lee-Pomeransky parametric representation per region:
-    x_e ~ λ^{v_e}, v_e = -V (edge order, trailing 1 = expansion scale)."""
-    print('  Lee-Pomeransky parametric representation '
-          '(x_e ~ λ^{v_e}, v_e = -V, edge order):')
+    print('  Lee-Pomeransky parametric representation (x_e ~ λ^{v_e}, v_e = -V, edge order):')
     for i, (vec, cuts, em, vm) in enumerate(regs, 1):
         print(f'    R{i}: v = {fmt_scaling(vec)}')
 
 
+# Softness order for classification, softest first: modes with a soft prefactor m >= 1 by virtuality V (desc); tie m
+# desc, n desc, name.
 def _softness_key(m):
-    """Softness order for classification, softest first: modes with a soft
-    prefactor m >= 1 by virtuality V (desc); tie m desc, n desc, name."""
-    return (0, -V(m), -m_of(m),
-            -(n_of(m) if n_of(m) is not None else 0), name(m))
+    return (0, -V(m), -m_of(m), -(n_of(m) if n_of(m) is not None else 0), name(m))
 
 
+# Softest characteristic mode of a region (exclusion-style): the softest mode with m >= 1 present in em/vm; if none,
+# the bare carrier/hard class 'C/H'.
 def classify(vm, em):
-    """Softest characteristic mode of a region (exclusion-style): the
-    softest mode with m >= 1 present in em/vm; if none, the bare
-    carrier/hard class 'C/H'."""
     cands = set(em) | set(vm.values())
     soft = [m for m in cands if m[0] != 'H' and m_of(m) >= 1]
     if soft:
@@ -524,15 +477,13 @@ def classify(vm, em):
     return 'C/H'
 
 
+# Option 3: classify regions by their characteristic (softest) mode, grouped by type (softest first).
 def show_classify(regs):
-    """Option 3: classify regions by their characteristic (softest) mode,
-    grouped by type (softest first)."""
     groups = defaultdict(list)
     for r in regs:
         vec, cuts, em, vm = r
         groups[classify(vm, em)].append(r)
-    order = sorted(groups, key=lambda lab:
-                   (99,) if lab == 'C/H' else _softness_key(lab))
+    order = sorted(groups, key=lambda lab: (99,) if lab == 'C/H' else _softness_key(lab))
     total = 0
     for lab in order:
         g = groups[lab]
@@ -547,42 +498,32 @@ def show_classify(regs):
     print(f'\nTOTAL: {total} regions')
 
 
+# Option 4: visualize the selected regions — PDF atlas or PNG files.
 def visualize_regions(edges, regs, ext_mode):
-    """Option 4: visualize the selected regions — PDF atlas or PNG files."""
     n = len(regs)
-    line = input('Region numbers (e.g. "3, 8--10" represents regions '
-                 '3, 8, 9, and 10; empty = all) > ').strip()
+    line = input('Region numbers (e.g. "3, 8--10" represents regions 3, 8, 9, and 10; empty = all) > ').strip()
     sel = parse_region_select(line, n) if line else list(range(1, n + 1))
     if sel is None:
         return
-    fmt = input('Output: [a] single PDF atlas (default) / '
-                '[p] individual PNG files > ').strip().lower()
+    fmt = input('Output: [a] single PDF atlas (default) / [p] individual PNG files > ').strip().lower()
     try:
-        import region_plot23
+        import region_plot
     except Exception as e:
         print(f'  ! visualization module unavailable: {e}')
         return
-    outdir = os.path.join(BASE, 'fri_out',
-                          'regions_' + time.strftime('%Y%m%d-%H%M%S'))
+    outdir = os.path.join(BASE, 'fri_out', 'regions_' + time.strftime('%Y%m%d-%H%M%S'))
     if fmt in ('p', 'png', 'files'):
         print(f'  rendering {len(sel)} region figure(s) via wolframscript ...')
         try:
-            paths = region_plot23.render_regions(
-                edges, sorted({v for e in edges for v in e}),
-                [(i, regs[i - 1]) for i in sel],
-                ext_mode=ext_mode, outdir=outdir)
+            paths = region_plot.render_individual_pngs(edges, sorted({v for e in edges for v in e}), [(i, regs[i - 1]) for i in sel], ext_mode=ext_mode, outdir=outdir)
         except Exception as e:
             print(f'  ! region rendering failed: {e}')
             return
         print(f'  saved {len(paths)} region PNG(s) to: {outdir}')
     else:
-        print(f'  building the PDF atlas for {len(sel)} region(s) '
-              f'via wolframscript ...')
+        print(f'  building the PDF atlas for {len(sel)} region(s) via wolframscript ...')
         try:
-            path = region_plot23.render_atlas(
-                edges, sorted({v for e in edges for v in e}),
-                [(i, regs[i - 1]) for i in sel],
-                ext_mode=ext_mode, outdir=outdir)
+            path = region_plot.render_combined_pdf(edges, sorted({v for e in edges for v in e}), [(i, regs[i - 1]) for i in sel], ext_mode=ext_mode, outdir=outdir)
         except Exception as e:
             print(f'  ! atlas rendering failed: {e}')
             return
@@ -595,8 +536,8 @@ def print_kin_menu():
         print(f'  {k}: {KIN_NOTES[k]}')
 
 
+# Ask for a kinematics label at startup; default k1.
 def choose_kinematics():
-    """Ask for a kinematics label at startup; default k1."""
     print_kin_menu()
     while True:
         try:
@@ -607,8 +548,7 @@ def choose_kinematics():
             return 'k1'
         if s in KIN_CHOICES:
             return s
-        print(f'  [error] unknown kinematics "{s}" — choose from '
-              f'{", ".join(KIN_CHOICES)}')
+        print(f'  [error] unknown kinematics "{s}" — choose from {", ".join(KIN_CHOICES)}')
 
 
 # ---------------------------------------------------------------- driver
@@ -617,34 +557,28 @@ def run_graph(edges_raw, kin_name, verbose=False):
     verts = sorted({v for e in edges for v in e})
     missing = [v for v in (1, 2, 3, 4, 5) if v not in verts]
     if missing:
-        print(f'  [warning] external-leg vertices {missing} not in the '
-              f'graph!  The 2->3 kinematics needs vertices 1,2,3,4,5.')
+        print(f'  [warning] external-leg vertices {missing} not in the graph!  The 2->3 kinematics needs vertices 1,2,3,4,5.')
         return
     ext_mode = kin23.ext_modes(kin_name)
     L = len(edges) - len(verts) + 1
     print(f'  kinematics: {kin_name} ({KIN_NOTES[kin_name]})')
-    print(f'  graph: {len(edges)} edges, {len(verts)} vertices, '
-          f'L = {L} loops')
+    print(f'  graph: {len(edges)} edges, {len(verts)} vertices, L = {L} loops')
     print(f'  edges: {edges}')
     if L >= 5:
         print('  [warning] L >= 5 may be slow')
     t0 = time.time()
     try:
-        _vecs, total, stats = skeleton23.enumerate_surv(edges, verts,
-                                                        EXT_ATTACH, kin_name)
+        _vecs, total, stats = skeleton.enumerate_surv(edges, verts, EXT_ATTACH, kin_name)
         surv = stats['survivors']
     except Exception as e:
         print(f'  [error] skeleton engine could not handle this input: {e}')
         return
     dt = time.time() - t0
-    regs = sorted(surv, key=lambda s: (tuple(float(x) for x in s[0]),
-                                       tuple(name(m) for m in s[2])))
+    regs = sorted(surv, key=lambda s: (tuple(float(x) for x in s[0]), tuple(name(m) for m in s[2])))
     print(f'  FRI regions: {len(regs)}  ({dt:.1f}s)')
     if verbose:
-        rej = ', '.join(f'{k}={v}' for k, v in sorted(stats.items())
-                        if k != 'survivors')
-        print(f'  [stats] combos={total}  kept={len(regs)}  '
-              f'counters: {rej or "none"}')
+        rej = ', '.join(f'{k}={v}' for k, v in sorted(stats.items()) if k != 'survivors')
+        print(f'  [stats] combos={total}  kept={len(regs)}  counters: {rej or "none"}')
     scal = set()
     for i, (vec, cuts, em, vm) in enumerate(regs, 1):
         scal.add(vec)
@@ -656,11 +590,9 @@ def run_graph(edges_raw, kin_name, verbose=False):
         print('  Options:')
         print('    1) Inspect specific regions')
         print('    2) Show Lee-Pomeransky parametric representation')
-        print('    3) Classify these regions based on their '
-              'characteristic modes')
+        print('    3) Classify these regions based on their characteristic modes')
         print('    4) Visualize these regions (PDF atlas / PNGs)')
-        opt = input('  (1/2/3/4; empty or q = done with this graph) > ')\
-            .strip().lower()
+        opt = input('  (1/2/3/4; empty or q = done with this graph) > ') .strip().lower()
         if opt in ('', 'q', 'quit'):
             break
         if opt == '1':
@@ -680,8 +612,7 @@ def run_graph(edges_raw, kin_name, verbose=False):
     with open(fname, 'w') as f:
         f.write(f'# two_to_three regions - {time.strftime("%Y-%m-%d %H:%M:%S")}\n')
         f.write(f'# kinematics: {kin_name}\n')
-        f.write(f'# edges: {edges}  ({len(edges)} edges, {len(verts)} '
-                f'verts, L={L})\n')
+        f.write(f'# edges: {edges}  ({len(edges)} edges, {len(verts)} verts, L={L})\n')
         f.write(f'# FRI regions: {len(regs)} ({dt:.1f}s)\n\n')
         for i, (vec, cuts, em, vm) in enumerate(regs, 1):
             f.write(f'R{i:3d}: scaling {fmt_scaling(vec)}\n')
@@ -718,11 +649,9 @@ def main():
             k = low.split()[1]
             if k in KIN_CHOICES:
                 kin_name = k
-                print(f'-> kinematics switched to {kin_name} '
-                      f'({KIN_NOTES[kin_name]})')
+                print(f'-> kinematics switched to {kin_name} ({KIN_NOTES[kin_name]})')
             else:
-                print(f'  [error] unknown kinematics "{k}" — choose from '
-                      f'{", ".join(KIN_CHOICES)}')
+                print(f'  [error] unknown kinematics "{k}" — choose from {", ".join(KIN_CHOICES)}')
             continue
         if low in ('v', '-v', 'stats', 'verbose'):
             verbose = not verbose

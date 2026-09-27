@@ -5,7 +5,7 @@ First choose a framework; the framework's own interactive browser then runs (all
 
     [1] wide-angle           -> wide_angle/facet_regions_interactive.py
     [2] collinear
-          [1] 2->3           -> collinear/2to3/two_to_three_interactive.py
+          [1] 2->3           -> collinear/2to3/facet_regions_interactive.py
           [2] 2->2 (Regge)   -> collinear/regge/fri_interactive.py
           [3] mode stepper   -> 2->3: collinear/2to3/mode_level_interactive.py
                                 2->2: collinear/regge/mode_level_interactive.py
@@ -65,7 +65,7 @@ def run_regge():
 
 
 def run_two_to_three():
-    run_backend(os.path.join(HERE, 'collinear', '2to3', 'two_to_three_interactive.py'), 'fri_two_to_three_interactive', 'collinear 2->3')
+    run_backend(os.path.join(HERE, 'collinear', '2to3', 'facet_regions_interactive.py'), 'fri_facet_regions_interactive', 'collinear 2->3')
 
 
 def run_mode_ladder():

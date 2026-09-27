@@ -43,8 +43,8 @@ BANNER = '''\
 DEFAULT_MOMENTA = ['C1∞', 'C2∞C23', 'C3∞C23', 'C4∞', 'C5∞']
 
 
+# True when mode m is admissible as the momentum mode of leg i.
 def leg_check(i, m):
-    """True when mode m is admissible as the momentum mode of leg i."""
     d = F.d_of(m)
     if i in (1, 4, 5):
         return d == i
@@ -54,8 +54,7 @@ def leg_check(i, m):
 
 
 def ask_momenta():
-    print('Enter the five external-momentum modes '
-          '(Enter = two_to_three k1 defaults; examples: C1∞ / C2∞C23 / C4 / S^1C4):')
+    print('Enter the five external-momentum modes (Enter = two_to_three k1 defaults; examples: C1∞ / C2∞C23 / C4 / S^1C4):')
     out = []
     for i, dflt in enumerate(DEFAULT_MOMENTA, 1):
         while True:
@@ -72,21 +71,17 @@ def ask_momenta():
                 continue
             if not leg_check(i, m):
                 if i in (1, 4, 5):
-                    print('  ↑ p%d expects a direction-%d mode '
-                          '(C%d, C%d^2, C%d∞, S^1C%d, ...) — try again'
-                          % (i, i, i, i, i, i))
+                    print('  ↑ p%d expects a direction-%d mode (C%d, C%d^2, C%d∞, S^1C%d, ...) — try again' % (i, i, i, i, i, i))
                 else:
-                    print('  ↑ p%d expects a 23-family mode '
-                          '(C23, C%dC23, C%d^2C23, C%d∞C23, ...) — try again'
-                          % (i, i, i, i))
+                    print('  ↑ p%d expects a 23-family mode (C23, C%dC23, C%d^2C23, C%d∞C23, ...) — try again' % (i, i, i, i))
                 continue
             out.append(m)
             break
     return out
 
 
+# single keypress on a tty; line-based fallback otherwise ('' line = space).
 def read_key():
-    """single keypress on a tty; line-based fallback otherwise ('' line = space)."""
     if not sys.stdin.isatty():
         try:
             s = input('▶ (blank=advance, j=jump, a=all, q=quit): ')
@@ -160,8 +155,7 @@ def main():
             print('L=%d — (no new modes)' % k)
         print('   [%s]' % st.source_line(k))
         n_le = sum(1 for lv in st.levels.values() if lv <= k)
-        print('   cumulative: %d modes (≤L=%d) | space=+1, enter=next non-empty, a=all, q=quit'
-              % (n_le, k))
+        print('   cumulative: %d modes (≤L=%d) | space=+1, enter=next non-empty, a=all, q=quit' % (n_le, k))
 
     show(cur)
     while True:
