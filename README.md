@@ -50,7 +50,7 @@ From there the browser can: inspect individual regions (per-mode subgraphs and l
 
 ### Choosing independent loop momenta
 
-For a given region, a basis of loop momenta adapted to its mode hierarchy is what makes the region's power counting manifest: `indep_loops.py` (wide-angle; ported to the Regge kinematics as `regge_indep_loops.py`) constructs one.  For every mode present, its contracted subgraph (the vertices carrying that join mode, plus one auxiliary vertex that absorbs all remaining endpoints) has a cycle rank equal to the number of independent loop momenta of that mode; the module returns a concrete basis (per one-vertex-irreducible block), with an option to force lines into the basis and a feasibility check (`forced_basis` / `forced_feasible`).  The interactive enumerators expose this under option **1)**.
+For a given region, a basis of loop momenta adapted to its mode hierarchy is what makes the region's power counting manifest: `indep_loops.py` (wide-angle; ported to the Regge kinematics as `regge_indep_loops.py`) constructs one.  For every mode present, its contracted subgraph (the vertices carrying that join mode, plus one auxiliary vertex that absorbs all remaining endpoints) has a cycle rank equal to the number of independent loop momenta of that mode; the module returns a concrete basis (per one-vertex-irreducible block), with an option to force lines into the basis and a feasibility check.  The interactive enumerators expose this under option **1)**.
 Whether the choice matters beyond bookkeeping is theory-dependent (e.g. power counting of operators in an EFT expansion) — FRI reports the bases, but performs no power counting itself.
 
 ### Scaleless diagnosis

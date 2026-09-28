@@ -609,22 +609,6 @@ def connected(vs, es):
             if u not in seen: seen.add(u); st.append(u)
     return seen == vs
 
-# union-find connected components; returns {vertex: root}.
-def components(es, verts):
-    parent = {v: v for v in verts}
-    # union-find find (path compression).
-    def find(x):
-        while parent[x] != x:
-            parent[x] = parent[parent[x]]; x = parent[x]
-        return x
-    # union-find merge.
-    def union(a, b):
-        ra, rb = find(a), find(b)
-        if ra != rb: parent[ra] = rb
-    for (a, b) in es:
-        if a in parent and b in parent: union(a, b)
-    return {v: find(v) for v in verts}
-
 # True when deleting any single vertex keeps the graph connected (1-vertex irreducible).
 def is_1vi(vs, es):
     vs = set(vs)

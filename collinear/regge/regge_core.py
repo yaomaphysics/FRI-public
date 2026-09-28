@@ -817,22 +817,6 @@ def sc_hidden_path_confirms(blk, i, comps, confirmed, edges, em, vm, ext_attach,
     return False
 
 
-# SC block adjacent to a C-mode component: share a vertex, or an SC edge of this block (em == sc_mode) touches a component vertex.
-# Self-loop SC edges (both ends absorbed into aux) are matched via the contracted edge list.
-def adjacent(blk, comp, edges, em, vm, sc_mode):
-    bv, be = blk
-    cv, _, *_ = comp
-    if {v for v in bv if v != 'aux'} & cv:
-        return True
-    for (a, b), m in zip(edges, em):
-        if m != sc_mode: continue
-        a2 = a if vm.get(a) == sc_mode else 'aux'
-        b2 = b if vm.get(b) == sc_mode else 'aux'
-        if (a2, b2) in be or (b2, a2) in be:
-            if a in cv or b in cv:
-                return True
-    return False
-
 # SC13/SC24 cond-1 — momentum-flow confirmation: EXISTS a cut of the SC component into two pieces such that for ONE piece, the line momenta of CONFIRMED components crossing into it (edge belongs to a confirmed component, relevant to the piece) have ∨(inflows) == mode.
 # Single-real-vertex blocks take the degenerate cut (whole block one piece, aux alone).  External momenta do not participate: an external alone can never ∨ to an SC mode.
 def sc_cond1_confirms(blk, mode, comps, confirmed, edges, em, vm, ext_attach, ext_mode):
@@ -1732,12 +1716,6 @@ def has_sc_vertex(cut_sets):
     for s in nonempty[1:]:
         inter = inter & s
     return bool(inter)
-
-# Enumerate regions under the cut rules + IR compatibility; from 3-loop level, refined single-external cuts are allowed (C1C13/C3C13 inside C13, C2C24/C4C24 inside C24).
-# M: (p_i+p_j)² ~ λ^M (default 1).
-def fri_regions(edges, verts, ext_attach, ext_mode, M=1, verbose=False):
-    return [(cut13, cut24, vm, em) for (cut13, cut24, cut1, cut3, cut2, cut4, vm, em) in fri_regions_full(edges, verts, ext_attach, ext_mode, M=M)]
-
 
 # Enumerate all regions of the Regge 2->2 kinematics given by ext_mode; each region is (cut13, cut24, cut1, cut3, cut2, cut4, vm, em).
 #

@@ -19,20 +19,12 @@ Every browser shares the same workflow: give a graph (topology + external kinema
 
 Usage: python3 facet_regions_interactive.py
 """
-import importlib.util
 import os
+import signal
+import subprocess
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-
-
-def _load(path, name):
-    """Load a backend module from a file path under a unique name (avoids any basename clashes between the framework directories)."""
-    spec = importlib.util.spec_from_file_location(name, path)
-    mod = importlib.util.module_from_spec(spec)
-    sys.modules[name] = mod
-    spec.loader.exec_module(mod)
-    return mod
 
 
 def _ask(prompt, valid, default=None):
@@ -45,27 +37,28 @@ def _ask(prompt, valid, default=None):
         print('  ! choose one of: %s' % '/'.join(valid))
 
 
-def run_backend(path, name, label):
+def run_backend(path, label):
     print('=' * 72)
     print('launching %s interactive ...' % label)
     print('=' * 72)
+    # Each framework runs in its own process: same-named modules (skeleton, primitives, ...) cannot clash.
+    old = signal.signal(signal.SIGINT, signal.SIG_IGN)
     try:
-        mod = _load(path, name)
-        mod.main()
-    except KeyboardInterrupt:
-        print('\n  [interrupted — back to the framework menu]')
+        subprocess.call([sys.executable, path])
+    finally:
+        signal.signal(signal.SIGINT, old)
 
 
 def run_wide_angle():
-    run_backend(os.path.join(HERE, 'wide_angle', 'facet_regions_interactive.py'), 'fri_wide_angle_interactive', 'wide-angle')
+    run_backend(os.path.join(HERE, 'wide_angle', 'facet_regions_interactive.py'), 'wide-angle')
 
 
 def run_regge():
-    run_backend(os.path.join(HERE, 'collinear', 'regge', 'fri_interactive.py'), 'fri_regge_interactive', 'collinear 2->2 (Regge)')
+    run_backend(os.path.join(HERE, 'collinear', 'regge', 'fri_interactive.py'), 'collinear 2->2 (Regge)')
 
 
 def run_two_to_three():
-    run_backend(os.path.join(HERE, 'collinear', '2to3', 'facet_regions_interactive.py'), 'fri_facet_regions_interactive', 'collinear 2->3')
+    run_backend(os.path.join(HERE, 'collinear', '2to3', 'facet_regions_interactive.py'), 'collinear 2->3')
 
 
 def run_mode_ladder():
@@ -76,9 +69,9 @@ def run_mode_ladder():
     print('    [b] back')
     s = _ask('stepper [1/2/b] > ', ('1', '2', 'b'))
     if s == '1':
-        run_backend(os.path.join(HERE, 'collinear', '2to3', 'mode_level_interactive.py'), 'fri_mode_ladder', 'mode first-appearance ladder')
+        run_backend(os.path.join(HERE, 'collinear', '2to3', 'mode_level_interactive.py'), 'mode first-appearance ladder')
     elif s == '2':
-        run_backend(os.path.join(HERE, 'collinear', 'regge', 'mode_level_interactive.py'), 'fri_mode_ladder_regge', 'mode first-appearance ladder (2->2 Regge)')
+        run_backend(os.path.join(HERE, 'collinear', 'regge', 'mode_level_interactive.py'), 'mode first-appearance ladder (2->2 Regge)')
 
 
 def main():

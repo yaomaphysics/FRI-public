@@ -16,11 +16,8 @@ from itertools import combinations
 _DBG = False
 CONDUCT23 = True  # S^mC23 hidden-path conduction (general m; approved 2026-09-19 15:15; supersedes the 03:30 bridge prototype).  Set False to disable.
 
-from primitives import (H, S, W, P, isS, isC, m_of, d_of, n_of, mem_of, V, name, parse, same_dir,
-    wide_like, pair_like, _decode_wide, _wide23_join_meet, _pair_parts, _pair_sig, _pair_from,
-    _pair_same_rel, _pair_softer, _pair_harder, _pair_rel_dir, _pair_candidates, _pair_meet23,
-    _pair_join23, _wp_parts, _wp_sig, _wp_from, _wp_rel2, _wp_softer_full, _wide_pair_meet23,
-    _wide_pair_join23, meet23, join23, connected, components, is_1vi, find_1vi_blocks,
+from primitives import (H, S, W, P, isS, isC, m_of, d_of, n_of, mem_of, V, name, parse,
+    meet23, join23, connected, is_1vi, find_1vi_blocks,
     marginally_softer23, harder_or_eq23, INF)
 
 def mode_components(mode, vm, em, edges, verts):
@@ -129,17 +126,6 @@ def acc_join(modes):
     for m2 in modes[1:]:
         acc = join23(acc, m2)
     return acc
-
-# every jet component must touch its external leg(s).
-def jet_components_ok(jv, je, ext_verts):
-    if not jv: return True
-    comp = components(list(je), jv)
-    groups = {}
-    for v in jv:
-        groups.setdefault(comp[v], set()).add(v)
-    for g in groups.values():
-        if not (g & ext_verts): return False
-    return True
 
 # tightened connectivity for jet pieces (2026-09-19): pieces connect only
 # through a vertex that is itself of the same family; every resulting component

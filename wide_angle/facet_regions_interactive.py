@@ -11,23 +11,22 @@ Script:
            for every picked region, output the mode subgraphs:
            "X: {vertices: {...}, edges: {...}}   loop number = ...."
           Optionally, the user can select a set of line momenta as independent loop momenta (a basis) with optional forced lines.
-       2) Show Lee-Pomeransky parametric representation — per region the scaling vector v_e (x_e ~ λ^{v_e} with λ the expansion parameter, v_e = -(2m+n), edge order),
+       2) Show Lee-Pomeransky parametric representation — per region the scaling vector v_i (x_i ~ \\lambda^{v_i}, v_i = -(2m+n), input edge order),
        3) Classify these regions based on their characteristic modes — per region its softest-mode class + by-type counts,
        4) Visualize the selected regions — per-mode colours; can choose a single PDF atlas (default) or one PNG file per region.
   This loops until the user quits (empty or q).
 
 Usage: python3 facet_regions_interactive.py
-  Each input is one line of Python literal; empty line = built-in example, which is the example in Sec. 7.1 of arXiv:2601.22144.
-  internal_lines = [[1,5],[1,8],[2,5],[2,7],[3,6],[3,8],[4,6],[4,7],[5,6],[7,8]]
-  externals      = {'p1':[1,'C1'], 'p2':[2,'C2^2'], 'p3':[3,'C3^inf'], 'p4':[4,'C4^inf']}
-  (81 regions in total)
+  internal_lines: edge list, e.g. "1-5,1-8,..." (a Python list also works); empty line = built-in example, which is the example in Sec. 7.1 of arXiv:2601.22144.
+  externals: prompted one by one (vertex, name, mode) — the example uses p1 = [1,'C1'], p2 = [2,'C2^2'],
+  p3 = [3,'C3^inf'], p4 = [4,'C4^inf'] (81 regions in total).
 
 Mode syntax: H / S / S^m / C_i / C_i^n / C_i^inf / C_i^\\infty / SC_i / SC_i^n / S^mC_i^n  (C_i without n means n=1; SC_i without n means n=1; i is the direction index from 1).
 """
-import sys, re, os, time, warnings
+import sys, re, os, time, warnings, signal
 warnings.filterwarnings('ignore', category=SyntaxWarning)
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from read_graph import (mode_str, INF, parse_mode, sc_short, type_order, group_by_type)
+from read_graph import (mode_str, parse_mode, sc_short, type_order, group_by_type)
 from primitives import scaling_of, spanning_tree
 from indep_loops import indep_loops
 from skeleton import run as skeleton_run, kappa_of
@@ -39,16 +38,69 @@ def ms(md):
     return mode_str(md) if md is not None else '∅'
 
 # ---------------------------------------------------------------- input helpers
-# Prompt for one line of Python input; empty -> default.
-def ask(label, default=None):
+# Parse an edge list leniently: accepts '1-5,1-8,...', '(1,5),(1,8),...' or '[(1,5),(1,8),...]'.
+def parse_edge_list(s):
+    t = re.sub(r'[\[\](){}]', ' ', s).replace(';', ',')
+    dp = re.findall(r'(\d+)\s*-\s*(\d+)', t)
+    dn = re.findall(r'\d+', t)
+    if not dn:
+        if t.strip():
+            raise ValueError(f"cannot parse edge list: '{s.strip()}'")
+        return []
+    if dp and 2 * len(dp) == len(dn):
+        return [(int(a), int(b)) for a, b in dp]
+    if len(dn) % 2:
+        raise ValueError(f"cannot parse edge list: '{s.strip()}'")
+    return [(int(dn[k]), int(dn[k + 1])) for k in range(0, len(dn), 2)]
+
+# Ask for the edge list; empty input = default; 'q' quits; re-prompts on parse errors.
+def ask_edges(label, default):
     print(f'{label}:' + (f'  (default: {default})' if default else ''))
-    line = input('> ').strip()
-    if not line and default: line = default
-    try:
-        return eval(line, {'inf': INF, '∞': INF, 'INF': INF})
-    except Exception as e:
-        print(f'  ! parse error: {e}')
-        return ask(label, default)
+    while True:
+        line = input('> ').strip()
+        if line.lower() in ('q', 'quit', 'exit', 'b', 'back'):
+            return None
+        line = line or default
+        try:
+            return parse_edge_list(line)
+        except ValueError as e:
+            print(f'  ! {e}')
+
+# Ask for the external momenta one by one (vertex, name, mode) until the user no longer wants to add another.
+def ask_externals():
+    print('Externals: add them one by one (vertex, name, mode; q/b = quit).')
+    out = {}
+    while True:
+        i = len(out) + 1
+        while True:
+            s = input(f'  external {i}: attach to which vertex? (integer) > ').strip()
+            if s.lower() in ('q', 'quit', 'exit', 'b', 'back'):
+                return None
+            try:
+                vtx = int(s); break
+            except ValueError:
+                print('  ! enter an integer vertex label, e.g. 1')
+        while True:
+            nm = input(f'  external {i}: name? (e.g. p{i}) > ').strip()
+            if nm.lower() in ('q', 'quit', 'exit', 'b', 'back'):
+                return None
+            if nm and nm not in out:
+                break
+            print('  ! the name must be non-empty and not yet used: ' + (', '.join(out) if out else '(no names so far)'))
+        while True:
+            s = input(f'  external {i}: mode? (form S^mC_i^n, e.g. S^2C1^3; also allowed: H, S^m, C_i^n) > ').strip()
+            if s.lower() in ('q', 'quit', 'exit', 'b', 'back'):
+                return None
+            try:
+                parse_mode(s); break
+            except ValueError as e:
+                print(f'  ! {e}')
+        out[nm] = [vtx, s]
+        print(f'  added: {nm} = [vertex {vtx}, mode {s}]')
+        if input('  Add another external? (y/n) [n] > ').strip().lower() != 'y':
+            break
+    print(f'  externals = {out}')
+    return out
 
 # ---------------------------------------------------------------- enumeration
 # Enumerate all regions of the graph; returns a list of (vm, em).
@@ -323,7 +375,9 @@ def show_basis(edges, em, vm, F=None, ext_attach=None):
 # Option 1: pick regions -> mode subgraphs -> optional loop-momentum basis.
 def inspect_regions(edges, regs, ext_attach):
     n = len(regs)
-    line = input('Region numbers (e.g. "3, 8--10" represents regions 3, 8, 9, and 10; empty = all) > ').strip()
+    line = input('Region numbers (e.g. "3, 8--10" represents regions 3, 8, 9, and 10; empty = all; q/b = back) > ').strip()
+    if line.lower() in ('q', 'quit', 'b', 'back'):
+        return
     sel = parse_region_select(line, n) if line else list(range(1, n + 1))
     if sel is None:
         sel = list(range(1, n + 1))
@@ -336,6 +390,8 @@ def inspect_regions(edges, regs, ext_attach):
         while True:
             prompt = ('Force lines into the basis? ((x,y) pairs; empty = show default basis) > ' if not asked else 'Force more lines? ((x,y) pairs; empty = done) > ')
             line = input(prompt).strip()
+            if line.lower() in ('q', 'quit', 'b', 'back'):
+                break
             if not line:
                 if not asked:
                     for i in sel:
@@ -353,11 +409,11 @@ def inspect_regions(edges, regs, ext_attach):
                 show_basis(edges, em, vm, F, ext_attach)
 
 
-# Option 2: Lee-Pomeransky parametric representation per region: x_e ~ λ^{v_e}, v_e = -(2m+n), in input edge order.
-def show_parametric(regs):
-    print('  Lee-Pomeransky parametric representation (x_e ~ λ^{v_e} with λ the expansion parameter, edge order):')
+# Option 2: Lee-Pomeransky parametric representation per region: x_i ~ \lambda^{v_i}, v_i = -(2m+n), in input edge order.
+def show_parametric(regs, nedge):
+    print('  Lee-Pomeransky parametric representation (v_i = -(2m+n), input edge order):')
     for i, (vm, em) in enumerate(regs, 1):
-        print(f'    R{i}: v = {tuple(scaling_of(m) for m in em)}')
+        print(f'    R{i}: x_i ~ \\lambda^{{v_i}} for i = 1,2,...,{nedge}, with v = {tuple(scaling_of(m) for m in em)}')
 
 
 # Option 3: group the regions by their softest-mode class and print each group.
@@ -383,11 +439,15 @@ def show_classify(regs, edges, kappa):
 # Option 4: visualize the selected regions via wolframscript (can output PDF atlas or PNGs).
 def visualize_regions(edges, regs, extmode, ext_attach):
     n = len(regs)
-    line = input('Region numbers (e.g. "3, 8--10" represents regions 3, 8, 9, and 10; empty = all) > ').strip()
+    line = input('Region numbers (e.g. "3, 8--10" represents regions 3, 8, 9, and 10; empty = all; q/b = back) > ').strip()
+    if line.lower() in ('q', 'quit', 'b', 'back'):
+        return
     sel = parse_region_select(line, n) if line else list(range(1, n + 1))
     if sel is None:
         return
     fmt = input('Output: [a] single PDF atlas (default) / [p] individual PNG files > ').strip().lower()
+    if fmt in ('q', 'quit', 'b', 'back'):
+        return
     try:
         import region_plot
     except Exception as e:
@@ -414,15 +474,20 @@ def visualize_regions(edges, regs, extmode, ext_attach):
 
 # ---------------------------------------------------------------- main loop
 DEFAULT_EDGES = '[(1,5),(1,8),(2,5),(2,7),(3,6),(3,8),(4,6),(4,7),(5,6),(7,8)]'
-DEFAULT_EXTS = ("{'p1':[1,'C1'],'p2':[2,'C2^2'],'p3':[3,'C3^inf'],'p4':[4,'C4^inf']}")
 
 # Interactive loop: read a graph, enumerate its regions, serve the menu; save results to fri_out/.
 def main():
     print('=== facet-region browser ===')
-    print('Input: graph topology + external momenta only (Python literals).')
+    print('Input: graph topology + external momenta only.')
     while True:
-        internal_lines = ask('internal_lines (topology, edge list)', DEFAULT_EDGES)
-        externals = ask("externals ({name: [vertex, mode_str]})", DEFAULT_EXTS)
+        internal_lines = ask_edges('internal_lines (topology, edge list; e.g. 1-5,1-8,...; q/b = back)', DEFAULT_EDGES)
+        if internal_lines is None:
+            print('bye!')
+            return
+        externals = ask_externals()
+        if externals is None:
+            print('bye!')
+            return
         try:
             verts = sorted({v for (a, b) in internal_lines for v in (a, b)} | {vv[0] for vv in externals.values()})
             edges = [tuple(sorted((a, b))) for (a, b) in internal_lines]
@@ -446,13 +511,13 @@ def main():
             print('    2) Show Lee-Pomeransky parametric representation')
             print('    3) Classify these regions based on their characteristic modes')
             print('    4) Visualize these regions (PDF atlas / PNGs)')
-            opt = input('  (1/2/3/4; empty or q = done with this graph) > ').strip().lower()
-            if opt in ('', 'q', 'quit'):
+            opt = input('  (1/2/3/4; empty/q/b = done with this graph) > ').strip().lower()
+            if opt in ('', 'q', 'quit', 'b', 'back'):
                 break
             if opt == '1':
                 inspect_regions(edges, regs, ext_attach)
             elif opt == '2':
-                show_parametric(regs)
+                show_parametric(regs, len(edges))
             elif opt == '3':
                 show_classify(regs, edges, kappa)
             elif opt == '4':
@@ -480,4 +545,8 @@ def main():
             break
 
 if __name__ == '__main__':
-    main()
+    signal.signal(signal.SIGINT, signal.default_int_handler)  # keep Ctrl+C working
+    try:
+        main()
+    except (KeyboardInterrupt, EOFError):
+        print('\nbye!')

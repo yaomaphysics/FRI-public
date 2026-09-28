@@ -50,7 +50,6 @@ import time
 
 BASE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, BASE)
-import two_to_three
 from primitives import name as mode_name
 
 EDGE_T = '0.0055'

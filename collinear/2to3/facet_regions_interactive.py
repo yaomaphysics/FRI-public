@@ -5,26 +5,16 @@ Input: graph topology + external kinematics ONLY (the cut formalism is
 internal — the user never touches cuts).  External momenta p1..p5 attach
 at vertices 1,2,3,4,5.  The script:
 
-  1. enumerates ALL regions of the graph (skeleton: k0 union /
-     k1 engine / k2-k4 chain; the fri enumerator was retired 2026-09-21),
-  2. lists them with numbers (scaling vector + non-empty cuts + edge-mode
-     sequence), then offers a menu:
-       1) Inspect specific regions — pick a subset ("3, 8--10" = regions
-          3, 4, 8, 10; empty = all); for every picked region:
+  1. enumerates ALL regions of the graph (skeleton: k0 union / k1 engine / k2-k4 chain),
+  2. lists them with numbers (scaling vector + non-empty cuts + edge-mode sequence), then offers a menu:
+       1) Inspect specific regions — pick a subset ("3, 8--10" = regions 3, 4, 8, 10; empty = all); for every picked region:
           MODE SUBGRAPHS
-            mode X: {vertices: {V_X}, edges: {E_X}}   loop number of X
-          (r_X = sum of |E| - |V| + 1 over the 1VI blocks of the contracted
-          mode subgraph, computed with two_to_three's own mode_components; Σ r_X vs
-          L is checked), then optionally a concrete set of independent loop
-          momenta (default basis) with optional FORCED lines ((x,y) endpoint
-          pairs, square brackets also accepted),
-       2) Show Lee-Pomeransky parametric representation — per region the
-          scaling vector v_e = -V (edge order, trailing 1 = expansion scale,
+            mode X: {vertices: {V_X}, edges: {E_X}}   loop number of X (r_X = sum of |E| - |V| + 1 over the 1VI blocks of the contracted
+          mode subgraph, computed with two_to_three's own mode_components; Σ r_X vs L is checked), then optionally a concrete set of independent loop momenta (default basis) with optional FORCED lines ((x,y) endpoint pairs, square brackets also accepted),
+       2) Show Lee-Pomeransky parametric representation — per region the scaling vector v_e = -V (edge order, trailing 1 = expansion scale,
           pySecDec style, same as the verified region files),
-       3) Classify these regions based on their characteristic modes —
-          per region its softest-mode class + by-type counts,
-       4) Visualize the selected regions: one PDF atlas (default) or PNG
-          figures (per-mode colours; saved under fri_out/regions_*/),
+       3) Classify these regions based on their characteristic modes — per region its softest-mode class + by-type counts,
+       4) Visualize the selected regions: one PDF atlas (default) or PNG figures (per-mode colours; saved under fri_out/regions_*/),
    and loops until the user quits (empty or q).
 
 Kinematics: k0..k4 (defined in kin23.py; default k1).  Commands inside
@@ -36,9 +26,9 @@ Results are saved to fri_out/<timestamp>.txt after each graph.
 Usage: python3 facet_regions_interactive.py [-v]
   Example graph (the built-in Frog): 1-3,1-5,2-3,2-5,3-4,4-5
 """
-import ast
 import os
 import re
+import signal
 import sys
 import time
 from collections import defaultdict
@@ -72,24 +62,20 @@ def _disp_key(m):
 
 
 # ---------------------------------------------------------------- input helpers
-# Parse user input into a list of (int, int) edges.
+# Parse an edge list leniently: accepts '1-3,1-5,...', '(1,3),(1,5),...' or '[(1,3),(1,5),...]'.
 def parse_edges(s):
-    s = s.strip()
-    if not s:
+    t = re.sub(r'[\[\](){}]', ' ', s).replace(';', ',')
+    dp = re.findall(r'(\d+)\s*-\s*(\d+)', t)
+    dn = re.findall(r'\d+', t)
+    if not dn:
+        if t.strip():
+            raise ValueError(f"cannot parse edge list: '{s.strip()}'")
         return []
-    if s.startswith('['):
-        lst = ast.literal_eval(s)
-        return [tuple(int(x) for x in e) for e in lst]
-    out = []
-    for part in re.split(r'[;,]\s*', s):
-        part = part.strip()
-        if not part:
-            continue
-        m = re.match(r'^(\d+)\s*[-,\s]\s*(\d+)$', part)
-        if not m:
-            raise ValueError(f"cannot parse edge: '{part}'")
-        out.append((int(m.group(1)), int(m.group(2))))
-    return out
+    if dp and 2 * len(dp) == len(dn):
+        return [(int(a), int(b)) for a, b in dp]
+    if len(dn) % 2:
+        raise ValueError(f"cannot parse edge list: '{s.strip()}'")
+    return [(int(dn[k]), int(dn[k + 1])) for k in range(0, len(dn), 2)]
 
 
 def fmt_scaling(sc):
@@ -423,7 +409,9 @@ def show_basis(edges, em, vm, F=None, ext_attach=None):
 # line momenta.
 def inspect_regions(edges, regs, ext_attach):
     n = len(regs)
-    line = input('Region numbers (e.g. "3, 8--10" represents regions 3, 8, 9, and 10; empty = all) > ').strip()
+    line = input('Region numbers (e.g. "3, 8--10" represents regions 3, 8, 9, and 10; empty = all; q/b = back) > ').strip()
+    if line.lower() in ('q', 'quit', 'b', 'back'):
+        return
     sel = parse_region_select(line, n) if line else list(range(1, n + 1))
     if sel is None:
         sel = list(range(1, n + 1))
@@ -436,6 +424,8 @@ def inspect_regions(edges, regs, ext_attach):
         while True:
             prompt = ('Force lines into the basis? ((x,y) pairs; empty = show default basis) > ' if not asked else 'Force more lines? ((x,y) pairs; empty = done) > ')
             line = input(prompt).strip()
+            if line.lower() in ('q', 'quit', 'b', 'back'):
+                break
             if not line:
                 if not asked:
                     for i in sel:
@@ -453,12 +443,12 @@ def inspect_regions(edges, regs, ext_attach):
                 show_basis(edges, em, vm, F, ext_attach)
 
 
-# Option 2: Lee-Pomeransky parametric representation per region: x_e ~ λ^{v_e}, v_e = -V (edge order, trailing 1 =
+# Option 2: Lee-Pomeransky parametric representation per region: x_i ~ \lambda^{v_i}, v_i = -V (edge order, trailing 1 =
 # expansion scale).
 def show_parametric(regs):
-    print('  Lee-Pomeransky parametric representation (x_e ~ λ^{v_e}, v_e = -V, edge order):')
+    print('  Lee-Pomeransky parametric representation (v_i = -V, input edge order; trailing entry = expansion scale):')
     for i, (vec, cuts, em, vm) in enumerate(regs, 1):
-        print(f'    R{i}: v = {fmt_scaling(vec)}')
+        print(f'    R{i}: x_i ~ \\lambda^{{v_i}} for i = 1,2,...,{len(vec)}, with v = {fmt_scaling(vec)}')
 
 
 # Softness order for classification, softest first: modes with a soft prefactor m >= 1 by virtuality V (desc); tie m
@@ -501,11 +491,15 @@ def show_classify(regs):
 # Option 4: visualize the selected regions — PDF atlas or PNG files.
 def visualize_regions(edges, regs, ext_mode):
     n = len(regs)
-    line = input('Region numbers (e.g. "3, 8--10" represents regions 3, 8, 9, and 10; empty = all) > ').strip()
+    line = input('Region numbers (e.g. "3, 8--10" represents regions 3, 8, 9, and 10; empty = all; q/b = back) > ').strip()
+    if line.lower() in ('q', 'quit', 'b', 'back'):
+        return
     sel = parse_region_select(line, n) if line else list(range(1, n + 1))
     if sel is None:
         return
     fmt = input('Output: [a] single PDF atlas (default) / [p] individual PNG files > ').strip().lower()
+    if fmt in ('q', 'quit', 'b', 'back'):
+        return
     try:
         import region_plot
     except Exception as e:
@@ -541,14 +535,16 @@ def choose_kinematics():
     print_kin_menu()
     while True:
         try:
-            s = input('kinematics [default k1]> ').strip().lower()
+            s = input('kinematics [default k1; q/b = back]> ').strip().lower()
         except (EOFError, KeyboardInterrupt):
-            return 'k1'
+            return None
         if not s:
             return 'k1'
+        if s in ('q', 'quit', 'exit', 'b', 'back'):
+            return None
         if s in KIN_CHOICES:
             return s
-        print(f'  [error] unknown kinematics "{s}" — choose from {", ".join(KIN_CHOICES)}')
+        print(f'  [error] unknown kinematics "{s}" — choose from {", ".join(KIN_CHOICES)} (q/b = back)')
 
 
 # ---------------------------------------------------------------- driver
@@ -592,8 +588,8 @@ def run_graph(edges_raw, kin_name, verbose=False):
         print('    2) Show Lee-Pomeransky parametric representation')
         print('    3) Classify these regions based on their characteristic modes')
         print('    4) Visualize these regions (PDF atlas / PNGs)')
-        opt = input('  (1/2/3/4; empty or q = done with this graph) > ') .strip().lower()
-        if opt in ('', 'q', 'quit'):
+        opt = input('  (1/2/3/4; empty/q/b = done with this graph) > ') .strip().lower()
+        if opt in ('', 'q', 'quit', 'b', 'back'):
             break
         if opt == '1':
             inspect_regions(edges, regs, EXT_ATTACH)
@@ -629,19 +625,22 @@ def main():
     print('collinear 2->3 FRI region enumerator (k0..k4)')
     print('external momenta: p1@1, p2@2, p3@3, p4@4, p5@5')
     print('type an edge list, e.g. 1-3,1-5,2-3,2-5,3-4,4-5 (the Frog)')
-    print("commands: 'kin kX' switch kinematics, 'v' toggle stats, 'q' quit")
+    print("commands: 'kin kX' switch kinematics, 'v' toggle stats, 'q'/'b' quit")
     print('=' * 72)
     kin_name = choose_kinematics()
+    if kin_name is None:
+        print('bye!')
+        return
     print(f'-> using kinematics {kin_name}')
     while True:
         try:
-            s = input(f'\nedge list [{kin_name}]> ').strip()
+            s = input(f'\nedge list (e.g. 1-3,1-5,2-3,2-5,3-4,4-5) [{kin_name}]> ').strip()
         except (EOFError, KeyboardInterrupt):
             print('\nbye!')
             break
         if not s:
             continue
-        if s.lower() in ('q', 'quit', 'exit'):
+        if s.lower() in ('q', 'quit', 'exit', 'b', 'back'):
             print('bye!')
             break
         low = s.lower()
@@ -671,4 +670,8 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    signal.signal(signal.SIGINT, signal.default_int_handler)  # keep Ctrl+C working even if the launcher had ignored SIGINT
+    try:
+        main()
+    except (KeyboardInterrupt, EOFError):
+        print('\nbye!')

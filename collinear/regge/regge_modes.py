@@ -102,7 +102,7 @@ from __future__ import annotations
 import itertools
 import time
 from functools import lru_cache
-from typing import Optional, Tuple
+from typing import Optional
 
 INF = float('inf')
 FAM_LEGS = {13: (1, 3), 24: (2, 4)}
@@ -316,14 +316,6 @@ def harder(a: Mode, b: Mode) -> bool:
     return softer(b, a)
 
 
-def comparable(a: Mode, b: Mode) -> bool:
-    return softer(a, b) or softer(b, a)
-
-
-def overlapping(a: Mode, b: Mode) -> bool:
-    return not comparable(a, b)
-
-
 # ------------------------------------------------------- G / sH (overlay chain)
 G = 'G'                     # Glauber: the necklace string
 SH = 'sH'                   # semihard: the pearl between two G's
@@ -525,22 +517,6 @@ def join(a: Mode, b: Mode) -> Mode:
     if len(c) != 1:
         raise ArithmeticError(f'lub({a},{b}) not unique: {c}')
     return c[0]
-
-
-# Mode set generated from `seed` by meet and join.
-def closure(seed):
-    cur = set(seed)
-    while True:
-        new = set()
-        for a, b in itertools.combinations_with_replacement(sorted(cur), 2):
-            for op in (meet, join):
-                try:
-                    new.add(op(a, b))
-                except ArithmeticError:
-                    pass
-        if new <= cur:
-            return sorted(cur)
-        cur |= new
 
 
 # --------------------------------------------- precomputed table (fast path 2)

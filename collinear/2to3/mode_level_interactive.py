@@ -9,7 +9,7 @@ defaults), show the L = 0 modes, then advance one loop level per key press:
     space : next loop level (+1)
     enter : jump to the next level that has new modes
     a     : show the cumulative table so far
-    q/esc : quit
+    q/b/esc : quit
 
 The display is capped at L = 10.
 
@@ -18,7 +18,7 @@ Run:  python3 mode_level_interactive.py
 (Also reachable from the unified entry facet_regions_interactive.py,
 [2] -> [3].)
 """
-import os, sys
+import os, signal, sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 if HERE not in sys.path:
@@ -36,7 +36,7 @@ BANNER = '''\
   Enter the five external-momentum modes (Enter = k1 defaults),
   then:
     space = step +1 loop      enter = jump to next non-empty loop
-    a     = cumulative table  q     = quit
+    a     = cumulative table  q/b   = quit
   (levels are capped at L = %d)
 ==============================================================''' % LMAX
 
@@ -54,7 +54,7 @@ def leg_check(i, m):
 
 
 def ask_momenta():
-    print('Enter the five external-momentum modes (Enter = two_to_three k1 defaults; examples: C1∞ / C2∞C23 / C4 / S^1C4):')
+    print('Enter the five external-momentum modes (Enter = two_to_three kinematics. Default: C1∞ / C2∞C23 / C3∞C23 / C4∞ / C5∞; q/b = quit):')
     out = []
     for i, dflt in enumerate(DEFAULT_MOMENTA, 1):
         while True:
@@ -62,6 +62,8 @@ def ask_momenta():
                 s = input('  p%d mode [%s]: ' % (i, dflt)).strip()
             except EOFError:
                 s = ''
+            if s.lower() in ('q', 'quit', 'exit', 'b', 'back'):
+                return None
             if not s:
                 s = dflt
             try:
@@ -84,7 +86,7 @@ def ask_momenta():
 def read_key():
     if not sys.stdin.isatty():
         try:
-            s = input('▶ (blank=advance, j=jump, a=all, q=quit): ')
+            s = input('▶ (blank=advance, j=jump, a=all, q/b=quit): ')
         except EOFError:
             return 'q'
         s = s.strip()
@@ -135,6 +137,9 @@ class Stepper:
 def main():
     print(BANNER)
     momenta = ask_momenta()
+    if momenta is None:
+        print('bye 👋')
+        return
     mnames = [F.name(m) for m in momenta]
     print('momenta: ' + ', '.join('p%d=%s' % (i + 1, nm) for i, nm in enumerate(mnames)))
     ext = derive_external_modes(momenta)
@@ -155,12 +160,12 @@ def main():
             print('L=%d — (no new modes)' % k)
         print('   [%s]' % st.source_line(k))
         n_le = sum(1 for lv in st.levels.values() if lv <= k)
-        print('   cumulative: %d modes (≤L=%d) | space=+1, enter=next non-empty, a=all, q=quit' % (n_le, k))
+        print('   cumulative: %d modes (≤L=%d) | space=+1, enter=next non-empty, a=all, q/b=quit' % (n_le, k))
 
     show(cur)
     while True:
         k = read_key()
-        if k in ('q', 'Q', '\x1b', '\x03'):
+        if k in ('q', 'Q', 'b', 'B', '\x1b', '\x03'):
             print('\nbye 👋')
             break
         if k == ' ':
@@ -194,8 +199,12 @@ def main():
                     break
                 print('L=%-3d: %s' % (lv, ', '.join(st.modes_at(lv))))
         else:
-            print('  (space=advance, enter=jump, a=all, q=quit)')
+            print('  (space=advance, enter=jump, a=all, q/b=quit)')
 
 
 if __name__ == '__main__':
-    main()
+    signal.signal(signal.SIGINT, signal.default_int_handler)  # keep Ctrl+C working even if the launcher had ignored SIGINT
+    try:
+        main()
+    except (KeyboardInterrupt, EOFError):
+        print('\nbye!')

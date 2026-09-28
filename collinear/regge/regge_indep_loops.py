@@ -24,11 +24,10 @@ framework, with the semihard fix
 
 Sanity: Σ_X r_X = L = |E| − |V| + 1 for every region (checked).
 
-Forced lines F (edge indices): feasible iff for every block (of every
-unit), the block's remaining edges (after removing F) still span it.
-For the forced path the PHYSICAL parameterization (edge_momenta) is used:
-|F| <= L and the complement of F must be connected (a bridge cannot carry
-a loop momentum), with forced lines first in the k-numbering.
+Forced lines F (edge indices): for the forced path the PHYSICAL
+parameterization (edge_momenta) is used: |F| <= L and the complement of
+F must be connected (a bridge cannot carry a loop momentum), with forced
+lines first in the k-numbering.
 
 Independent module: does not modify regge_core.
 """
@@ -127,30 +126,6 @@ def _basis_of_block(block_verts, block_edges, edges2):
     return tree, basis
 
 
-def _connected_spanning(verts, edge_indices, edges2):
-    if not verts:
-        return True
-    parent = {v: v for v in verts}
-
-    def find(a):
-        while parent[a] != a:
-            parent[a] = parent[parent[a]]
-            a = parent[a]
-        return a
-
-    def union(a, b):
-        ra, rb = find(a), find(b)
-        if ra != rb:
-            parent[ra] = rb
-
-    for i in edge_indices:
-        a, b = edges2[i]
-        if a in parent and b in parent and a != b:
-            union(a, b)
-    root = find(next(iter(verts)))
-    return all(find(v) == root for v in verts) # true iff (verts, edges2[i] for i in edge_indices) is connected and spans all of verts.
-
-
 # ------------------------------------------------------------- per-unit blocks
 # 1VI blocks of gamma~_mode as (bv, contracted_edges, original_idxs).
 def _lattice_blocks(mode, vm, em, edges, verts):
@@ -208,41 +183,6 @@ def indep_loops(edges, em, vm):
             out_blocks.append({'verts': sorted(bv, key=str), 'tree': [idxs[j] for j in tree], 'basis': [idxs[j] for j in basis]})
         results.append({'mode': unit, 'rank': r, 'blocks': out_blocks})
     return results, total, L
-
-
-# A concrete basis containing the forced lines F (edge indices).  In each block, forced lines enter the basis first;
-# a spanning tree is chosen among the REMAINING edges, and every other non-tree edge is a basis line (self-loops always).
-# Returns (ok, failures, results): failures = [(unit, block_verts, offending_forced_lines)] of unspanned blocks; results = None unless ok.
-def forced_basis(edges, em, vm, F):
-    verts = sorted({v for e in edges for v in e})
-    L = len(edges) - len(verts) + 1
-    F = set(F)
-    results = []
-    failures = []
-    total = 0
-    for unit, blocks in _iter_units(em, vm, edges, verts):
-        r = _rank_of(blocks)
-        total += r
-        out_blocks = []
-        for (bv, be, idxs) in blocks:
-            forced_in = [j for j in range(len(idxs)) if idxs[j] in F]
-            rem = [j for j in range(len(idxs)) if idxs[j] not in F]
-            if not _connected_spanning(bv, rem, be):
-                failures.append((unit, sorted(bv, key=str), [idxs[j] for j in forced_in]))
-                continue
-            tree, extra = _basis_of_block(bv, rem, be)
-            basis = forced_in + extra
-            out_blocks.append({'verts': sorted(bv, key=str), 'tree': [idxs[j] for j in tree], 'basis': [idxs[j] for j in basis]})
-        results.append({'mode': unit, 'rank': r, 'blocks': out_blocks})
-    if failures:
-        return False, failures, None
-    return True, [], (results, total, L)
-
-
-# Feasibility of forcing lines F into the independent-loop-momentum basis; returns (ok, failures).
-def forced_feasible(edges, em, vm, F):
-    ok, failures, _ = forced_basis(edges, em, vm, F)
-    return ok, failures
 
 
 # ------------------------------------------- physical momentum parameterization

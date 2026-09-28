@@ -18,10 +18,9 @@ For more details, it is recommended to read the relevant sections of 2601.22144.
 The pipeline checks used by the enumerators (check_fc / momentum_ok / ir_ok_blocks) live here next to the conditions they implement;
 the shared base layer (mode algebra, graph and component machinery) is in primitives.py.
 """
-import os, re
 from collections import defaultdict, deque
 from itertools import combinations
-from primitives import (V, eq, harder_or_eq, join, meet, _join, marginal_softer, parse_mode, find_1vi_blocks, vee, vertex_mode, H)
+from primitives import (V, eq, harder_or_eq, join, meet, marginal_softer, find_1vi_blocks, vee, vertex_mode, H)
 
 INF = 100   # a large value representing the positive infinity.
 
@@ -91,7 +90,7 @@ def mode_components_wa(edges_in, em, ext_attach, ext_mode):
         for name, v in ext_attach.items():
             if name in ext_mode:
                 inc[v].append(ext_mode[name])
-    vjoin = {v: _join(ms) for v, ms in inc.items()}
+    vjoin = {v: vee(ms) for v, ms in inc.items()}
     # edges grouped by mode
     emodes = defaultdict(list)
     for e, md in zip(edges_in, em):

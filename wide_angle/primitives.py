@@ -3,34 +3,23 @@ algebra and graph machinery (no region criteria — those live in
 region_checker.py).
 
 Contents:
-  - mode algebra on (m, n, i) tuples [S^m C_i^n; H = (0,0,0)]:
-      V, norm, eq, harder_or_eq, join, meet, marginal_softer, _join;
+  - mode algebra on (m, n, i) tuples [S^m C_i^n; H = (0,0,0)]: V, norm, eq, harder_or_eq, join, meet, marginal_softer, vee;
   - mode scaling: scaling_of (v_e = -V);
-  - mode-string parsing: parse_mode (single implementation in
-      read_graph.py; re-exported);
-  - graph representation + helpers: Graph (vertex_mode, vee, softer_v,
-      is_sc_type, allowed);
-  - graph utilities: find_1vi_blocks (Tarjan; used by the 1VI checks),
-      spanning_tree.
+  - mode-string parsing: parse_mode (single implementation in read_graph.py; re-exported);
+  - graph helpers: Graph (vertex_mode); spanning_tree; find_1vi_blocks (Tarjan; used by the 1VI checks).
 
-Used by: skeleton.py (enumeration), region_checker.py (judgment),
-usable_modes.py, scaleless_diagnosis.py, indep_loops.py.
-
-(2026-09-24 “two cores” split: the base parts of the old region_checker.py
-were merged in here; the Step-1 / First-Connectivity / IR check functions
-moved to region_checker.py; the standalone 5pt6loop enumerator was retired
-2026-09-25; archived in private/_trash/cleanup_20260925.)
+Used by: skeleton.py (enumeration), region_checker.py (judgment), usable_modes.py, scaleless_diagnosis.py, indep_loops.py.
 """
+
 from collections import defaultdict
-from functools import lru_cache
+from functools import lru_cache # lru: least recently used (cache eviction policy)
+from read_graph import parse_mode  # re-export; single implementation
 
-from read_graph import parse_mode  # re-export; single implementation (2026-09-24)
-
-INF = 100   # sentinel for C_i^inf; one value for the whole WA tree (2026-09-24)
+INF = 100   # a large value representing \infty.
 H = (0, 0, 0)
 
 
-# ============================== mode algebra ==============================
+# ============================== MODE ALGEBRA ==============================
 
 def V(m): return 2*m[0] + m[1]
 
@@ -55,7 +44,8 @@ def join(X, Y): return _join_meet(X, Y)[0]
 
 def meet(X, Y): return _join_meet(X, Y)[1]
 
-# Memoised: the same (X, Y) pairs recur heavily in the enumerators; join/meet share this cache.
+# Join (vee) and meet (wedge) of two modes X and Y, returned as the pair (join, meet); memoised because
+# the same (X, Y) pairs recur heavily in the enumerators (lru cache: least-recently-used eviction).
 @lru_cache(maxsize=None)
 def _join_meet(X, Y):
     X, Y = norm(X), norm(Y)
@@ -87,6 +77,7 @@ def _join_meet(X, Y):
         mt = norm((m1 + n1, m2 + n2 - m1 - n1, j))
         return (jn, mt)
 
+# Check whether X is marginally softer than Y
 def marginal_softer(X, Y):
     X, Y = norm(X), norm(Y)
     if eq(X, Y): return False
@@ -95,27 +86,28 @@ def marginal_softer(X, Y):
     return X[0] <= Y[0] + Y[1]
 
 
-# Join of a list of modes (hardest common mode; None-filtered, empty -> H).
-def _join(modes):
+# Join of a list of modes -- the softest mode that is harder than (or equal to) all of them
+# (None entries are skipped; empty list -> H).
+def vee(modes):
     modes = [m for m in modes if m is not None]
     if not modes:
-        return (0, 0, 0)
+        return H
     acc = modes[0]
     for m in modes[1:]:
         acc = join(acc, m)
     return norm(acc)
 
 
-# Scaling exponent v_e = -(2m + n) = -V(md) of edge mode md (x_e ~ lambda^{v_e}, lambda = expansion parameter); None -> 0.
+# Scaling exponent v_e = -(2m + n) = -V(md) of edge mode md (x_e ~ lambda^{v_e}, lambda = expansion parameter).
 def scaling_of(md):
     return 0 if md is None else -V(md)
 
 
-# =========================== mode-string parsing ==========================
+# =========================== MODE-STRING PARSING ==========================
 # (parse_mode is re-exported from read_graph — see the import at the top.)
 
 
-# =========================== graph representation =========================
+# ============================= GRAPH HELPERS ==============================
 
 class Graph:
     def __init__(self, vertices, edges, ext):
@@ -127,10 +119,8 @@ class Graph:
         for ei, (u, v) in enumerate(self.edges):
             self.incident[u].append(ei)
             self.incident[v].append(ei)
-    def edge_other(self, ei, v):
-        u, w = self.edges[ei]
-        return w if u == v else u
 
+# Vertex mode: join of the vertex's non-None incident edge modes and its attached external modes; None if there is nothing to join.
 def vertex_mode(g, edge_modes, v, EXTMODE):
     accs = []
     for ei in g.incident.get(v, []):
@@ -143,51 +133,23 @@ def vertex_mode(g, edge_modes, v, EXTMODE):
     for m in accs[1:]: acc = join(acc, m)
     return norm(acc)
 
-def vee(modes):
-    if not modes: return None
-    acc = modes[0]
-    for m in modes[1:]: acc = join(acc, m)
-    return norm(acc)
 
-def softer_v(va, vb):
-    if eq(va, vb): return va
-    return va if V(va) > V(vb) else vb
-
-def is_sc_type(md):
-    return md[0] >= 1 and md[1] >= 1
-
-def allowed(va, vb):
-    if eq(va, vb):
-        return [va]
-    if harder_or_eq(va, vb):
-        return [vb]
-    if harder_or_eq(vb, va):
-        return [va]
-    sv = softer_v(va, vb)
-    if is_sc_type(va) or is_sc_type(vb):
-        return [sv]
-    opts = []
-    if V(va) != V(vb):
-        opts.append(sv)
-    mt = meet(va, vb)
-    if mt not in opts: opts.append(mt)
-    return opts
-
-
-# ======================== graph utilities ========================
-
-# Spanning tree of (verts, edge_list) avoiding the skip set (edge indices); None if no such tree exists (the skip set contains a bridge / disconnects the graph).
+# Spanning tree of (verts, edge_list) avoiding the skip set (edge indices); None if no such tree exists
+# (the skip set contains a bridge / disconnects the graph).
 def spanning_tree(verts, edge_list, skip):
     parent = {v: v for v in verts}
+    # union-find: find, with path compression.
     def find(a):
         while parent[a] != a:
             parent[a] = parent[parent[a]]
             a = parent[a]
         return a
+    # union-find: merge two components.
     def union(a, b):
         ra, rb = find(a), find(b)
         if ra != rb:
             parent[ra] = rb
+    # Kruskal: add every non-skipped edge that joins two different components.
     tree = []
     for i, (a, b) in enumerate(edge_list):
         if i in skip or a == b:
@@ -195,6 +157,7 @@ def spanning_tree(verts, edge_list, skip):
         if find(a) != find(b):
             union(a, b)
             tree.append(i)
+    # a spanning tree needs exactly |V| - 1 edges and must reach every vertex.
     if len(tree) != len(verts) - 1:
         return None
     root = find(verts[0])
@@ -202,17 +165,20 @@ def spanning_tree(verts, edge_list, skip):
 
 
 # 1VI components of (verts, edges): bridges = single-edge blocks, self-loops / isolated vertices = single-vertex blocks (Tarjan).
-# The Regge side uses the same decomposition for γ̃_X — 1VI blocks instead of filtering (2026-08-21).
+# The Regge side uses the same decomposition for γ̃_X — 1VI blocks instead of filtering.
 def find_1vi_blocks(verts, edges):
+    # self-loops are single-vertex blocks.
     loops = [(a, b) for (a, b) in edges if a == b]
     other = [(a, b) for (a, b) in edges if a != b]
     out = []
     for (a, b) in loops:
         out.append(({a}, [(a, b)]))
+    # adjacency with edge indices (a block is a set of edge indices).
     adj = {v: [] for v in verts}
     for i, (a, b) in enumerate(other):
         adj[a].append((b, i)); adj[b].append((a, i))
     disc = {}; low = {}; t = 0; stack = []; blocks = []
+    # Tarjan: pop an edge block whenever a child's low >= the current disc.
     def dfs(u, pe):
         nonlocal t
         disc[u] = low[u] = t; t += 1
@@ -231,14 +197,17 @@ def find_1vi_blocks(verts, edges):
             elif disc[w] < disc[u]:
                 stack.append(ei)
                 low[u] = min(low[u], disc[w])
+    # disconnected pieces: flush whatever remains on the stack.
     for v in verts:
         if v not in disc:
             dfs(v, -1)
             if stack:
                 blocks.append(set(stack)); stack.clear()
+    # back from edge indices to (vertex set, edge list) blocks.
     for blk in blocks:
         be = [other[i] for i in blk]
         out.append(({v for e in be for v in e}, be))
+    # vertices touched by no block: keep as single-vertex blocks.
     used = {v for _, be in out for e in be for v in e}
     for v in verts:
         if v not in used:

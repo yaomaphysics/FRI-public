@@ -25,7 +25,7 @@ fly, 'q' quits.  After enumeration a menu offers:
        (Σ r_X vs L), then optionally a concrete independent-loop-momentum
        basis (default or forced lines) and the physical line momenta
        (k1..kL + externals, momentum-conservation check),
-    2) Lee-Pomeransky parametric representation (v_e = -V, edge order),
+    2) Lee-Pomeransky parametric representation (v_i = -V, input edge order; trailing entry = expansion scale),
     3) Classification by characteristic (softest) mode.
     4) Visualization: one PDF atlas (default) or PNG figures with the
        per-mode colour scheme (region_plot.py; saved under fri_out/regions_*/).
@@ -33,11 +33,11 @@ Semihard loops use the γ_sH ∪ γ_G rule (2026-09-01).  Results are
 saved to fri_out/<timestamp>.txt.
 
 Edge-list input formats (all accepted):
-    "1-7,1-12,2-6,...,11-12"
-    "[1,7],[1,12],[2,6],..."
-    "1 7; 1 12; 2 6"
+    "1-3,2-4,1-2,3-4"
+    "(1,3),(2,4),(1,2),(3,4)"  or  "[1,3],[2,4],[1,2],[3,4]"
+    "1 3; 2 4; 1 2; 3 4"
 """
-import sys, os, time, ast, re
+import sys, os, time, re, signal
 
 BASE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, BASE)
@@ -55,24 +55,20 @@ from collections import defaultdict
 KIN_CHOICES = ['k0', 'k1', 'k2', 'k3', 'k4', 'k5']
 
 
-# Parse user input into a list of (int, int) edges.
+# Parse an edge list leniently: accepts '1-3,2-4,...', '(1,3),(2,4),...' or '[(1,3),(2,4),...]'.
 def parse_edges(s):
-    s = s.strip()
-    if not s:
+    t = re.sub(r'[\[\](){}]', ' ', s).replace(';', ',')
+    dp = re.findall(r'(\d+)\s*-\s*(\d+)', t)
+    dn = re.findall(r'\d+', t)
+    if not dn:
+        if t.strip():
+            raise ValueError(f"cannot parse edge list: '{s.strip()}'")
         return []
-    if s.startswith('['):
-        lst = ast.literal_eval(s)
-        return [tuple(int(x) for x in e) for e in lst]
-    out = []
-    for part in re.split(r'[;,]\s*', s):
-        part = part.strip()
-        if not part:
-            continue
-        m = re.match(r'^(\d+)\s*[-,\s]\s*(\d+)$', part)
-        if not m:
-            raise ValueError(f"cannot parse edge: '{part}'")
-        out.append((int(m.group(1)), int(m.group(2))))
-    return out
+    if dp and 2 * len(dp) == len(dn):
+        return [(int(a), int(b)) for a, b in dp]
+    if len(dn) % 2:
+        raise ValueError(f"cannot parse edge list: '{s.strip()}'")
+    return [(int(dn[k]), int(dn[k + 1])) for k in range(0, len(dn), 2)]
 
 
 def fmt_scaling(sc):
@@ -215,12 +211,13 @@ def classify(vm, em):
     return 'C/H'
 
 
-# Option 2: Lee-Pomeransky parametric representation per region: x_e ~ λ^{v_e} with v_e = -V(𝒳(e)), edge order,
+# Option 2: Lee-Pomeransky parametric representation per region: x_i ~ \lambda^{v_i} with v_i = -V(𝒳(e)), edge order,
 # trailing 1 = λ power of the single expansion scale (pySecDec style, same as the verified region files).
 def show_parametric(regs):
-    print('  Lee-Pomeransky parametric representation (x_e ~ λ^{v_e}, v_e = -V, edge order):')
+    print('  Lee-Pomeransky parametric representation (v_i = -V, input edge order; trailing entry = expansion scale):')
     for i, (cut13, cut24, cut1, cut3, cut2, cut4, vm, em) in enumerate(regs, 1):
-        print(f'    R{i}: v = {to_scaling(em)}')
+        sc = to_scaling(em)
+        print(f'    R{i}: x_i ~ \\lambda^{{v_i}} for i = 1,2,...,{len(sc)}, with v = {sc}')
 
 
 # Option 3: classify regions by their characteristic (softest) mode, grouped by type (softest first).
@@ -247,7 +244,9 @@ def show_classify(regs, edges):
 # line momenta.
 def inspect_regions(edges, regs, ext_attach):
     n = len(regs)
-    line = input('Region numbers (e.g. "3, 8--10" represents regions 3, 8, 9, and 10; empty = all) > ').strip()
+    line = input('Region numbers (e.g. "3, 8--10" represents regions 3, 8, 9, and 10; empty = all; q/b = back) > ').strip()
+    if line.lower() in ('q', 'quit', 'b', 'back'):
+        return
     sel = parse_region_select(line, n) if line else list(range(1, n + 1))
     if sel is None:
         sel = list(range(1, n + 1))
@@ -260,6 +259,8 @@ def inspect_regions(edges, regs, ext_attach):
         while True:
             prompt = ('Force lines into the basis? ((x,y) pairs; empty = show default basis) > ' if not asked else 'Force more lines? ((x,y) pairs; empty = done) > ')
             line = input(prompt).strip()
+            if line.lower() in ('q', 'quit', 'b', 'back'):
+                break
             if not line:
                 if not asked:
                     for i in sel:
@@ -280,11 +281,15 @@ def inspect_regions(edges, regs, ext_attach):
 # Option 4: visualize the selected regions — PDF atlas or PNG files.
 def visualize_regions(edges, regs, ext_mode):
     n = len(regs)
-    line = input('Region numbers (e.g. "3, 8--10" represents regions 3, 8, 9, and 10; empty = all) > ').strip()
+    line = input('Region numbers (e.g. "3, 8--10" represents regions 3, 8, 9, and 10; empty = all; q/b = back) > ').strip()
+    if line.lower() in ('q', 'quit', 'b', 'back'):
+        return
     sel = parse_region_select(line, n) if line else list(range(1, n + 1))
     if sel is None:
         return
     fmt = input('Output: [a] single PDF atlas (default) / [p] individual PNG files > ').strip().lower()
+    if fmt in ('q', 'quit', 'b', 'back'):
+        return
     try:
         import region_plot
     except Exception as e:
@@ -323,14 +328,16 @@ def choose_kinematics():
     print_kin_menu()
     while True:
         try:
-            s = input('kinematics [default k1]> ').strip().lower()
+            s = input('kinematics [default k1; q/b = back]> ').strip().lower()
         except (EOFError, KeyboardInterrupt):
-            return 'k1'
+            return None
         if not s:
             return 'k1'
+        if s in ('q', 'quit', 'exit', 'b', 'back'):
+            return None
         if s in KIN_CHOICES:
             return s
-        print(f'  [error] unknown kinematics "{s}" — choose from {", ".join(KIN_CHOICES)}')
+        print(f'  [error] unknown kinematics "{s}" — choose from {", ".join(KIN_CHOICES)} (q/b = back)')
 
 
 def run_graph(edges_raw, kin_name):
@@ -382,8 +389,8 @@ def run_graph(edges_raw, kin_name):
         print('    2) Show Lee-Pomeransky parametric representation')
         print('    3) Classify these regions based on their characteristic modes')
         print('    4) Visualize these regions (PDF atlas / PNGs)')
-        opt = input('  (1/2/3/4; empty or q = done with this graph) > ') .strip().lower()
-        if opt in ('', 'q', 'quit'):
+        opt = input('  (1/2/3/4; empty/q/b = done with this graph) > ') .strip().lower()
+        if opt in ('', 'q', 'quit', 'b', 'back'):
             break
         if opt == '1':
             inspect_regions(edges, regs, ext_attach)
@@ -422,20 +429,23 @@ def main():
     print('=' * 70)
     print('Regge-limit FRI region enumerator (6 kinematics, k0..k5)')
     print('external momenta: p1@1, p2@2, p3@3, p4@4')
-    print('type an edge list, e.g. 1-7,1-12,2-6,...,11-12')
-    print("commands: 'kin kX' switch kinematics, 'q' quit")
+    print('type an edge list, e.g. 1-3,2-4,1-2,3-4 (the box)')
+    print("commands: 'kin kX' switch kinematics, 'q'/'b' quit")
     print('=' * 70)
     kin_name = choose_kinematics()
+    if kin_name is None:
+        print('bye!')
+        return
     print(f'-> using kinematics {kin_name} ({KIN[kin_name]["note"]})')
     while True:
         try:
-            s = input(f'\nedge list [{kin_name}]> ').strip()
+            s = input(f'\nedge list (e.g. 1-3,2-4,1-2,3-4) [{kin_name}]> ').strip()
         except (EOFError, KeyboardInterrupt):
             print('\nbye!')
             break
         if not s:
             continue
-        if s.lower() in ('q', 'quit', 'exit'):
+        if s.lower() in ('q', 'quit', 'exit', 'b', 'back'):
             print('bye!')
             break
         low = s.lower()
@@ -461,4 +471,8 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    signal.signal(signal.SIGINT, signal.default_int_handler)  # keep Ctrl+C working even if the launcher had ignored SIGINT
+    try:
+        main()
+    except (KeyboardInterrupt, EOFError):
+        print('\nbye!')

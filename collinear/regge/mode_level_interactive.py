@@ -9,13 +9,13 @@ defaults), show the L = 0 modes, then advance one loop level per key press:
     SPACE : next loop level (+1)
     ENTER : jump to the next level that has new modes
     A     : show the cumulative table so far
-    Q/ESC : quit
+    Q/B/ESC : quit
 
 The display is capped at L = 10.
 
 Run:  python3 mode_level_interactive.py
 """
-import os, sys
+import os, signal, sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 if HERE not in sys.path:
@@ -33,7 +33,7 @@ BANNER = '''\
   Enter the four external-momentum modes (Enter = k1 defaults),
   then:
     SPACE = step +1 loop      ENTER = jump to next non-empty loop
-    A     = cumulative table  Q     = quit
+    A     = cumulative table  Q/B   = quit
   (levels are capped at L = %d)
 ==============================================================''' % LMAX
 
@@ -54,7 +54,7 @@ def leg_check(i, m):
 
 
 def ask_momenta():
-    print('Enter the four external-momentum modes (Enter = regge k1 defaults; examples: C13 / C1C13 / C2∞C24 / S^1C13):')
+    print('Enter the four external-momentum modes (Enter = regge k1 defaults; examples: C13 / C1C13 / C2∞C24 / S^1C13; q/b = quit):')
     out = {}
     for i, dflt in enumerate(DEFAULT_MOMENTA, 1):
         while True:
@@ -62,6 +62,8 @@ def ask_momenta():
                 s = input('  p%d mode [%s]: ' % (i, dflt)).strip()
             except EOFError:
                 s = ''
+            if s.lower() in ('q', 'quit', 'exit', 'b', 'back'):
+                return None
             if not s:
                 s = dflt
             try:
@@ -82,7 +84,7 @@ def ask_momenta():
 def read_key():
     if not sys.stdin.isatty():
         try:
-            s = input('▶ (SPACE=advance, J=jump, A=all, Q=quit): ')
+            s = input('▶ (SPACE=advance, J=jump, A=all, Q/B=quit): ')
         except EOFError:
             return 'q'
         s = s.strip()
@@ -180,6 +182,9 @@ class Stepper:
 def main():
     print(BANNER)
     ext = ask_momenta()
+    if ext is None:
+        print('bye 👋')
+        return
     print('momenta: ' + ', '.join('p%d=%s' % (i, ext[i]) for i in sorted(ext)))
     st = Stepper(ext)
     st.ensure(0)
@@ -200,12 +205,12 @@ def main():
         else:
             print('L=%d — (no new modes)' % k)
         n_le = sum(len(st.modes_at(lv)) for lv in st.levels if lv <= k)
-        print('   cumulative: %d modes (≤L=%d) | SPACE=+1, ENTER=next non-empty, A=all, Q=quit' % (n_le, k))
+        print('   cumulative: %d modes (≤L=%d) | SPACE=+1, ENTER=next non-empty, A=all, Q/B=quit' % (n_le, k))
 
     show(cur)
     while True:
         k = read_key()
-        if k in ('q', 'Q', '\x1b', '\x03'):
+        if k in ('q', 'Q', 'b', 'B', '\x1b', '\x03'):
             print('\nbye 👋')
             break
         if k == ' ':
@@ -239,8 +244,12 @@ def main():
                     break
                 print('L=%-3d: %s' % (lv, ', '.join(st.modes_at(lv))))
         else:
-            print('  (SPACE=advance, ENTER=jump, A=all, Q=quit)')
+            print('  (SPACE=advance, ENTER=jump, A=all, Q/B=quit)')
 
 
 if __name__ == '__main__':
-    main()
+    signal.signal(signal.SIGINT, signal.default_int_handler)  # keep Ctrl+C working even if the launcher had ignored SIGINT
+    try:
+        main()
+    except (KeyboardInterrupt, EOFError):
+        print('\nbye!')

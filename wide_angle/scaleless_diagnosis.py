@@ -27,8 +27,9 @@ physical mechanism:
                                  subgraphs.
 
 Usage: python3 scaleless_diagnosis.py
-  internal_lines = [[1,5],[1,8],[2,5],[2,7],[3,6],[3,8],[4,6],[4,7],[5,6],[7,8]]
-  externals      = {'p1':[1,'C1'], 'p2':[2,'C2^2'], 'p3':[3,'C3^inf'], 'p4':[4,'C4^inf']}
+  internal_lines: edge list, e.g. "1-5,1-8,..." (Python lists like [[1,5],[1,8],...] work too)
+  externals: prompted one by one (vertex, name, mode) — the example uses p1 = [1,'C1'], p2 = [2,'C2^2'],
+  p3 = [3,'C3^inf'], p4 = [4,'C4^inf']
   edge_modes     = ['C1','C1','C1','H','H','C1','H','H','C1','C1']
   (one mode per edge, in input edge order; built-in example = 4pt3loop
   region 8, a genuine region)
@@ -36,11 +37,11 @@ Usage: python3 scaleless_diagnosis.py
 Mode syntax: H / S / S^m / C_i / C_i^n / C_i^inf / C_i^\\infty / SC_i /
 SC_i^n / S^mC_i^n  (C_i without n means n=1; i is the direction index).
 """
-import sys, os, itertools
+import sys, os, itertools, re, signal
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from read_graph import parse_mode, mode_str, INF
+from read_graph import parse_mode, INF
 from primitives import Graph, vertex_mode, vee, eq, V
-from region_checker import (jet_connected_ok, hard_jet_mojetic_ok, confirm_all, mode_components_wa)
+from region_checker import (hard_jet_mojetic_ok, confirm_all, mode_components_wa)
 
 H = (0, 0, 0)
 
@@ -225,13 +226,14 @@ def diagnose(edges, em, ext_attach, extmode):
 
 # ---------------------------------------------------------------- interactive
 DEFAULT_EDGES = '[(1,5),(1,8),(2,5),(2,7),(3,6),(3,8),(4,6),(4,7),(5,6),(7,8)]'
-DEFAULT_EXTS = "{'p1':[1,'C1'],'p2':[2,'C2^2'],'p3':[3,'C3^inf'],'p4':[4,'C4^inf']}"
 DEFAULT_MODES = "['C1','C1','C1','H','H','C1','H','H','C1','C1']"
 
 
 def ask(label, default=None):
     print(f'{label}:' + (f'  (default: {default})' if default else ''))
     line = input('> ').strip()
+    if line.lower() in ('q', 'quit', 'exit', 'b', 'back'):
+        return None
     if not line and default:
         line = default
     try:
@@ -240,15 +242,88 @@ def ask(label, default=None):
         print(f'  ! parse error: {e}')
         return ask(label, default)
 
+# Parse an edge list leniently: accepts '1-5,1-8,...', '(1,5),(1,8),...' or '[(1,5),(1,8),...]'.
+def parse_edge_list(s):
+    t = re.sub(r'[\[\](){}]', ' ', s).replace(';', ',')
+    dp = re.findall(r'(\d+)\s*-\s*(\d+)', t)
+    dn = re.findall(r'\d+', t)
+    if not dn:
+        if t.strip():
+            raise ValueError(f"cannot parse edge list: '{s.strip()}'")
+        return []
+    if dp and 2 * len(dp) == len(dn):
+        return [(int(a), int(b)) for a, b in dp]
+    if len(dn) % 2:
+        raise ValueError(f"cannot parse edge list: '{s.strip()}'")
+    return [(int(dn[k]), int(dn[k + 1])) for k in range(0, len(dn), 2)]
+
+# Ask for the edge list; empty input = default; 'q' quits; re-prompts on parse errors.
+def ask_edges(label, default):
+    print(f'{label}:' + (f'  (default: {default})' if default else ''))
+    while True:
+        line = input('> ').strip()
+        if line.lower() in ('q', 'quit', 'exit', 'b', 'back'):
+            return None
+        line = line or default
+        try:
+            return parse_edge_list(line)
+        except ValueError as e:
+            print(f'  ! {e}')
+
+# Ask for the external momenta one by one (vertex, name, mode); asks whether to add another.
+def ask_externals():
+    print('Externals: add them one by one (vertex, name, mode; q/b = quit).')
+    out = {}
+    while True:
+        i = len(out) + 1
+        while True:
+            s = input(f'  external {i}: attach to which vertex? (integer) > ').strip()
+            if s.lower() in ('q', 'quit', 'exit', 'b', 'back'):
+                return None
+            try:
+                vtx = int(s); break
+            except ValueError:
+                print('  ! enter an integer vertex label, e.g. 1')
+        while True:
+            nm = input(f'  external {i}: name? (e.g. p{i}) > ').strip()
+            if nm.lower() in ('q', 'quit', 'exit', 'b', 'back'):
+                return None
+            if nm and nm not in out:
+                break
+            print('  ! the name must be non-empty and not yet used: ' + (', '.join(out) if out else '(no names so far)'))
+        while True:
+            s = input(f'  external {i}: mode? (form S^mC_i^n, e.g. S^2C1^3; also allowed: H, S^m, C_i^n) > ').strip()
+            if s.lower() in ('q', 'quit', 'exit', 'b', 'back'):
+                return None
+            try:
+                parse_mode(s); break
+            except ValueError as e:
+                print(f'  ! {e}')
+        out[nm] = [vtx, s]
+        print(f'  added: {nm} = [vertex {vtx}, mode {s}]')
+        if input('  Add another external? (y/n) [n] > ').strip().lower() != 'y':
+            break
+    print(f'  externals = {out}')
+    return out
+
 
 def main():
     print('=== scaleless diagnosis ===')
     print('Input: graph + external kinematics + an edge-mode assignment.')
     print('Vertex modes are derived: 𝒳(v) = ∨(incident edge modes ∪ externals).')
     while True:
-        internal_lines = ask('internal_lines (topology, edge list)', DEFAULT_EDGES)
-        externals = ask("externals ({name: [vertex, mode_str]})", DEFAULT_EXTS)
-        mode_strs = ask('edge_modes (one mode per edge, input edge order)', DEFAULT_MODES)
+        internal_lines = ask_edges('internal_lines (topology, edge list; e.g. 1-5,1-8,...)', DEFAULT_EDGES)
+        if internal_lines is None:
+            print('bye!')
+            return
+        externals = ask_externals()
+        if externals is None:
+            print('bye!')
+            return
+        mode_strs = ask('edge_modes (one mode per edge, input edge order; q/b = quit)', DEFAULT_MODES)
+        if mode_strs is None:
+            print('bye!')
+            return
         try:
             edges = [tuple(sorted((a, b))) for (a, b) in internal_lines]
             ext_attach = {n: vv[0] for n, vv in externals.items()}
@@ -267,4 +342,8 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    signal.signal(signal.SIGINT, signal.default_int_handler)  # keep Ctrl+C working even if the launcher had ignored SIGINT
+    try:
+        main()
+    except (KeyboardInterrupt, EOFError):
+        print('\nbye!')
