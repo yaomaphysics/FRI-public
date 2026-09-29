@@ -21,18 +21,23 @@ H = (0, 0, 0)
 
 # ============================== MODE ALGEBRA ==============================
 
+# lru: hot micro layer -- tiny key space, call counts in the millions per case.
+@lru_cache(maxsize=None)
 def V(m): return 2*m[0] + m[1]
 
+@lru_cache(maxsize=None)
 def norm(m):
     m0, n, i = m
     if n > INF//2: n = INF
     if n == 0: i = 0
     return (m0, n, i)
 
+@lru_cache(maxsize=None)
 def eq(X, Y):
     X, Y = norm(X), norm(Y)
     return X[0] == Y[0] and X[1] == Y[1] and (X[2] == Y[2] or X[1] == 0 or Y[1] == 0)
 
+@lru_cache(maxsize=None)
 def harder_or_eq(X, Y):
     X, Y = norm(X), norm(Y)
     if eq(X, Y): return True
@@ -44,9 +49,8 @@ def join(X, Y): return _join_meet(X, Y)[0]
 
 def meet(X, Y): return _join_meet(X, Y)[1]
 
-# Join (vee) and meet (wedge) of two modes X and Y, returned as the pair (join, meet); memoised because
-# the same (X, Y) pairs recur heavily in the enumerators (lru cache: least-recently-used eviction).
-@lru_cache(maxsize=None)
+# Join (vee) and meet (wedge) of two modes X and Y, returned as the pair (join, meet); memoised because the same (X, Y) pairs recur heavily in the enumerators.
+@lru_cache(maxsize=None) # lru cache: least-recently-used eviction
 def _join_meet(X, Y):
     X, Y = norm(X), norm(Y)
     if X == (0, 0, 0): return (X, Y)
@@ -78,6 +82,7 @@ def _join_meet(X, Y):
         return (jn, mt)
 
 # Check whether X is marginally softer than Y
+@lru_cache(maxsize=None)
 def marginal_softer(X, Y):
     X, Y = norm(X), norm(Y)
     if eq(X, Y): return False
@@ -86,8 +91,7 @@ def marginal_softer(X, Y):
     return X[0] <= Y[0] + Y[1]
 
 
-# Join of a list of modes -- the softest mode that is harder than (or equal to) all of them
-# (None entries are skipped; empty list -> H).
+# Join of a list of modes -- the softest mode that is harder than (or equal to) all of them.
 def vee(modes):
     modes = [m for m in modes if m is not None]
     if not modes:
@@ -98,7 +102,7 @@ def vee(modes):
     return norm(acc)
 
 
-# Scaling exponent v_e = -(2m + n) = -V(md) of edge mode md (x_e ~ lambda^{v_e}, lambda = expansion parameter).
+# Scaling exponent v_e = -(2m + n) = -V(md) of edge mode md (x_e ~ lambda^{v_e}, lambda -- the expansion parameter).
 def scaling_of(md):
     return 0 if md is None else -V(md)
 
@@ -134,8 +138,7 @@ def vertex_mode(g, edge_modes, v, EXTMODE):
     return norm(acc)
 
 
-# Spanning tree of (verts, edge_list) avoiding the skip set (edge indices); None if no such tree exists
-# (the skip set contains a bridge / disconnects the graph).
+# Spanning tree of (verts, edge_list) avoiding the skip set (edge indices); None if no such tree exists.
 def spanning_tree(verts, edge_list, skip):
     parent = {v: v for v in verts}
     # union-find: find, with path compression.
@@ -149,7 +152,7 @@ def spanning_tree(verts, edge_list, skip):
         ra, rb = find(a), find(b)
         if ra != rb:
             parent[ra] = rb
-    # Kruskal: add every non-skipped edge that joins two different components.
+    # Kruskal algorithm: add every non-skipped edge that joins two different components.
     tree = []
     for i, (a, b) in enumerate(edge_list):
         if i in skip or a == b:
@@ -165,7 +168,6 @@ def spanning_tree(verts, edge_list, skip):
 
 
 # 1VI components of (verts, edges): bridges = single-edge blocks, self-loops / isolated vertices = single-vertex blocks (Tarjan).
-# The Regge side uses the same decomposition for γ̃_X — 1VI blocks instead of filtering.
 def find_1vi_blocks(verts, edges):
     # self-loops are single-vertex blocks.
     loops = [(a, b) for (a, b) in edges if a == b]

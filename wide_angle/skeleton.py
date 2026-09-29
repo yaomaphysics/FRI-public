@@ -302,7 +302,7 @@ def _check_combo(verts, edges_t, g, ext_attach, ext_mode, combo, seen_vm=None):
             vm[v] = norm(acc)
     if seen_vm is not None:
         # Key = vm mapping in fixed vertex order (tuple builds/hashes cheaper than a frozenset of pairs; 2026-09-22).
-        key_m = tuple(vm[v] for v in verts)
+        key_m = tuple([vm[v] for v in verts])
         if key_m in seen_vm:
             return None
         seen_vm.add(key_m)
@@ -507,7 +507,7 @@ def _run_k0_union(verts, edges, ext_attach, ext_mode, verbose=True, vm_dedup=Tru
                     continue
                 vm, em = r
                 # fixed-order tuple key (2026-09-22; same dedup semantics)
-                key = tuple(vm[v] for v in V)
+                key = tuple([vm[v] for v in V])
                 if key not in regions:
                     regions[key] = (vm, em)
     dt = time.time() - t0
@@ -518,6 +518,8 @@ def _run_k0_union(verts, edges, ext_attach, ext_mode, verbose=True, vm_dedup=Tru
 
 def run(verts, edges, ext_attach, ext_mode, verbose=True, use_overlap=True, use_route=True, overlap_strict=True, overlap_strong=True, overlap_level=True, cfg_out=None, allow_soft=True, vm_dedup=True):
     t0 = time.time()
+    _DBG_OVL = bool(os.environ.get('FRI_DEBUG_OVL'))
+    _DBG_ROUTE = bool(os.environ.get('FRI_DEBUG_ROUTE'))
     # Soft externals: supported since the 2026-09-20 spec; validated against the soft corpora (464/464); allow_soft kept for backward compatibility (no-op).
     # k0: always the union construction (single-path route removed 2026-09-20).
     r = _run_k0_union(verts, edges, ext_attach, ext_mode, verbose=verbose, vm_dedup=vm_dedup)
@@ -697,13 +699,18 @@ def run(verts, edges, ext_attach, ext_mode, verbose=True, use_overlap=True, use_
                     # UNLESS it coincides (as a vertex set) with the C_i^m cut of the same leg (which cannot happen when m = inf).
                     # Overlap = a shared vertex, or an edge with endpoints in the two cuts respectively.
                     ok_ov = True
+                    _deep = {}
+                    for _c2, _S2, _m2 in assign:
+                        _k2 = (_c2.ext, _m2)
+                        if _c2.mode[1] > _deep.get(_k2, -1):
+                            _deep[_k2] = _c2.mode[1]
                     for cut, S, m in assign:
                         nm = cut.ext
                         md = ext_mode[nm]
                         if md[0] != 0:
                             continue          # only C_i^m-type externals
                         if cut.mode[1] < md[1]:  # n < m
-                            if any(c2.ext == nm and c2.mode[1] > cut.mode[1] and m2 == m for c2, S2, m2 in assign):
+                            if _deep.get((nm, m), -1) > cut.mode[1]:
                                 continue      # coincides with a deeper
                                 # Same-leg C_i^N cut (N > n) — 2026-09-20 (the former rule used only the m-level cut, impossible for m = inf).
                             if overlap_strong:
@@ -726,8 +733,9 @@ def run(verts, edges, ext_attach, ext_mode, verbose=True, use_overlap=True, use_
                                 ok_st = False
                                 dirs = list(by_dir.values())
                                 pair_or = 0
-                                for a_i in range(len(dirs)):
-                                    for b_i in range(a_i + 1, len(dirs)):
+                                _L = len(dirs)
+                                for a_i in range(_L):
+                                    for b_i in range(a_i + 1, _L):
                                         pair_or |= dirs[a_i] & dirs[b_i]
                                 if m & pair_or:
                                     ok_st = True
@@ -743,7 +751,7 @@ def run(verts, edges, ext_attach, ext_mode, verbose=True, use_overlap=True, use_
                                             break
                                 if not ok_st:
                                     ok_ov = False
-                                    if os.environ.get('FRI_DEBUG_OVL'):
+                                    if _DBG_OVL:
                                         print('OVL-STRONG-KILL %s %s S=%s assign=%s' % (nm, cut.name, sorted(S), [(c.name, sorted(ss)) for c, ss, _m2 in assign]), flush=True)
                                     break
                             else:
@@ -767,7 +775,7 @@ def run(verts, edges, ext_attach, ext_mode, verbose=True, use_overlap=True, use_
                             break
                     if not ok_rt:
                         n_route_kill += 1
-                        if os.environ.get('FRI_DEBUG_ROUTE'):
+                        if _DBG_ROUTE:
                             print('ROUTE-KILL H=%s assign=%s paths=%s' % (sorted(Hset), [(c.name, sorted(S)) for c, S, _m in assign], {n: sorted(P) for n, P in path_assign.items()}), flush=True)
                         continue
                 # Dedup AFTER the filters: the same cut-assignment can be reached under several path choices, and passing the route check may depend on that choice.
@@ -782,7 +790,7 @@ def run(verts, edges, ext_attach, ext_mode, verbose=True, use_overlap=True, use_
                     continue
                 vm, em = r
                 # fixed-order tuple key (2026-09-22; same dedup semantics)
-                key = tuple(vm[v] for v in V)
+                key = tuple([vm[v] for v in V])
                 if cfg_out is not None:
                     got = cfg_out.setdefault(key, [])
                     if len(got) < 200:

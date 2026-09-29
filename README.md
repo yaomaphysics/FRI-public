@@ -197,10 +197,10 @@ Cleared for now.
 
 1. **More checks are needed for the soft emission branch.**  This part is not well examined compared with the other branches. 1000+ further random diagrams should be included.
 
-**Open items — collinear 2→3 (`two_to_three`).**
+**Open items — collinear 2→3**
 
 Cleared for now.
 
 **Open items — regge**
 
-Cleared for now.
+The marginal-softer list needs update -- now S^1C2C24 is not regarded as marginally softer than C4C24, which may lead to errors at 5-loop level.

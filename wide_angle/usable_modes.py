@@ -1,37 +1,28 @@
 #!/usr/bin/env python3
-"""usable_modes.py — derive the usable internal modes from external modes
-+ IR compatibility, as an iterative closure (fixpoint).  2026-08-12.
+"""usable_modes.py — derive the usable internal modes from external modes + IR compatibility (see §5.2 of 2601.22144).
 
-This step runs BEFORE any region analysis: given only the external momentum
-modes and the IR-compatibility conditions (§5.2 of the paper), compute the
-set of internal modes that can possibly appear in a valid region of ANY
-graph with this kinematics.  It is a monotone fixpoint; the result is closed
-under the iteration.
+This step runs before the main steps (cut enumeration + region judgement) of the program.
 
-Mode-level IR-compatibility rules (each justified by the region-level
-conditions):
+[Motivation] Consider a form factor with on-shell external momenta p1 in the C1^2 mode and p2 in the C2^3 mode, then from the infrared-compatibility requirement, all the possible modes (at all loops) are:
+            H, C1^2, C2^3, S^2C2, which contains no C1 mode.
+            This implies that the C1 cut is not needed: we only need a C2^2 cut instead, which can save a lot of time.
+            To generalize, before doing region analysis, we first work out all the possibly appearing modes due to the infrared-compatiblity requirement, from which we discard those unnecessary cuts.
+
+To formulate --
+Mode-level IR-compatibility rules (each justified by 3 region-level conditions, see §5.2 of 2601.22144):
   R1 seeds: every external momentum confirms its own mode.
-  R2 cond 1 (partial sum): C_i^N + S^m flow -> C_i^m  (m < N strictly;
-     the lattice join join(C_i^N, S^m) = C_i^m, m < N).
-  R3 cond 3 (meet): the lattice meet of any two confirmed modes is confirmed
-     (covers SC_i^n = meet(C_j^a, C_i^b) and S^m = meet(C_i^m, C_j^m)).
-  R4 cond 2 (messenger): S^m is confirmable iff
-       (i)  m >= n0, where n0 = min level over the external modes
-            (level(C_i^n)=n, level(C_i^inf)=kappa, level(S^m C_i^n)=m) —
-            the kernel's level-m collinear targets C_i^m exist as
-            components only if a scale source at level m exists, and the
-            seeds are the only bootstrap; and
-       (ii) >= 3 distinct directions host collinear structures of depth
-            >= m (the messenger needs pairwise-distinct target directions).
+  R2 cond 1 (partial sum): C_i^N + S^m flow -> C_i^m  (m < N strictly; the lattice join join(C_i^N, S^m) = C_i^m, m < N).
+  R3 cond 3 (meet): the lattice meet of any two confirmed modes is confirmed (covers SC_i^n = meet(C_j^a, C_i^b) and S^m = meet(C_i^m, C_j^m)).
+  R4 cond 2 (messenger): S^m is confirmed infrared compatible if the following are both satified
+       (i)  m >= n0, where n0 = min level over the external modes level(C_i^n)=n, level(C_i^inf)=kappa, level(S^m C_i^n)=m)
+               — the kernel's level-m collinear targets C_i^m exist as components only if a scale source at level m exists, and the seeds are the only bootstrap;
+       (ii) >= 3 distinct directions host collinear structures of depth >= m (the messenger needs pairwise-distinct target directions).
 
-The dead-layer law is a THEOREM of these rules, not an input:
-levels below n0 are never generated (S^m with m < n0 fails R4, so R2 can
-never produce C_i^m with m < n0, so no level-<n0 mode is ever confirmed).
+The dead-layer: levels below n0 are never generated (S^m with m < n0 fails R4, so R2 can never produce C_i^m with m < n0, so no level-<n0 mode is ever confirmed).
 
-The result is the CONFIRMABLE set: a superset of what any specific graph
-realizes (realization is graph-dependent), and a subset of all algebraically
-possible modes.  It is exactly what layer compression should use.
+The result is the set containing all possible modes.
 """
+
 from primitives import norm, join, meet
 from read_graph import INF  # pipeline INF = 100 (C^inf/SC^inf marker)
 
@@ -103,14 +94,12 @@ def derive_usable_modes(ext_mode, kappa):
                 continue
             # Anchor: an external mode whose own level is EXACTLY m — a level-m collinear target must have an independent source (an external C_i^m, or an S^m/S^mC_i^n feeding the kernel).
             # Without it, the messenger's targets would all depend on S^m itself: pure circularity, no scale source.
-            # (2026-08-12: case3 S^3 has no level-3 external -> dead.)
             anchored = any(external_level(md, kappa) == m for md in ext_mode.values())
             if not anchored:
                 continue
             # Target directions, either:
             #   (a) collinear depth >= m  (kernel/member targets C_i^{n'}), or
             #   (b) an SC/S external S^{m'}C_i^{n'} with m' < m <= m' + n' — its own mode is a messenger target (m_i = m - m', n_i = n' - m_i >= 0).
-            #       Example: CheesePizza k1 S^2 uses l1 = S^1C_4^1 as its 3rd direction (2026-08-12).
             nd = 0
             for i in dirs:
                 if depth_of(ext_mode, kappa, i) >= m:

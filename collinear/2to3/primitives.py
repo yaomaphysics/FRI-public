@@ -697,7 +697,7 @@ def marginally_softer23(src, dst):
         return False
     if isC(src) and isS(dst):
         # soft-carrier -> pure soft: S^m X -> S^m (added 2026-09-23; was missing).
-        # Matches wide_angle.primitives.marginal_softer and the regge MARGINAL_SOFTER
+        # Matches wide_angle.primitives.marginal_softer and the regge marginal rule
         # rows ('S^1C13','S'), ('S^1C24','S'), ('S^1C1C13','S'), ('S^2C13','S^2')
         # (all reduce to: carrier soft power == target soft power).
         # (R066_v12 k3: without this branch the S#0 block could not be confirmed.)
