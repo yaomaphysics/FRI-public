@@ -53,19 +53,25 @@ def build_overlay(edges, verts, ext_attach, ext_mode, cuts, vm_seen=None):
     # every downstream check depends only on (em, vm) => the outcome is a
     # function of vm alone; a repeated vm can return early (before the edge
     # meets and all checks).  Callers pass a per-enumeration set.
+    # per-vertex meets built in one pass over the cuts; the vertex loop
+    # below just reads them off
+    acc_map = {}
+    for nm, S in cuts.items():
+        if not S:
+            continue
+        m = CUT_MODES[nm]
+        for v in S:
+            acc = acc_map.get(v)
+            if acc is None:
+                acc_map[v] = m
+            else:
+                try:
+                    acc_map[v] = meet23(acc, m)
+                except ArithmeticError as e:
+                    return None, f'meet23:{e}'
     vm = {}
     for v in verts:
-        acc = None
-        for nm, S in cuts.items():
-            if S and v in S:
-                m = CUT_MODES[nm]
-                if acc is None:
-                    acc = m
-                else:
-                    try:
-                        acc = meet23(acc, m)
-                    except ArithmeticError as e:
-                        return None, f'meet23:{e}'
+        acc = acc_map.get(v)
         vm[v] = acc if acc is not None else H()
     if vm_seen is not None:
         # fast path (2026-09-22): fixed vertex order (callers pass the
@@ -184,7 +190,7 @@ def h_c23_connected_ok(edges, verts, em, vm):
 def uncovered_ok(edges, verts, cuts):
     covered_v = set()
     for nm, S in cuts.items():
-        if S: covered_v |= set(S)
+        if S: covered_v.update(S)  # in-place; no temporary set per cut
     hv = set(verts) - covered_v
     if not hv: return False
     he = [(a, b) for (a, b) in edges if a not in covered_v and b not in covered_v]

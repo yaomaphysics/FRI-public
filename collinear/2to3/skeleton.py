@@ -166,8 +166,8 @@ def _make_mk(verts):
 # candidate's key is the int tuple  masks[nm] for nm in _CUT_SLOTS
 _CUT_SLOTS = ('C23', 'C1', 'C4', 'C5', 'C1R1', 'C4R1', 'C5R1', 'C2R1', 'C3R1', 'C2R2', 'C3R2')
 
-# strong-overlap subject (leg, level) -> cut slot name
-_SUB_NM = {(1, 1): 'C1', (1, 2): 'C1R1', (4, 1): 'C4', (4, 2): 'C4R1', (5, 1): 'C5', (5, 2): 'C5R1', (2, 1): 'C2R1', (3, 1): 'C3R1'}
+# strong-overlap subject (leg, level) -> fixed-slot index into the mslot tuple (built per candidate)
+_SUB_IDX = {(1, 1): 1, (1, 2): 4, (4, 1): 2, (4, 2): 5, (5, 1): 3, (5, 2): 6, (2, 1): 7, (3, 1): 8}
 
 
 # refined_opts23 shape: empty + connected supersets of `root` inside base, avoiding `forbid`.
@@ -275,13 +275,22 @@ def enumerate_skelg(edges, verts, ext_attach, kin, use_overlap=True, overlap_str
     def run_checks(C1, C1R1, C4, C4R1, C5, C5R1, C2, C3, C23):
         nonlocal total_cand, dup_cuts, skip_emvm, n_overlap, n_vmdup
         total_cand += 1
-        cuts = {'C23': set(C23), 'C1': set(C1), 'C4': set(C4), 'C5': set(C5), 'C1R1': set(C1R1), 'C4R1': set(C4R1), 'C5R1': set(C5R1), 'C2R1': set(C2), 'C3R1': set(C3), 'C2R2': set(), 'C3R2': set()}
+        # cuts: shared references; every consumer only reads (no per-call copies)
+        cuts = {'C23': C23, 'C1': C1, 'C4': C4, 'C5': C5, 'C1R1': C1R1, 'C4R1': C4R1, 'C5R1': C5R1, 'C2R1': C2, 'C3R1': C3, 'C2R2': frozenset(), 'C3R2': frozenset()}
         # fast path (2026-09-22): bitmasks for the fixed cut slots; mk is
         # cached per frozenset, so recurring partner cuts cost a dict lookup
-        masks = {'C23': mk(C23), 'C1': mk(C1), 'C4': mk(C4), 'C5': mk(C5), 'C1R1': mk(C1R1), 'C4R1': mk(C4R1), 'C5R1': mk(C5R1), 'C2R1': mk(C2), 'C3R1': mk(C3), 'C2R2': 0, 'C3R2': 0}
-        # fast path (2026-09-22): fixed-slot mask array as the dedup key
+        # per-candidate masks as plain locals (consumed by the dedup key and
+        # the level-mask table below)
+        mC23 = mk(C23); mC1 = mk(C1); mC4 = mk(C4); mC5 = mk(C5)
+        mC1R1 = mk(C1R1); mC4R1 = mk(C4R1); mC5R1 = mk(C5R1)
+        mC2 = mk(C2); mC3 = mk(C3)
+        # fast path (2026-09-22): fixed-slot mask tuple as the dedup key
         # (was: sorted (name, sorted-set-tuple) pairs — same equality classes)
-        ck = tuple(masks[nm] for nm in _CUT_SLOTS)
+        mslot = (mC23, mC1, mC4, mC5, mC1R1, mC4R1, mC5R1, mC2, mC3, 0, 0)
+        ck = mslot
+        # partner-mask table: lvlmsk[j][p-1] = direction-j cut mask at total C-power p (p in {1, 2})
+        lvlmsk = (None, (mslot[1], mslot[4]), (mslot[0], mslot[7]),
+                  (mslot[0], mslot[8]), (mslot[2], mslot[5]), (mslot[3], mslot[6]))
         if ck in cuts_seen:
             dup_cuts += 1
             return
@@ -312,12 +321,6 @@ def enumerate_skelg(edges, verts, ext_attach, kin, use_overlap=True, overlap_str
             # bitmasks — "shares a vertex with T1 and T2" <=> mSx & mT1 & mT2
             # Direction-j cut with total C-power p (same naming as before: C_j^p for wide j=1,4,5; C_j^{p-1}C23 for pair j=2,3,
             # p=1 -> C23), returned as a bitmask.
-            def _lvl_mask(j, p):
-                if not (1 <= p <= 2):
-                    return None
-                nm = {1: ('C1', 'C1R1'), 4: ('C4', 'C4R1'), 5: ('C5', 'C5R1'), 2: ('C23', 'C2R1'), 3: ('C23', 'C3R1')}[j][p - 1]
-                return masks[nm]
-
             for i, n, Sx in subs:
                 if overlap_strong:
                     # strengthened (2026-09-19): a vertex shared by
@@ -325,18 +328,18 @@ def enumerate_skelg(edges, verts, ext_attach, kin, use_overlap=True, overlap_str
                     # directions, both of total C-power p = n (wide) /
                     # n+1 (pair).  Overlap = shared vertex only.
                     p = n  # partners at total C-power n (2026-09-19: the n+1 was a slip)
-                    mSx = masks[_SUB_NM[(i, n)]]
+                    mSx = mslot[_SUB_IDX[(i, n)]]
                     ok = False
                     for j1 in (1, 2, 3, 4, 5):
                         if j1 == i:
                             continue
-                        mT1 = _lvl_mask(j1, p)
+                        mT1 = lvlmsk[j1][p - 1]
                         if not mT1:
                             continue
                         for j2 in (1, 2, 3, 4, 5):
                             if j2 == i or j2 == j1:
                                 continue
-                            mT2 = _lvl_mask(j2, p)
+                            mT2 = lvlmsk[j2][p - 1]
                             if not mT2:
                                 continue
                             if mSx & mT1 & mT2:
@@ -493,6 +496,11 @@ def enumerate_skelg(edges, verts, ext_attach, kin, use_overlap=True, overlap_str
                 C5s = (_conn_sets(a5, Vset - Hset - a1 - a2 - a3 - a4, adj) if S5 is not None else [frozenset()])
                 if not C5s:
                     continue
+                # refined levels depend only on the cut; precompute the maps
+                # once, reuse across all combinations below
+                L1map = ({C1: _refined_opts(roots['p1'], C1, extv - {roots['p1']}, adj) for C1 in C1s} if LEVELS['p1'] else {C1: [frozenset()] for C1 in C1s})
+                L4map = ({C4: _refined_opts(roots['p4'], C4, extv - {roots['p4']}, adj) for C4 in C4s} if LEVELS['p4'] else {C4: [frozenset()] for C4 in C4s})
+                L5map = ({C5: _refined_opts(roots['p5'], C5, extv - {roots['p5']}, adj) for C5 in C5s} if LEVELS['p5'] else {C5: [frozenset()] for C5 in C5s})
                 if S2 is not None or S3 is not None:
                     for C23 in _c23_opts(a2 | a3, Vset - Hset - a1 - a4 - a5, v2r, v3r, adj):
                         D = frozenset(set(C23) - a2 - a3)
@@ -507,27 +515,21 @@ def enumerate_skelg(edges, verts, ext_attach, kin, use_overlap=True, overlap_str
                                 T = frozenset(br3[j:])
                                 C3s.update(_conn_sets(T, T | D, adj))
                         for C1 in C1s:
-                            L1o = (_refined_opts(roots['p1'], C1, extv - {roots['p1']}, adj) if LEVELS['p1'] else [frozenset()])
-                            for L1 in L1o:
+                            for L1 in L1map[C1]:
                                 for C4 in C4s:
-                                    L4o = (_refined_opts(roots['p4'], C4, extv - {roots['p4']}, adj) if LEVELS['p4'] else [frozenset()])
-                                    for L4 in L4o:
+                                    for L4 in L4map[C4]:
                                         for C5 in C5s:
-                                            L5o = (_refined_opts(roots['p5'], C5, extv - {roots['p5']}, adj) if LEVELS['p5'] else [frozenset()])
-                                            for L5 in L5o:
+                                            for L5 in L5map[C5]:
                                                 for C2 in C2s:
                                                     for C3 in C3s:
                                                         run_checks(C1, L1, C4, L4, C5, L5, C2, C3, C23)
                 else:
                     for C1 in C1s:
-                        L1o = (_refined_opts(roots['p1'], C1, extv - {roots['p1']}, adj) if LEVELS['p1'] else [frozenset()])
-                        for L1 in L1o:
+                        for L1 in L1map[C1]:
                             for C4 in C4s:
-                                L4o = (_refined_opts(roots['p4'], C4, extv - {roots['p4']}, adj) if LEVELS['p4'] else [frozenset()])
-                                for L4 in L4o:
+                                for L4 in L4map[C4]:
                                     for C5 in C5s:
-                                        L5o = (_refined_opts(roots['p5'], C5, extv - {roots['p5']}, adj) if LEVELS['p5'] else [frozenset()])
-                                        for L5 in L5o:
+                                        for L5 in L5map[C5]:
                                             run_checks(C1, L1, C4, L4, C5, L5, frozenset(), frozenset(), frozenset())
 
     info = {'dup_cuts': dup_cuts, 'skip_emvm': skip_emvm, 'overlap_kill': n_overlap, 'vm_dup': n_vmdup}

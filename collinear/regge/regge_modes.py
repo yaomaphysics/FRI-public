@@ -81,13 +81,12 @@ products, and the separation is enforced by *ordering in time*, not by fiat:
 
   regge_core._build_region does
      (1) overlay construction  vm from the cuts, em[e] = meet(vm[u], vm[v])  <- L only
-     (2) glauber_adjust  assigns G, then recomputes vm with vee   <- sees G
-     (3) necklace_detect assigns sH, then _recompute_vm            <- sees sH
+     (2) glauber_adjust  assigns G and sH, then recomputes vm with vee   <- sees G/sH
 
   => meet NEVER sees G or sH          (dead table entries; the correction
                                        MEET(G,C13)=C13 is pure cleanup)
-  => join sees G in step (2) and sH in step (3), but by then an sH vertex has only
-     sH/G neighbours, so join(sH, family mode) is vacuous too.
+  => join sees G/sH only inside step (2)'s vm recomputation, but by then an sH vertex
+     has only sH/G neighbours, so join(sH, family mode) is vacuous too.
 
 This is why join(C13, C24) = H survives: that join happens in step (1), before
 sH exists.  As a *poset* L u {G, sH} is fine, but L is not a join-sublattice
@@ -269,17 +268,17 @@ def to_mode(name: str) -> Mode:
 
 
 # regge_core-facing meet (string in, string out). meet must NEVER see G/sH in the regge_core pipeline (they are
-# assigned only afterwards, by glauber_adjust / necklace_detect), so this is the enforcement point.
+# assigned only afterwards, by glauber_adjust), so this is the enforcement point.
 def old_meet(a: str, b: str) -> str:
     if a in SPECIAL or b in SPECIAL:
         raise AssertionError(
             f'meet called with G/sH: ({a}, {b}). G/sH are overlay products '
             'and must not reach the lattice-only code paths '
-            '(the overlay construction runs before glauber_adjust / necklace_detect).')
+            '(the overlay construction runs before glauber_adjust).')
     return to_old(meet(to_mode(a), to_mode(b)))
 
 
-# regge_core-facing join (string in, string out). G/sH are legal here: glauber_adjust / necklace_detect recompute
+# regge_core-facing join (string in, string out). G/sH are legal here: glauber_adjust recomputes
 # vertex modes with vee.
 def old_join(a: str, b: str) -> str:
     return to_old(join(to_mode(a), to_mode(b)))
@@ -375,7 +374,7 @@ def _chain_meet(a, b):
     return a if a in SPECIAL else b
 
 
-# Harder of the two under the chain (reachable: the vm recomputation in glauber_adjust / necklace_detect).
+# Harder of the two under the chain (reachable: the vm recomputation in glauber_adjust).
 def _chain_join(a, b):
     if a == b:
         return a
@@ -390,7 +389,7 @@ def _chain_join(a, b):
 def assert_family(*modes):
     bad = [m for m in modes if m in SPECIAL]
     if bad:
-        raise AssertionError(f'G/sH reached a lattice-only code path: {bad}. Vertex-mode joins must run before glauber_adjust / necklace_detect.')
+        raise AssertionError(f'G/sH reached a lattice-only code path: {bad}. Vertex-mode joins must run before glauber_adjust.')
 
 
 # ------------------------------------------------------------- meet / join

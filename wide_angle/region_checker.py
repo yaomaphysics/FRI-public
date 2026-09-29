@@ -18,6 +18,7 @@ For more details, it is recommended to read the relevant sections of 2601.22144.
 The pipeline checks used by the enumerators (check_fc / momentum_ok / ir_ok_blocks) live here next to the conditions they implement;
 the shared base layer (mode algebra, graph and component machinery) is in primitives.py.
 """
+
 from collections import defaultdict, deque
 from itertools import combinations
 from primitives import (V, eq, harder_or_eq, join, meet, marginal_softer, find_1vi_blocks, vee, vertex_mode, H)

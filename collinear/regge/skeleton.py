@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""skeleton.py — skeleton cut enumerator for the Regge 2->2 FRI.
+"""skeleton.py — region enumerators for the Regge 2->2 FRI: the skeleton engine (skel_regions, skel_regions_k1) and the FRI enumerators (fri_regions_full, fri_regions_onshell, fri_regions_offshell).
 
 Promoted from the private prototype `dev_regge_skel.py` (2026-09-22).
 
@@ -40,7 +40,7 @@ sys.path.insert(0, HERE)
 import regge_core as R                                        # noqa: E402
 from regge_graphs import GRAPHS, KIN, EXT_ATTACHES            # noqa: E402
 from regge_graphs import DEFAULT_EXT_ATTACH as EXT_ATTACH     # noqa: E402
-from primitives import (conn_sets, comp_sets, connected, refined_opts, ext_m,
+from primitives import (conn_sets, comp_sets, components, connected, refined_opts, ext_m,
                         possibly_softest, meet, to_scaling, clear_graph_caches)  # noqa: E402
 
 FS = frozenset
@@ -595,6 +595,284 @@ def skel_regions_k1(edges, verts, ext_attach, ext_mode, use_overlap=True):
     return regs, cnt, ('L=%d' % L,)
 
 
+# ------------------------- FRI enumerators -------------------------
+
+# Cut representations are NOT unique: any SC region also has a representative with an SC vertex in ALL nonempty cuts
+# (same em/scaling), so combinations without such a vertex are pruned — a lifted combination gives the same region.
+
+# Whether some vertex lies in all nonempty cuts (the SC vertex; needed when refinements are present).
+def has_sc_vertex(cut_sets):
+    nonempty = [s for s in cut_sets.values() if s]
+    if not nonempty:
+        return False
+    inter = nonempty[0]
+    for s in nonempty[1:]:
+        inter = inter & s
+    return bool(inter)
+
+# Enumerate all regions of the Regge 2->2 kinematics; dispatches to the on/off-shell enumerator by the external modes.
+def fri_regions_full(edges, verts, ext_attach, ext_mode, M=1, verbose=False):
+    # (M: kept for backward compatibility, unused)
+    ms = {n: ext_m(ext_mode.get(n)) for n in ext_attach}
+    # all lightlike -> on-shell enumerator (refinement depth by loop count)
+    if all(m is None for m in ms.values()):
+        return fri_regions_onshell(edges, verts, ext_attach, ext_mode, verbose=verbose)
+    # off-shell: ext_m gives 𝒱 = m+1 (C13 -> 1), possibly_softest needs m — convert back
+    ms_m = {n: (None if v is None else v - 1) for n, v in ms.items()}
+    return fri_regions_offshell(edges, verts, ext_attach, ext_mode, ms_m, verbose=verbose)
+
+# k1 enumerator (all externals lightlike): refinement depth decided by the LOOP COUNT instead of possibly_softest.
+def fri_regions_onshell(edges, verts, ext_attach, ext_mode, verbose=False):
+    v1, v3 = ext_attach['p1'], ext_attach['p3']
+    v2, v4 = ext_attach['p2'], ext_attach['p4']
+    forbid13 = {v2, v4}; forbid24 = {v1, v3}
+    inner = set(verts) - set(ext_attach.values())
+    L = len(edges) - len(verts) + 1
+    # depth: first-power refined cuts from L >= 3; both sides + S²C branches from L >= 5
+    use_refined = L >= 3
+    # C_ij cut candidates (lightlike kinematics): connected sets containing BOTH va and vb; empty set = no cut.
+    def opts(va, vb, forbid):
+        base = ({va, vb} | inner) - forbid
+        out = [frozenset()]
+        rest = list(base - {va, vb})
+        for r in range(len(rest) + 1):
+            for sub in combinations(rest, r):
+                S = frozenset({va, vb} | set(sub))
+                if connected(S, edges):
+                    out.append(S)
+        return out
+
+    O13 = opts(v1, v3, forbid13)
+    O24 = opts(v2, v4, forbid24)
+    regs = []
+    seen = set()
+    for cut13 in O13:
+        for cut24 in O24:
+            # H-vertex pruning: every region has a vertex outside all cuts
+            if cut13 | cut24 >= set(verts):
+                continue
+            # L >= 5: full two-sided refinement with S²C branches (below: the L < 5 loop)
+            if use_refined and L >= 5:
+                r1 = refined_opts(edges, v1, cut13, {v2, v3, v4})
+                r3 = refined_opts(edges, v3, cut13, {v1, v2, v4})
+                r2 = refined_opts(edges, v2, cut24, {v1, v3, v4})
+                r4 = refined_opts(edges, v4, cut24, {v1, v2, v3})
+                inner = set(verts) - set(ext_attach.values())
+                verts_set = set(verts)
+                e_set = set(edges) | set((b, a) for (a, b) in edges)
+                # 3-regular check: degree-3 vertices (external legs counted) tighten the Cond-1/2/3 H requirement to >=2 edge-connected H vertices
+                reg3 = all(sum(1 for (a, b) in edges if a == v or b == v) + sum(1 for n, vv in ext_attach.items() if vv == v) == 3 for v in verts)
+                # layered pruning: an SC/S²C vertex must lie in ALL nonempty cuts; I0 = main-cut intersection (empty cut = full set)
+                I0 = (cut13 if cut13 else verts_set) & (cut24 if cut24 else verts_set)
+                # pure main-cut combos (all refinements empty) always run — the source of the non-SC regions
+                reg = R._build_region(edges, verts, ext_attach, ext_mode, cut13, cut24, frozenset(), frozenset(), frozenset(), frozenset())
+                if reg is not None:
+                    key = (tuple(reg[1]), tuple(sorted(reg[0].items())))
+                    if key not in seen:
+                        seen.add(key)
+                        regs.append((set(cut13), set(cut24), frozenset(), frozenset(), frozenset(), frozenset(), reg[0], reg[1]))
+                if not I0:
+                    # no possible SC/S²C vertex: prune the refinement subtree (k1-only pruning)
+                    continue
+                for cut1 in r1:
+                    for cut3 in r3:
+                        # I1: intersection after the 13-side refinements; empty ⟹ skip cut2/cut4 entirely
+                        I1 = I0 & (cut1 if cut1 else verts_set) & (cut3 if cut3 else verts_set)
+                        if not I1:
+                            continue
+                        for cut2 in r2:
+                            for cut4 in r4:
+                                # all-empty refinement = pure main cut (already run above)
+                                if not (cut1 or cut3 or cut2 or cut4):
+                                    continue
+                                # I2 = intersection of ALL nonempty cuts (Cond-1 v); I2x4/I2x2 = minus C4C24/C2C24 (Cond-2/3 v); I2x3/I2x1 = branch-24 Cond-2/3 (minus C3C13/C1C13)
+                                I2 = I1 & (cut2 if cut2 else verts_set) & (cut4 if cut4 else verts_set)
+                                I2x4 = I1 & (cut2 if cut2 else verts_set)
+                                I2x2 = I1 & (cut4 if cut4 else verts_set)
+                                I2x3 = I0 & (cut1 if cut1 else verts_set) & (cut2 if cut2 else verts_set) & (cut4 if cut4 else verts_set)
+                                I2x1 = I0 & (cut3 if cut3 else verts_set) & (cut2 if cut2 else verts_set) & (cut4 if cut4 else verts_set)
+                                if not (I2 or I2x4 or I2x2 or I2x3 or I2x1):
+                                    continue
+                                # H-vertex pruning after refinements
+                                if cut13 | cut24 | cut1 | cut3 | cut2 | cut4 >= verts_set:
+                                    continue
+                                # branch 0: no second-power refinement (first-power SC regions)
+                                reg = R._build_region(edges, verts, ext_attach, ext_mode, cut13, cut24, cut1, cut3, cut2, cut4)
+                                if reg is not None:
+                                    key = (tuple(reg[1]), tuple(sorted(reg[0].items())))
+                                    if key not in seen:
+                                        seen.add(key)
+                                        regs.append((set(cut13), set(cut24), set(cut1), set(cut3), set(cut2), set(cut4), reg[0], reg[1]))
+                                # branch 13: S²C13 target — any one of Cond 1/2/3 suffices:
+                                #   Cond 1: v ∈ I2 adjacent to an SC24 vertex;  Cond 2: v ∈ I2x4 adjacent to C2C24\C13;
+                                #   Cond 3: v ∈ I2x2 adjacent to C4C24\C13.  C1²C13 := C1C13, C3²C13 := C3C13;
+                                #   under 3-regularity the H part needs >=2 edge-connected vertices.
+                                if (cut1 or cut3):
+                                    u13 = [u for u in inner if u in cut2 and u in cut4 and u in cut13 and u not in cut1 and u not in cut3]
+                                    if u13:
+                                        hv13 = verts_set - (cut13 | cut24 | cut1 | cut3 | cut2 | cut4)
+                                        h_ok = (not reg3) or any(a in hv13 and b in hv13 for (a, b) in edges)
+                                        if h_ok:
+                                            ok13 = any((u, v) in e_set for u in u13 for v in I2)
+                                            if not ok13:
+                                                # Cond 2: v in all but C4C24
+                                                ok13 = bool(I2x4) and any((w, v) in e_set for w in (cut2 - cut13) for v in I2x4)
+                                            if not ok13:
+                                                # Cond 3: v in all but C2C24
+                                                ok13 = bool(I2x2) and any((w, v) in e_set for w in (cut4 - cut13) for v in I2x2)
+                                            if ok13:
+                                                reg = R._build_region(edges, verts, ext_attach, ext_mode, cut13, cut24, cut1, cut3, cut2, cut4, cut1, cut3)
+                                                if reg is not None:
+                                                    key = (tuple(reg[1]), tuple(sorted(reg[0].items())))
+                                                    if key not in seen:
+                                                        seen.add(key)
+                                                        regs.append((set(cut13), set(cut24), set(cut1), set(cut3), set(cut2), set(cut4), reg[0], reg[1]))
+                                # branch 24: S²C24 target, symmetric:
+                                #   Cond 1: v ∈ I2 adjacent to an SC13 vertex;  Cond 2: v ∈ I2x3 adjacent to C1C13\C24;
+                                #   Cond 3: v ∈ I2x1 adjacent to C3C13\C24.  C2²C24 := C2C24, C4²C24 := C4C24.
+                                if (cut2 or cut4):
+                                    u24 = [u for u in inner if u in cut1 and u in cut3 and u in cut24 and u not in cut2 and u not in cut4]
+                                    if u24:
+                                        hv24 = verts_set - (cut13 | cut24 | cut1 | cut3 | cut2 | cut4)
+                                        h_ok = (not reg3) or any(a in hv24 and b in hv24 for (a, b) in edges)
+                                        if h_ok:
+                                            ok24 = any((u, v) in e_set for u in u24 for v in I2)
+                                            if not ok24:
+                                                # Cond 2: v in all but C3C13
+                                                ok24 = bool(I2x3) and any((w, v) in e_set for w in (cut1 - cut24) for v in I2x3)
+                                            if not ok24:
+                                                # Cond 3: v in all but C1C13
+                                                ok24 = bool(I2x1) and any((w, v) in e_set for w in (cut3 - cut24) for v in I2x1)
+                                            if ok24:
+                                                reg = R._build_region(edges, verts, ext_attach, ext_mode, cut13, cut24, cut1, cut3, cut2, cut4, None, None, cut2, cut4)
+                                                if reg is not None:
+                                                    key = (tuple(reg[1]), tuple(sorted(reg[0].items())))
+                                                    if key not in seen:
+                                                        seen.add(key)
+                                                        regs.append((set(cut13), set(cut24), set(cut1), set(cut3), set(cut2), set(cut4), reg[0], reg[1]))
+                continue
+            # 3 <= L < 5: 13-side and 24-side refinements, exclusive
+            for refine in ((0, 1, 2) if use_refined else (0,)):
+                r1 = r3 = r2 = r4 = [frozenset()]
+                if refine == 1 and use_refined:
+                    r1 = refined_opts(edges, v1, cut13, {v2, v3, v4})
+                    r3 = refined_opts(edges, v3, cut13, {v1, v2, v4})
+                elif refine == 2 and use_refined:
+                    r2 = refined_opts(edges, v2, cut24, {v1, v3, v4})
+                    r4 = refined_opts(edges, v4, cut24, {v1, v2, v3})
+                for cut1 in r1:
+                    for cut3 in r3:
+                        for cut2 in r2:
+                            for cut4 in r4:
+                                # all-empty refinement ≡ refine=0 (pure main cut, already built there)
+                                if refine != 0 and not (cut1 or cut3 or cut2 or cut4):
+                                    continue
+                                if refine != 0 and not has_sc_vertex({'C13': cut13, 'C24': cut24, 'C1C13': cut1, 'C3C13': cut3, 'C2C24': cut2, 'C4C24': cut4}):
+                                    continue
+                                if cut13 | cut24 | cut1 | cut3 | cut2 | cut4 >= set(verts):
+                                    continue
+                                reg = R._build_region(edges, verts, ext_attach, ext_mode, cut13, cut24, cut1, cut3, cut2, cut4)
+                                if reg is not None:
+                                    key = (tuple(reg[1]), tuple(sorted(reg[0].items())))
+                                    if key in seen:
+                                        continue
+                                    seen.add(key)
+                                    regs.append((set(cut13), set(cut24), set(cut1), set(cut3), set(cut2), set(cut4), reg[0], reg[1]))
+    return regs
+
+
+# Nested refinement towers for one external: S_1 ⊇ S_2 ⊇ ... with each level a connected subset containing root; empty stops deeper levels.
+def _refine_towers(edges, root, base, forbid, depth):
+    if depth <= 0:
+        yield ()
+        return
+    for cut1 in refined_opts(edges, root, base, forbid):
+        for rest in _refine_towers(edges, root, cut1, forbid, depth - 1):
+            yield (cut1,) + rest
+
+
+# Non-k1 enumerator: main cuts may be disconnected; refinement depth from possibly_softest (no loop-count gate).
+def fri_regions_offshell(edges, verts, ext_attach, ext_mode, ms, verbose=False):
+    v1, v3 = ext_attach['p1'], ext_attach['p3']
+    v2, v4 = ext_attach['p2'], ext_attach['p4']
+    forbid13 = {v2, v4}
+    forbid24 = {v1, v3}
+    inner = set(verts) - set(ext_attach.values())
+    verts_set = set(verts)
+    m1, m2, m3, m4 = ms['p1'], ms['p2'], ms['p3'], ms['p4']
+
+    # depth limits: possibly_softest(m_i) decides d13/d24 (both sides -> M each; single side -> M and M-1)
+    ps = possibly_softest(m1, m2, m3, m4)
+    if len(ps) == 2:                    # S^M C13 + S^M C24 simultaneously
+        d13 = d24 = int(ps[0].split('^')[1].split('C')[0])
+    else:                               # single candidate
+        Mside = int(ps[0].split('^')[1].split('C')[0])
+        if ps[0].endswith('C13'):
+            d13, d24 = Mside, Mside - 1
+        else:
+            d13, d24 = Mside - 1, Mside
+    if d13 > 2 or d24 > 2:
+        raise NotImplementedError(f"fri_regions_offshell: depth {max(d13, d24)} > 2 — meet/vee tables stop at C_i²C_ij (possibly_softest={ps}); extend the mode tables first.")
+
+    # C_ij cut candidates (off-shell): may be disconnected, but every connected component must contain va or vb —
+    # hard/Glauber vertices may stay outside all cuts (requirement 2 then holds automatically).
+    def opts(va, vb, forbid):
+        base = ({va, vb} | inner) - forbid
+        out = [frozenset()]
+        rest = list(base)
+        for r in range(len(rest) + 1):
+            for sub in combinations(rest, r):
+                S = frozenset(sub)
+                if not S:
+                    continue
+                es = [(a, b) for (a, b) in edges if a in S and b in S]
+                comp = components(es, S)
+                groups = {}
+                for v in S:
+                    groups.setdefault(comp[v], set()).add(v)
+                if all(va in c or vb in c for c in groups.values()):
+                    out.append(S)
+        return out
+
+    O13 = opts(v1, v3, forbid13)
+    O24 = opts(v2, v4, forbid24)
+
+    regs = []
+    seen = set()
+    for cut13 in O13:
+        for cut24 in O24:
+            # H-vertex prune (kinematics-independent): every region has a vertex in no cut
+            if cut13 | cut24 >= verts_set:
+                continue
+            T1 = list(_refine_towers(edges, v1, cut13, {v2, v3, v4}, d13))
+            T3 = list(_refine_towers(edges, v3, cut13, {v1, v2, v4}, d13))
+            T2 = list(_refine_towers(edges, v2, cut24, {v1, v3, v4}, d24))
+            T4 = list(_refine_towers(edges, v4, cut24, {v1, v2, v3}, d24))
+            for t1 in T1:
+                for t3 in T3:
+                    for t2 in T2:
+                        for t4 in T4:
+                            cut1 = t1[0] if len(t1) >= 1 else frozenset()
+                            cut1sq = t1[1] if len(t1) >= 2 else frozenset()
+                            cut3 = t3[0] if len(t3) >= 1 else frozenset()
+                            cut3sq = t3[1] if len(t3) >= 2 else frozenset()
+                            cut2 = t2[0] if len(t2) >= 1 else frozenset()
+                            cut2sq = t2[1] if len(t2) >= 2 else frozenset()
+                            cut4 = t4[0] if len(t4) >= 1 else frozenset()
+                            cut4sq = t4[1] if len(t4) >= 2 else frozenset()
+                            if (cut13 | cut24 | cut1 | cut3 | cut2 | cut4 | cut1sq | cut3sq | cut2sq | cut4sq) >= verts_set:
+                                continue
+                            reg = R._build_region(edges, verts, ext_attach, ext_mode, cut13, cut24, cut1, cut3, cut2, cut4, cut1sq, cut3sq, cut2sq, cut4sq)
+                            if reg is None:
+                                continue
+                            key = (tuple(reg[1]), tuple(sorted(reg[0].items())))
+                            if key in seen:
+                                continue
+                            seen.add(key)
+                            regs.append((set(cut13), set(cut24), set(cut1), set(cut3), set(cut2), set(cut4), reg[0], reg[1]))
+    return regs
+
+
 # ---------------------------- harness ----------------------------
 def run_case(name, kin, quiet=False):
     edges = [tuple(e) for e in GRAPHS[name]]
@@ -602,7 +880,7 @@ def run_case(name, kin, quiet=False):
     ext = EXT_ATTACHES.get(name, EXT_ATTACH)
     emk = KIN[kin]['ext_mode']
     t0 = time.perf_counter()
-    ref = R.fri_regions_full(edges, verts, ext, emk)
+    ref = fri_regions_full(edges, verts, ext, emk)
     t_ref = time.perf_counter() - t0
     t0 = time.perf_counter()
     if kin == 'k1':
