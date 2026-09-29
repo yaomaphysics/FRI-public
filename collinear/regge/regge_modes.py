@@ -80,22 +80,19 @@ They are NOT members of the lattice L = {S^m C_i^n C_ij}; they are overlay
 products, and the separation is enforced by *ordering in time*, not by fiat:
 
   regge_core._build_region does
-     (1) vertex modes  vm[v] = vee(incident em)         <- L only
-     (2) self-consistency  em[e] == meet(vm[u], vm[v])  <- L only, and the
-         comment at line 2576 says it explicitly: "Checked BEFORE
-         glauber_adjust (G is an adjustment product, not an overlay mode)"
-     (3) glauber_adjust  assigns G, then recomputes vm with vee   <- sees G
-     (4) necklace_detect assigns sH, then _recompute_vm            <- sees sH
+     (1) overlay construction  vm from the cuts, em[e] = meet(vm[u], vm[v])  <- L only
+     (2) glauber_adjust  assigns G, then recomputes vm with vee   <- sees G
+     (3) necklace_detect assigns sH, then _recompute_vm            <- sees sH
 
   => meet NEVER sees G or sH          (dead table entries; the correction
                                        MEET(G,C13)=C13 is pure cleanup)
-  => join sees G in step 3 and sH in step 4, but by then an sH vertex has only
+  => join sees G in step (2) and sH in step (3), but by then an sH vertex has only
      sH/G neighbours, so join(sH, family mode) is vacuous too.
 
-This is why join(C13, C24) = H survives: that join happens in step 1, before
+This is why join(C13, C24) = H survives: that join happens in step (1), before
 sH exists.  As a *poset* L u {G, sH} is fine, but L is not a join-sublattice
 of it (the lub of C13 and C24 in the bigger poset is sH), so the two must never
-be mixed in one call.  assert_family() below guards the step-1/2 code paths.
+be mixed in one call.  assert_family() below guards the overlay-construction code paths.
 """
 from __future__ import annotations
 
@@ -272,13 +269,13 @@ def to_mode(name: str) -> Mode:
 
 
 # regge_core-facing meet (string in, string out). meet must NEVER see G/sH in the regge_core pipeline (they are
-# assigned only after the self-consistency check), so this is the enforcement point.
+# assigned only afterwards, by glauber_adjust / necklace_detect), so this is the enforcement point.
 def old_meet(a: str, b: str) -> str:
     if a in SPECIAL or b in SPECIAL:
         raise AssertionError(
             f'meet called with G/sH: ({a}, {b}). G/sH are overlay products '
-            'and must not reach the lattice-only self-consistency check '
-            '(regge_core line ~2576: checked BEFORE glauber_adjust).')
+            'and must not reach the lattice-only code paths '
+            '(the overlay construction runs before glauber_adjust / necklace_detect).')
     return to_old(meet(to_mode(a), to_mode(b)))
 
 
@@ -316,6 +313,43 @@ def harder(a: Mode, b: Mode) -> bool:
     return softer(b, a)
 
 
+# x marginally softer than y: the sigma/V "strictly between" rule (matches the wide-angle and 2to3 forms).
+@lru_cache(maxsize=None)
+def marginal_softer(x: Mode, y: Mode) -> bool:
+    if x == y:
+        return False
+    if y.n == -1 and y.m == 0:                    # y = H: only bare collinear sources
+        return x.m == 0 and x.n >= 0
+    if x.n == -1 and x.m == 0:                    # x = H
+        return False
+    if x.n == -1:                                 # x = S^m: sigma equality
+        return x.sigma == y.sigma
+    if x.m == 0:                                  # bare collinear source: C_fam / C_i^n C_ij / C_i∞ C_ij
+        if y.fam != x.fam:
+            return False
+        if y.n == 0:                              # -> C_fam: only the bare carrier, strictly harder
+            return y.m == 0 and x.V > y.V
+        if y.n != INF and y.n >= 1 and y.m == 0:  # -> C_i^n C_ij (REF targets only)
+            if x.leg == y.leg:
+                return x.V > y.V
+            return x.V > y.V and y.n <= 1
+        return False
+    # soft-carrier source: S^m C_fam (m >= 1) or S^m C_i C_ij
+    if y.n == -1:                                 # -> S^m': soft powers equal
+        return y.m == x.m
+    if y.n == 0:                                  # -> C_fam': same family keeps m, cross family lowers by one
+        return y.m == x.m if y.fam == x.fam else y.m == x.m - 1
+    if y.n != INF and y.n >= 1:
+        if y.m == 0:                              # -> C_i^n C_ij
+            if y.fam == x.fam:
+                if x.n == 0:
+                    return y.n == x.m
+                return x.leg == y.leg and y.n == x.m + 1
+            return x.n == 0 and y.n + 1 == x.m
+        return x.n == 0 and y.fam == x.fam and y.sigma == x.m   # -> S^m' C_i C_ij
+    return False
+
+
 # ------------------------------------------------------- G / sH (overlay chain)
 G = 'G'                     # Glauber: the necklace string
 SH = 'sH'                   # semihard: the pearl between two G's
@@ -341,7 +375,7 @@ def _chain_meet(a, b):
     return a if a in SPECIAL else b
 
 
-# Harder of the two under the chain (reachable: step 3/4 vm recomputation).
+# Harder of the two under the chain (reachable: the vm recomputation in glauber_adjust / necklace_detect).
 def _chain_join(a, b):
     if a == b:
         return a
@@ -351,12 +385,12 @@ def _chain_join(a, b):
     return a if a in SPECIAL else b
 
 
-# Guard for the step-1/2 code paths (vertex modes and the em == vm/\vm self-consistency check): G/sH must not appear
+# Guard for the overlay-construction code paths (vertex-mode joins and edge-mode meets): G/sH must not appear
 # there, otherwise the lub of C13 and C24 would collapse to sH instead of H.
 def assert_family(*modes):
     bad = [m for m in modes if m in SPECIAL]
     if bad:
-        raise AssertionError(f'G/sH reached a lattice-only code path: {bad}. Vertex-mode joins and the em==meet(vm,vm) check must run before glauber_adjust / necklace_detect.')
+        raise AssertionError(f'G/sH reached a lattice-only code path: {bad}. Vertex-mode joins must run before glauber_adjust / necklace_detect.')
 
 
 # ------------------------------------------------------------- meet / join

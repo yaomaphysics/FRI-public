@@ -40,41 +40,13 @@ sys.path.insert(0, HERE)
 import regge_core as R                                        # noqa: E402
 from regge_graphs import GRAPHS, KIN, EXT_ATTACHES            # noqa: E402
 from regge_graphs import DEFAULT_EXT_ATTACH as EXT_ATTACH     # noqa: E402
+from primitives import (conn_sets, comp_sets, connected, refined_opts, ext_m,
+                        possibly_softest, meet, to_scaling, clear_graph_caches)  # noqa: E402
 
 FS = frozenset
 
 
 # ---------------------------- helpers ----------------------------
-# Connected supersets of req inside dom.
-def conn_sets(req, dom, edges):
-    req = set(req); dd = set(dom)
-    if not req <= dd:
-        return []
-    extras = sorted(dd - req); out = []
-    for r in range(len(extras) + 1):
-        for add in combinations(extras, r):
-            C = req | set(add)
-            if R.connected(C, edges):
-                out.append(FS(C))
-    return out
-
-
-# Supersets of req inside dom; every connected component contains va or vb.
-def comp_sets(req, dom, va, vb, edges):
-    req = set(req); dd = set(dom)
-    if not req <= dd:
-        return []
-    extras = sorted(dd - req); out = []
-    for r in range(len(extras) + 1):
-        for add in combinations(extras, r):
-            S = req | set(add)
-            comp = R.components(edges, S)
-            groups = {}
-            for v in S:
-                groups.setdefault(comp[v], set()).add(v)
-            if all(va in g or vb in g for g in groups.values()):
-                out.append(FS(S))
-    return out
 
 
 def enumerate_seqs(start, Gset, adj, Vset, extv, friends):
@@ -158,7 +130,7 @@ def towers(root, lvl1_opts, depth, forbid, edges):
         return [(s,) for s in lvl1_opts]
     t = [(s,) for s in lvl1_opts]
     for _ in range(depth - 1):
-        t = [chain + (s2,) for chain in t for s2 in R.refined_opts(edges, root, chain[-1], forbid)]
+        t = [chain + (s2,) for chain in t for s2 in refined_opts(edges, root, chain[-1], forbid)]
     return t
 
 
@@ -220,6 +192,7 @@ def overlap_ok(fam13, fam24, m):
 
 # ---------------------------- main enumerator ----------------------------
 def skel_regions(edges, verts, ext_attach, ext_mode, collect_configs=False):
+    clear_graph_caches() # start each case with empty graph-kernel memo tables
     verts = sorted(verts)
     E = [tuple(e) for e in edges]
     adj = {v: set() for v in verts}
@@ -244,10 +217,10 @@ def skel_regions(edges, verts, ext_attach, ext_mode, collect_configs=False):
         return [tuple((S, mk(S)) for S in ch) for ch in chs]
 
     # depths (mirror fri_regions_offshell)
-    ms = {n: R.ext_m(ext_mode.get(n)) for n in ext_attach}
+    ms = {n: ext_m(ext_mode.get(n)) for n in ext_attach}
     ms_m = {n: (None if v is None else v - 1) for n, v in ms.items()}
     m_int = {1: ms_m['p1'], 2: ms_m['p2'], 3: ms_m['p3'], 4: ms_m['p4']}
-    ps = R.possibly_softest(ms_m['p1'], ms_m['p2'], ms_m['p3'], ms_m['p4'])
+    ps = possibly_softest(ms_m['p1'], ms_m['p2'], ms_m['p3'], ms_m['p4'])
     if not ps:
         raise SystemExit('all-lightlike (k1): k1 engine not in this prototype')
     if len(ps) == 2:
@@ -264,7 +237,7 @@ def skel_regions(edges, verts, ext_attach, ext_mode, collect_configs=False):
     # level 2; legs 1/3 must be silenced here (mi <= 1) and 2/4 unchecked.
     l2quick = (d24 == 2 and m_int[1] is not None and m_int[1] <= 1 and m_int[3] is not None and m_int[3] <= 1 and m_int[2] is None and m_int[4] is None)
 
-    Gammas = [FS(S) for r in range(1, len(verts) + 1) for S in combinations(verts, r) if R.connected(set(S), E)]
+    Gammas = [FS(S) for r in range(1, len(verts) + 1) for S in combinations(verts, r) if connected(set(S), E)]
 
     cnt = dict(gamma=len(Gammas), combos=0, cov_kill=0, pair_overlap_kill=0, dup_cuts=0, ov_kill=0, skip_pre=0, build_none=0, out=0, l2_kill=0, shadow_bad=0, shadow_inv=0)
     found = {}
@@ -398,9 +371,9 @@ def skel_regions(edges, verts, ext_attach, ext_mode, collect_configs=False):
                                             acc = None
                                             for mstr, S in cuts:
                                                 if v in S:
-                                                    acc = mstr if acc is None else R.meet(acc, mstr)
+                                                    acc = mstr if acc is None else meet(acc, mstr)
                                             vm[v] = acc if acc is not None else 'H'
-                                        em = [R.meet(vm[a], vm[b]) for (a, b) in E]
+                                        em = [meet(vm[a], vm[b]) for (a, b) in E]
                                         pre = (tuple(em), tuple(vm.values()))
                                         if pre in seen_pre:
                                             cnt['skip_pre'] += 1
@@ -425,6 +398,7 @@ def skel_regions(edges, verts, ext_attach, ext_mode, collect_configs=False):
 # L>=5: first-power both sides + S^2C branches with the coincidences (squares := level 1), one side per build.
 # Prune mirror [2026-09-20 late]: has_sc_vertex (3<=L<5), I0/I1/I2-family gates, reg3, Cond-1/2/3 branch gates carry over.
 def skel_regions_k1(edges, verts, ext_attach, ext_mode, use_overlap=True):
+    clear_graph_caches() # start each case with empty graph-kernel memo tables
     verts = sorted(verts)
     E = [tuple(e) for e in edges]
     adj = {v: set() for v in verts}
@@ -444,7 +418,7 @@ def skel_regions_k1(edges, verts, ext_attach, ext_mode, use_overlap=True):
                 r |= bidx[v]
             mcache[S] = r
         return r
-    Gammas = [FS(S) for r in range(1, len(verts) + 1) for S in combinations(verts, r) if R.connected(set(S), E)]
+    Gammas = [FS(S) for r in range(1, len(verts) + 1) for S in combinations(verts, r) if connected(set(S), E)]
     cnt = dict(gamma=len(Gammas), combos=0, cov_kill=0, pair_overlap_kill=0, dup_cuts=0, ov_kill=0, skip_pre=0, build_none=0, out=0, hsc_kill=0, i0_kill=0, i2_kill=0, gate_kill=0)
     found = {}; seen_cuts = set(); seen_pre = set()
     m_inf = {1: None, 2: None, 3: None, 4: None}
@@ -484,9 +458,9 @@ def skel_regions_k1(edges, verts, ext_attach, ext_mode, use_overlap=True):
             acc = None
             for mstr, S in cuts:
                 if v in S:
-                    acc = mstr if acc is None else R.meet(acc, mstr)
+                    acc = mstr if acc is None else meet(acc, mstr)
             vm[v] = acc if acc is not None else 'H'
-        em = [R.meet(vm[a], vm[b]) for (a, b) in E]
+        em = [meet(vm[a], vm[b]) for (a, b) in E]
         pre = (tuple(em), tuple(vm.values()))
         if pre in seen_pre:
             cnt['skip_pre'] += 1
@@ -636,8 +610,8 @@ def run_case(name, kin, quiet=False):
     else:
         sk, cnt, depth = skel_regions(edges, verts, ext, emk)
     t_sk = time.perf_counter() - t0
-    ref_set = {R.to_scaling(r[7]) for r in ref}
-    sk_set = {R.to_scaling(r[7]) for r in sk}
+    ref_set = {to_scaling(r[7]) for r in ref}
+    sk_set = {to_scaling(r[7]) for r in sk}
     miss = ref_set - sk_set
     extra = sk_set - ref_set
     ok = not miss and not extra
@@ -650,14 +624,14 @@ def run_case(name, kin, quiet=False):
         print('   counters:', cnt, flush=True)
         for v in sorted(miss)[:3]:
             for r in ref:
-                if R.to_scaling(r[7]) == v:
+                if to_scaling(r[7]) == v:
                     print('   MISS ref cfg: C13=%s C24=%s C1=%s C3=%s C2=%s C4=%s' % (sorted(r[0]), sorted(r[1]), sorted(r[2]), sorted(r[3]), sorted(r[4]), sorted(r[5])), flush=True)
                     break
             else:
                 print('   MISS', v, flush=True)
         for v in sorted(extra)[:3]:
             for r in sk:
-                if R.to_scaling(r[7]) == v:
+                if to_scaling(r[7]) == v:
                     print('   EXTRA skel cfg: C13=%s C24=%s C1=%s C3=%s C2=%s C4=%s' % (sorted(r[0]), sorted(r[1]), sorted(r[2]), sorted(r[3]), sorted(r[4]), sorted(r[5])), flush=True)
                     break
     return ok, miss, extra, t_ref, t_sk

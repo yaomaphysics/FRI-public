@@ -42,7 +42,7 @@ import sys, os, time, re, signal
 BASE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, BASE)
 
-from regge_core import to_scaling, mode_components
+from primitives import to_scaling, mode_components
 from skeleton import skel_regions, skel_regions_k1   # pruned skeleton enumerators
 from regge_modes import to_mode          # mode strings are plain literals
                                          # ('C13', 'sH', ...) everywhere

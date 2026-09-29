@@ -61,7 +61,7 @@ import time
 
 BASE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, BASE)
-from regge_core import to_scaling
+from primitives import to_scaling
 
 EDGE_T = '0.0055'
 R_VERT = '0.010'

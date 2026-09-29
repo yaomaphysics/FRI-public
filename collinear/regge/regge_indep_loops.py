@@ -10,7 +10,7 @@ framework, with the semihard fix
     r_X = cycle rank of gamma~_X = sum over its 1VI blocks of
     (|E| - |V| + 1); basis = per block, complement of a spanning tree
     (contracted self-loops are always basis lines).  The 1VI blocks are
-    exactly regge_core.mode_components().
+    exactly primitives.mode_components().
 
   * semihard (sH): sH is an OVERLAY product, not a lattice mode.  The
     contracted-rank rule overcounts (two parallel sH edges between two G
@@ -35,68 +35,12 @@ import os, sys
 
 BASE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, BASE)
-from regge_core import mode_components
+from primitives import mode_components, find_1vi_blocks
 
 UNION = 'sH∪G'        # combined semihard unit: gamma_sH ∪ gamma_G
 
 
 # ---------------------------------------------------------------- graph tools
-# 1VI blocks of a MULTIGRAPH: self-loops become single-vertex blocks; parallel edges are distinguished by index.
-# Returns list of (vertex_set, edge_index_list) pairs.
-def find_1vi_blocks(verts, edges):
-    loops = [(i, e) for i, e in enumerate(edges) if e[0] == e[1]]
-    other = [(i, e) for i, e in enumerate(edges) if e[0] != e[1]]
-    other_map = dict(other)
-    out = []
-    for i, (a, b) in loops:
-        out.append(({a}, [i]))
-    adj = {v: [] for v in verts}
-    for i, (a, b) in other:
-        adj[a].append((b, i))
-        adj[b].append((a, i))
-    disc = {}
-    low = {}
-    t = 0
-    stack = []
-    blocks = []
-
-    def dfs(u, pe):
-        nonlocal t
-        disc[u] = low[u] = t
-        t += 1
-        for (w, ei) in adj[u]:
-            if ei == pe:
-                continue
-            if w not in disc:
-                stack.append(ei)
-                dfs(w, ei)
-                low[u] = min(low[u], low[w])
-                if low[w] >= disc[u]:
-                    blk = set()
-                    while True:
-                        e = stack.pop()
-                        blk.add(e)
-                        if e == ei:
-                            break
-                    blocks.append(blk)
-            elif disc[w] < disc[u]:
-                stack.append(ei)
-                low[u] = min(low[u], disc[w])
-
-    for v in verts:
-        if v not in disc:
-            dfs(v, -1)
-            if stack:
-                blocks.append(set(stack))
-                stack.clear()
-    for blk in blocks:
-        be = [other_map[i] for i in blk]
-        out.append(({v for e in be for v in e}, blk))
-    used = {v for bv, _ in out for v in bv}
-    for v in verts:
-        if v not in used:
-            out.append(({v}, []))
-    return out
 
 
 # Spanning tree of a connected block (aux included); returns (tree_edge_indices, basis_edge_indices) — basis = deleted edges.
