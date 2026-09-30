@@ -22,6 +22,20 @@ def marginally_softer(x1, x2):
         return False
     return regge_modes.marginal_softer(regge_modes.to_mode(x1), regge_modes.to_mode(x2))
 
+# Port-walk hardness test: mw >= X, with G hard, sH never, H only against non-H; else V(mw) <= V(X).
+def harder_or_eq(mw, X):
+    if mw == X:
+        return True
+    if X == 'H':
+        return False
+    if mw == 'H':
+        return True
+    if mw == 'G':
+        return True
+    if mw == 'sH' or X in ('G', 'sH'):
+        return False
+    return V(mw) <= V(X)
+
 # Virtuality of a mode string, from the name alone: 𝒱(S^m C_i^n C_ij) = 2m+n+1 (n=∞ → ∞); G/sH sentinels carry 𝒱 = 1.
 @lru_cache(maxsize=None)
 def V(key):
@@ -128,7 +142,7 @@ def to_scaling(em):
 
 # ============================ external momenta ============================
 
-def ext_mode_for(ext_attach, ext_mode, n):
+def ext_mode_for(ext_mode, n):
     if ext_mode is not None and n in ext_mode:
         return ext_mode[n]
     return {'p1': 'C1∞C13', 'p2': 'C2∞C24', 'p3': 'C3∞C13', 'p4': 'C4∞C24'}[n]

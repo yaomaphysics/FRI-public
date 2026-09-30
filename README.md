@@ -73,8 +73,9 @@ Two kinematics classes are implemented — **wide-angle** and **collinear** (tim
 - **Overlay.**  A configuration of cuts is overlaid on the graph: every vertex takes the meet of the modes of the cuts covering it (*H* if none), every edge the meet of its endpoints — yielding the momentum-space mode assignment (the scaling vector) of the candidate region.
 - **Filtering.**  Every subject cut must share vertices with partner cuts of other directions under the kinematics-specific overlap condition (in the layered refinements: two partner directions of matching total power); route exclusivity keeps every cut off the other legs' paths.
 - **Pruning and fast paths** (all designed to be behaviour-preserving; validated by old-vs-new A/B comparisons plus the cross-checks below):
-  - *bitmask fast path* (2026-09-22): cut sets are additionally carried as bitmasks, so dedup keys become fixed-slot integer arrays and the overlap/route tests become bit intersections — masks are cached per graph and computed once along a chain;
-  - *per-graph refinement levels* (2026-09-21): the cut-chain levels that can contribute are read off the mode first-appearance ladder ($L = E - V + 1$), so needless refinement levels are never enumerated;
+  - *bitmask fast path*: cut sets are additionally carried as bitmasks, so dedup keys become fixed-slot integer arrays and the overlap/route tests become bit intersections — masks are cached per graph and computed once along a chain;
+  - *memoisation* (Regge): the graph kernels used by both enumeration and judgment — connectivity, 1VI, connected components and 1VI-block finding — are cached by content and cleared between cases;
+  - *per-graph refinement levels*: the cut-chain levels that can contribute are read off the mode first-appearance ladder ($L = E - V + 1$), so needless refinement levels are never enumerated;
   - *layer compression* (wide-angle): only the usable cut layers are enumerated; higher towers collapse to their lower equivalent counts;
   - *chain-level early kills* (Regge skeleton): most candidates are rejected by count/level conditions before the full overlap test (validated against the overlap condition in shadow mode — zero mis-kills);
   - *deduplication*: candidates are deduplicated by cut set and by vertex-mode assignment; the verdict depends only on the vertex modes, so repeats are skipped cheaply.
@@ -87,7 +88,7 @@ Every surviving configuration is judged by the same chain of subgraph requiremen
 non-regions.
 The requirements are derived in [arXiv:2601.22144](https://arxiv.org/abs/2601.22144) for the wide-angle class; the collinear versions (Regge and the five-point 2→3 kinematics) follow the same cycle of subgraph conditions with the collinear mode algebra and will be presented in a forthcoming work.
 A non-region fails at a definite first check — that diagnosis is exactly what `scaleless_diagnosis.py` reports (wide-angle).
-The check implementations live in `wide_angle/region_checker.py`, `collinear/regge/regge_core.py` and `collinear/2to3/two_to_three.py`; the wide-angle mode algebra and graph machinery shared by the enumerator and the checker live in `wide_angle/primitives.py`.
+The check implementations live in `wide_angle/region_checker.py`, `collinear/regge/regge_core.py` and `collinear/2to3/two_to_three.py`; the wide-angle mode algebra and graph machinery shared by the enumerator and the checker live in `wide_angle/primitives.py`. The collinear sides keep analogous shared base layers in `collinear/2to3/primitives.py` and `collinear/regge/primitives.py`.
 
 ---
 
@@ -123,13 +124,8 @@ python3 collinear/regge/mode_levels.py --check
 python3 collinear/2to3/mode_levels.py --check
 ```
 
-Region finding needs no installation: everything runs on a stock Python 3
-(standard library only).  The optional region visualisation — option **4)**
-in the interactive enumerators (`[a]` single PDF atlas (default) / `[p]`
-one PNG per region) — additionally uses `wolframscript` (Wolfram Engine)
-for rendering, `gs` (ghostscript) or `pdfunite` (poppler-utils) for
-merging atlas pages, and `pdftotext` (poppler-utils) for the atlas font
-check.
+Region finding needs no installation: everything runs on a stock Python 3 (standard library only).
+The optional region visualisation additionally uses `wolframscript` (Wolfram Engine) for rendering, `gs` (ghostscript) or `pdfunite` (poppler-utils) for merging atlas pages, and `pdftotext` (poppler-utils) for the atlas font check.
 
 ---
 
@@ -161,10 +157,11 @@ FRI-project/
     │   └── region_plot.py              #     region figures + PDF atlas
     └── regge/                         #   part 2: Regge limit of 2->2
         ├── regge_core.py              #     engine: mode lattice, cuts, pipeline, IR fixpoint
+        ├── primitives.py              #     mode strings + graph tools (zero-judgment base layer)
         ├── regge_modes.py             #     S^m C_i^n C_ij mode algebra (meet/join)
         ├── regge_indep_loops.py       #     independent loop momenta (semihard fix)
         ├── regge_graphs.py            #     example graph library + k0--k5 kinematics
-        ├── skeleton.py                #     skeleton cut enumerator (k0--k5; fast path)
+        ├── skeleton.py                #     skeleton cut enumerator (fast path) + the full FRI enumerators (k0--k5)
         ├── mode_levels.py             #     mode first-appearance ladder
         ├── mode_level_interactive.py  #     interactive stepper for the mode ladder
         ├── fri_interactive.py         #     interactive enumerator for a new graph
@@ -181,7 +178,7 @@ Every implementation has been cross-checked against the region finder of [pySecD
 |---|---|---|
 | **wide-angle** | ~830 configurations covering 45+ topologies (2→2 / 2→3 / 1→3; 3--5 loops; planar and nonplanar; including soft-emission families) | 1,200 four-leg + 600 five-leg cases (on top of ~19,000 earlier random cases) |
 | **collinear: 2→3** (p2 ∥ p3) | 11-graph Frog family + 394 variants (a fifth external leg attached to the 2→2 topologies) | 1,000 (3-loop) + 500 (4-loop) + 100 (5-loop) graphs in the five kinematics k0--k4 |
-| **collinear: 2→2 (Regge)** (p1 ∥ p3, p2 ∥ p4) | region files of 56 graphs in the six kinematics k0–k5 (lightlike and off-shell external legs, $\lambda^2$-suppressed virtualities) | 1,000 + 1,000 (3-loop) and 100 + 200 (4-loop) graphs over k0–k5 |
+| **collinear: 2→2 (Regge)** (p1 ∥ p3, p2 ∥ p4) | region files of 56 graphs in the six kinematics k0–k5 (lightlike and off-shell external legs, $\lambda^2$-suppressed virtualities) | 2,000 (3-loop) + 300 (4-loop) + 10 (5-loop) graphs over k0–k5 |
 
 ---
 
@@ -204,3 +201,4 @@ Cleared for now.
 **Open items — regge**
 
 The marginal-softer list needs update -- now S^1C2C24 is not regarded as marginally softer than C4C24, which may lead to errors at 5-loop level.
+More random-diagram validation is need at 5 loops; since k4 can be very slow, I may only try other k.

@@ -80,7 +80,7 @@ def _lattice_blocks(mode, vm, em, edges, verts):
 
 
 # 1VI blocks of gamma_sH ∪ gamma_G on the ORIGINAL graph (no aux).
-def _union_blocks(edges, em, verts):
+def _union_blocks(edges, em):
     idx = [i for i, m in enumerate(em) if m in ('sH', 'G')]
     sub = [edges[i] for i in idx]
     sv = sorted({v for e in sub for v in e})
@@ -99,7 +99,7 @@ def _rank_of(blocks):
 def _iter_units(em, vm, edges, verts):
     modes = sorted(set(em) | set(vm.values()))
     if any(m == 'sH' for m in modes):
-        yield UNION, _union_blocks(edges, em, verts)
+        yield UNION, _union_blocks(edges, em)
         for mode in modes:
             if mode not in ('sH', 'G'):
                 yield mode, _lattice_blocks(mode, vm, em, edges, verts)
@@ -162,7 +162,7 @@ def _spanning_tree(verts, edge_list, skip):
 # on the ORIGINAL graph: carriers = chords (forced lines first in the k numbering), the other |V|-1 lines form a spanning tree.
 # A contracted "self-loop" is NOT inert — it is an ordinary line of the original graph and couples to the other lines.
 # Returns (True, order, momenta, verts), or (False, reason, None, None) if |carriers| > L or the complement is disconnected.
-def edge_momenta(edges, em, vm, carriers, ext_attach):
+def edge_momenta(edges, carriers, ext_attach):
     verts = sorted({v for e in edges for v in e})
     E = len(edges)
     V = len(verts)
@@ -268,8 +268,8 @@ def fmt_expr(terms):
 
 
 # Print line momenta (k1..kL carriers) and every line's momentum.
-def show_edge_momenta(edges, em, vm, carriers, ext_attach, forced=False):
-    ok, payload, momenta, verts = edge_momenta(edges, em, vm, carriers, ext_attach)
+def show_edge_momenta(edges, carriers, ext_attach, forced=False):
+    ok, payload, momenta, verts = edge_momenta(edges, carriers, ext_attach)
     if not ok:
         reason = payload
         if forced:
@@ -295,7 +295,7 @@ def show_edge_momenta(edges, em, vm, carriers, ext_attach, forced=False):
 # then every line's momentum in terms of k1..kL and the externals.
 def show_basis(edges, em, vm, F=None, ext_attach=None):
     if F:
-        show_edge_momenta(edges, em, vm, F, ext_attach, forced=True)
+        show_edge_momenta(edges, F, ext_attach, forced=True)
     else:
         results, total, L = indep_loops(edges, em, vm)
         print('  independent loop momenta (a concrete basis):')
@@ -314,7 +314,7 @@ def show_basis(edges, em, vm, F=None, ext_attach=None):
                 print(f'    mode {mode}: basis = {", ".join(desc)}')
         print(f'  Σ |basis| = {total}  vs  L = {L}  {"✓" if total == L else "✗ MISMATCH"}')
         basis_all = [j for r in results for b in r['blocks'] for j in b['basis']]
-        show_edge_momenta(edges, em, vm, basis_all, ext_attach)
+        show_edge_momenta(edges, basis_all, ext_attach)
 
 
 if __name__ == '__main__':

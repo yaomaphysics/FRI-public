@@ -386,7 +386,7 @@ def mini_fig_expr(vm, em, edges, ext_attach, ext_mode):
 
 
 # WL expressions for the right-hand text lines of one row.
-def atlas_row_exprs(k, r, edges, ext_attach, font=None):
+def atlas_row_exprs(k, r, edges, font=None):
     vec, em, vm = split_region(r)
     vecstr = ', '.join(str(x) for x in vec)
     out = ['Row[{"R%d   ", %s, " = (%s)"}]' % (k, ts('v', font, italic=True, bold=True), _esc(vecstr))]
@@ -420,7 +420,7 @@ def atlas_page_expr(page_no, npages, rows, first, last, edges, ext_attach, ext_m
         yc = round(ytop - rowh / 2, 1)
         vec, em, vm = split_region(r)
         it.append('Inset[%s, {%d + scF*bbw/2.0, %s}, {bcx, bcy}, {scF, scF}]' % (mini_fig_expr(vm, em, edges, ext_attach, ext_mode), marg, yc))
-        lines = atlas_row_exprs(k, r, edges, ext_attach, font)
+        lines = atlas_row_exprs(k, r, edges, font)
         n = len(lines)
         for j, expr in enumerate(lines):
             y = round(yc + (n - 1) * ATLAS_LEAD / 2 - j * ATLAS_LEAD, 1)
@@ -487,7 +487,7 @@ def _layout_rows(edges, verts, ext_attach, items, outdir):
         return ATLAS_ROWS
     sc = min(ATLAS_VFILL / bbh, ATLAS_WMAX / bbw)
     drawn_h = (bbh - 2 * 0.022) * sc
-    text_h = max((len(atlas_row_exprs(k, r, edges, ext_attach)) for k, r in items), default=0) * ATLAS_LEAD
+    text_h = max((len(atlas_row_exprs(k, r, edges)) for k, r in items), default=0) * ATLAS_LEAD
     pitch = max(drawn_h + ATLAS_GAP, text_h + ATLAS_TEXT_GAP)
     rows = int((ATLAS_TOP - ATLAS_BOTTOM) // pitch)
     lo, hi = ATLAS_ROWS_AUTO

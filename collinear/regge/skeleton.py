@@ -113,7 +113,7 @@ def pair_opts_for(va, vb, Gset, adj, Vset, extv):
 
 # First level of a leg chain: connected supersets of a branch suffix T = br[j:] (leg vertex as one endpoint) inside T
 # ∪ D.
-def member_opts(root, br, Dcut, edges):
+def member_opts(br, Dcut, edges):
     out = {FS()}
     if br:
         for j in range(len(br)):
@@ -190,8 +190,21 @@ def overlap_ok(fam13, fam24, m):
     return True
 
 
+# Bitmask helper for vertex sets (shared by both enumerators).
+def _make_mk(mcache, bidx):
+    def mk(S):
+        r = mcache.get(S)
+        if r is None:
+            r = 0
+            for v in S:
+                r |= bidx[v]
+            mcache[S] = r
+        return r
+    return mk
+
+
 # ---------------------------- main enumerator ----------------------------
-def skel_regions(edges, verts, ext_attach, ext_mode, collect_configs=False):
+def skel_regions(edges, verts, ext_attach, ext_mode):
     clear_graph_caches() # start each case with empty graph-kernel memo tables
     verts = sorted(verts)
     E = [tuple(e) for e in edges]
@@ -204,14 +217,7 @@ def skel_regions(edges, verts, ext_attach, ext_mode, collect_configs=False):
     bidx = {v: 1 << i for i, v in enumerate(verts)}
     mcache = {}
 
-    def mk(S):
-        r = mcache.get(S)
-        if r is None:
-            r = 0
-            for v in S:
-                r |= bidx[v]
-            mcache[S] = r
-        return r
+    mk = _make_mk(mcache, bidx)
 
     def wrap(chs):
         return [tuple((S, mk(S)) for S in ch) for ch in chs]
@@ -287,8 +293,8 @@ def skel_regions(edges, verts, ext_attach, ext_mode, collect_configs=False):
                         if P12:
                             D13 = set(C13) - P12
                             if d13 >= 1:
-                                T1 = towers(v1, member_opts(v1, o13[2], D13, E), d13, forbid1, E)
-                                T3 = towers(v3, member_opts(v3, o13[3], D13, E), d13, forbid3, E)
+                                T1 = towers(v1, member_opts(o13[2], D13, E), d13, forbid1, E)
+                                T3 = towers(v3, member_opts(o13[3], D13, E), d13, forbid3, E)
                                 lv1_full, lv3_full = T1, T3
                                 lv13[1] = [c[0] for c in T1]
                                 lv13[3] = [c[0] for c in T3]
@@ -299,8 +305,8 @@ def skel_regions(edges, verts, ext_attach, ext_mode, collect_configs=False):
                         if P24:
                             D24 = set(C24) - P24
                             if d24 >= 1:
-                                T2 = towers(v2, member_opts(v2, o24[2], D24, E), d24, forbid2, E)
-                                T4 = towers(v4, member_opts(v4, o24[3], D24, E), d24, forbid4, E)
+                                T2 = towers(v2, member_opts(o24[2], D24, E), d24, forbid2, E)
+                                T4 = towers(v4, member_opts(o24[3], D24, E), d24, forbid4, E)
                                 lv2_full, lv4_full = T2, T4
                                 lv24[2] = [c[0] for c in T2]
                                 lv24[4] = [c[0] for c in T4]
@@ -410,14 +416,7 @@ def skel_regions_k1(edges, verts, ext_attach, ext_mode, use_overlap=True):
     bidx = {v: 1 << i for i, v in enumerate(verts)}
     mcache = {}
 
-    def mk(S):
-        r = mcache.get(S)
-        if r is None:
-            r = 0
-            for v in S:
-                r |= bidx[v]
-            mcache[S] = r
-        return r
+    mk = _make_mk(mcache, bidx)
     Gammas = [FS(S) for r in range(1, len(verts) + 1) for S in combinations(verts, r) if connected(set(S), E)]
     cnt = dict(gamma=len(Gammas), combos=0, cov_kill=0, pair_overlap_kill=0, dup_cuts=0, ov_kill=0, skip_pre=0, build_none=0, out=0, hsc_kill=0, i0_kill=0, i2_kill=0, gate_kill=0)
     found = {}; seen_cuts = set(); seen_pre = set()
@@ -511,10 +510,10 @@ def skel_regions_k1(edges, verts, ext_attach, ext_mode, use_overlap=True):
                     for C24 in C24opts:
                         D13 = set(C13) - P12
                         D24 = set(C24) - P24
-                        mo1 = member_opts(v1, o13[2], D13, E) if P12 else [FS()]
-                        mo3 = member_opts(v3, o13[3], D13, E) if P12 else [FS()]
-                        mo2 = member_opts(v2, o24[2], D24, E) if P24 else [FS()]
-                        mo4 = member_opts(v4, o24[3], D24, E) if P24 else [FS()]
+                        mo1 = member_opts(o13[2], D13, E) if P12 else [FS()]
+                        mo3 = member_opts(o13[3], D13, E) if P12 else [FS()]
+                        mo2 = member_opts(o24[2], D24, E) if P24 else [FS()]
+                        mo4 = member_opts(o24[3], D24, E) if P24 else [FS()]
                         if L < 3:
                             run_combo(C13, C24, Z, Z, Z, Z, Z, Z, Z, Z)
                             continue
@@ -611,18 +610,18 @@ def has_sc_vertex(cut_sets):
     return bool(inter)
 
 # Enumerate all regions of the Regge 2->2 kinematics; dispatches to the on/off-shell enumerator by the external modes.
-def fri_regions_full(edges, verts, ext_attach, ext_mode, M=1, verbose=False):
+def fri_regions_full(edges, verts, ext_attach, ext_mode, M=1):
     # (M: kept for backward compatibility, unused)
     ms = {n: ext_m(ext_mode.get(n)) for n in ext_attach}
     # all lightlike -> on-shell enumerator (refinement depth by loop count)
     if all(m is None for m in ms.values()):
-        return fri_regions_onshell(edges, verts, ext_attach, ext_mode, verbose=verbose)
+        return fri_regions_onshell(edges, verts, ext_attach, ext_mode)
     # off-shell: ext_m gives 𝒱 = m+1 (C13 -> 1), possibly_softest needs m — convert back
     ms_m = {n: (None if v is None else v - 1) for n, v in ms.items()}
-    return fri_regions_offshell(edges, verts, ext_attach, ext_mode, ms_m, verbose=verbose)
+    return fri_regions_offshell(edges, verts, ext_attach, ext_mode, ms_m)
 
 # k1 enumerator (all externals lightlike): refinement depth decided by the LOOP COUNT instead of possibly_softest.
-def fri_regions_onshell(edges, verts, ext_attach, ext_mode, verbose=False):
+def fri_regions_onshell(edges, verts, ext_attach, ext_mode):
     v1, v3 = ext_attach['p1'], ext_attach['p3']
     v2, v4 = ext_attach['p2'], ext_attach['p4']
     forbid13 = {v2, v4}; forbid24 = {v1, v3}
@@ -792,7 +791,7 @@ def _refine_towers(edges, root, base, forbid, depth):
 
 
 # Non-k1 enumerator: main cuts may be disconnected; refinement depth from possibly_softest (no loop-count gate).
-def fri_regions_offshell(edges, verts, ext_attach, ext_mode, ms, verbose=False):
+def fri_regions_offshell(edges, verts, ext_attach, ext_mode, ms):
     v1, v3 = ext_attach['p1'], ext_attach['p3']
     v2, v4 = ext_attach['p2'], ext_attach['p4']
     forbid13 = {v2, v4}

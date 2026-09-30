@@ -12,10 +12,24 @@ Another key difference from the wide-angle kinematics is that, the Glauber and s
 
 from itertools import combinations
 import os
-from primitives import (V, marginally_softer, meet, join, vee, connected, is_1vi, components, mode_components, ext_mode_for)
+from primitives import (V, marginally_softer, harder_or_eq, meet, join, vee, connected, is_1vi, components, mode_components, ext_mode_for)
 
 J13_FAM = {'C13', 'C1C13', 'C3C13', 'C1^2C13', 'C3^2C13'}
 J24_FAM = {'C24', 'C2C24', 'C4C24', 'C2^2C24', 'C4^2C24'}
+
+# S-power of a mode string ('S' -> 1, 'S^m...' -> m, everything else -> 0).
+def _m_of(md):
+    if md == 'S':
+        return 1
+    if isinstance(md, str) and md.startswith('S^'):
+        num = ''
+        for ch in md[2:]:
+            if ch.isdigit():
+                num += ch
+            else:
+                break
+        return int(num) if num else 1
+    return 0
 
 # ================= GLAUBER / SEMIHARD IDENTIFICATION ==================
 # Identifying the Glauber and semihard subgraphs:
@@ -24,14 +38,11 @@ J24_FAM = {'C24', 'C2C24', 'C4C24', 'C2^2C24', 'C4^2C24'}
 # Identify the Glauber and semihard subgraphs; returns the adjusted (em, vm), or None if the region is discarded.
 def glauber_adjust(edges, em, vm, ext_attach, ext_mode=None):
     em = list(em)
-    # frozenset: cache-key form for the memoised graph kernels
-    verts = frozenset({v for e in edges for v in e} | set(ext_attach.values()))
-    _SMALL = ('S', 'S^1C13', 'S^1C24', 'S^2', 'S^2C13', 'S^2C24', 'S^1C1C13', 'S^1C3C13', 'S^1C2C24', 'S^1C4C24')
-    # small-momentum subgraph: SMALL-mode edges and vertices
-    small_edges = {e for e, m in zip(edges, em) if m in _SMALL}
-    small_verts = {v for v in verts if vm.get(v) in _SMALL}
-    # tuple: cache-key form; the slicing below drops one edge
-    big_edges = tuple(e for e in edges if e not in small_edges)
+    verts = frozenset({v for e in edges for v in e} | set(ext_attach.values())) # frozenset: cache-key form for the memoised graph kernels
+    # small-momentum subgraph: every S^m ... mode with m >= 1
+    small_edges = {e for e, m in zip(edges, em) if _m_of(m) >= 1}
+    small_verts = {v for v in verts if _m_of(vm.get(v)) >= 1}
+    big_edges = tuple(e for e in edges if e not in small_edges) # tuple: cache-key form; the slicing below drops one edge
     big_verts = verts - small_verts
     # the large-momentum subgraph (hard + jets + Glauber + semihard) must be connected
     if not connected(big_verts, big_edges):
@@ -64,10 +75,10 @@ def glauber_adjust(edges, em, vm, ext_attach, ext_mode=None):
     for v in verts:
         accs = acc_map[v]
         for n, vv in ext_attach.items():
-            if vv == v: accs.append(ext_mode_for(ext_attach, ext_mode, n))
+            if vv == v: accs.append(ext_mode_for(ext_mode, n))
         vm[v] = vee(accs) if accs else 'H'
     # separating cut vertices become G; then blobs between G vertices become sH
-    vm2 = _glauber_cut_vertices(edges, em, vm, ext_attach, ext_mode, big_edges, big_verts, verts)
+    vm2 = _glauber_cut_vertices(edges, em, vm, ext_attach, big_edges, big_verts, verts)
     if vm2 is not None:
         vm = vm2
         em, vm = _glauber_semihard(edges, em, vm, [j for j, _ in big_pairs], big_verts, verts, ext_attach, ext_mode)
@@ -146,12 +157,12 @@ def _glauber_semihard(edges, em, vm, big_idx, big_verts, verts, ext_attach, ext_
             continue
         accs = acc_map[v]
         for n, vv in ext_attach.items():
-            if vv == v: accs.append(ext_mode_for(ext_attach, ext_mode, n))
+            if vv == v: accs.append(ext_mode_for(ext_mode, n))
         vm2[v] = vee(accs) if accs else 'H'
     return em, vm2
 
 # Lift cut vertices that separate p1,p3 from p2,p4 to Glauber; returns the new vm, or None if nothing changed.
-def _glauber_cut_vertices(edges, em, vm, ext_attach, ext_mode, big_edges, big_verts, verts):
+def _glauber_cut_vertices(edges, em, vm, ext_attach, big_edges, big_verts, verts):
     p1, p3 = ext_attach['p1'], ext_attach['p3']
     p2, p4 = ext_attach['p2'], ext_attach['p4']
     changed = False
@@ -176,10 +187,64 @@ def _glauber_cut_vertices(edges, em, vm, ext_attach, ext_mode, big_edges, big_ve
         changed = True
     return vm2 if changed else None
 
-# =========================== MOJETIC CHECKS ===========================
+# =========================== FUNDAMENTAL PATTERN ===========================
+
+
+# Momentum conservation per vertex: incident momenta split in two nonempty groups of equal ∨-join.
+def momentum_ok_regge(edges, em, vm, ext_attach, ext_mode=None):
+    verts = set(v for e in edges for v in e) | set(ext_attach.values())
+    # one scan builds the per-vertex incident modes (externals grouped separately below)
+    inc_map = {v: [] for v in verts}
+    for i, (a, b) in enumerate(edges):
+        inc_map[a].append(em[i])
+        if b != a: inc_map[b].append(em[i])
+    ext_map = {}
+    for n, vv in ext_attach.items():
+        ext_map.setdefault(vv, []).append(ext_mode_for(ext_mode, n))
+    for v in verts:
+        inc = inc_map[v] + ext_map.get(v, [])
+        if vm.get(v) in ('G', 'sH'):  # G/sH vertex: skip (transverse)
+            continue
+        if any(m in ('G', 'sH') for m in inc):  # touches a G/sH line: skip (transverse)
+            continue
+        n = len(inc)
+        if n < 2:
+            return False
+        if n == 2:  # equality of the two line modes
+            a, b = inc
+            if vee([a]) == vee([b]):
+                continue
+            return False
+        ok = False
+        for r in range(1, n):
+            for A in combinations(range(n), r):
+                B = [i for i in range(n) if i not in A]
+                if vee([inc[i] for i in A]) == vee([inc[i] for i in B]):
+                    ok = True
+                    break
+            if ok:
+                break
+        if not ok:
+            return False
+    return True
+
+
+# Every connected component of the jet graph (vertices+edges) contains at least one of its external vertices
+def jet_components_ok(jv, je, ext_verts):
+    if not jv:
+        return True
+    comp = components(list(je), jv)
+    groups = {}
+    for v in jv:
+        groups.setdefault(comp[v], set()).add(v)
+    for g in groups.values():
+        if not (g & ext_verts):
+            return False
+    return True
+
 
 # k0 mojetic (two parts): each contracted jet is 1VI, and no H∪J13 / H∪J24 cut vertex separates its family.
-def mojetic_k0_ok(edges, em, vm, fam13, fam24, ext_attach, ext_mode, verts):
+def mojetic_k0_ok(edges, em, vm, fam13, fam24, ext_attach):
     # part 1: contract the jet — H/G adjacency becomes aux1, the two externals aux2 — and require 1VI
     def jet_ok(fam, ext_names):
         fv = {v for v in vm if vm[v] in fam}
@@ -246,6 +311,23 @@ def mojetic_ok(hv, he, jv, je, gv, edges, ext_attach, ext_names):
             es.add((vv, 'aux'))
     return is_1vi(vs, es)
 
+
+# ============================ CONNECTIVITY ============================
+# This part constructs the subgraph requirements subject to the First Connectivity Theorem (certain unions of mode subgraphs must be connected, see theorem 5.1 of 2601.22144 for the wide-angle scenario).
+
+# no C13/C24 scaleless island: a C13/C24 component whose ADJACENT modes are all softer (𝒱 > 𝒱(C13) = 1) is rejected (First Connectivity Theorem).
+def c13_c24_island_ok(edges, em, vm, verts):
+    for mode in ('C13', 'C24'):
+        for (bv, be, *rest) in mode_components(mode, vm, em, edges, verts):
+            real = {v for v in bv if v != 'aux'}
+            if not real:
+                continue
+            incident = [em[i] for i, (a, b) in enumerate(edges) if a in real or b in real]
+            if incident and all(V(m) > V(mode) for m in incident):
+                return False
+    return True
+
+
 # ============ INFRARED COMPATIBILITY: RELEVANCE AND RULES =============
 
 
@@ -283,23 +365,6 @@ def messenger_confirms(blk, mode, own, other, comps, confirmed, edges, em, vm):
         for i in adj.get(m, ()):
             if confirmed.get((m, i)):
                 return True
-    return False
-
-
-# Glauber propagator compatibility: a cut splits its endpoints with p1,p3 in one connected component and p2,p4 in the other.
-def ir_glauber_ok(e, verts, edges, p1, p2, p3, p4):
-    u, v = e
-    vs = list(verts)
-    n = len(vs)
-    for mask in range(1, 1 << n):
-        A = {vs[i] for i in range(n) if (mask >> i) & 1}
-        if p1 not in A or p3 not in A: continue
-        B = verts - A
-        if p2 not in B or p4 not in B: continue
-        if not ((u in A and v in B) or (v in A and u in B)): continue
-        if not connected(A, edges): continue
-        if not connected(B, edges): continue
-        return True
     return False
 
 
@@ -385,8 +450,8 @@ def relevant(blk, comp, dst_mode, edges, em, vm, sc_mode):
 def sc_hidden_path_confirms(blk, i, comps, confirmed, edges, em, vm, ext_attach, ext_mode, sc_mode, pair_mode, ext_a, ext_b, fam_modes, ext_a_fam, ext_b_fam):
     va = ext_attach[ext_a]
     vb = ext_attach[ext_b]
-    ma = ext_mode_for(ext_attach, ext_mode, ext_a)
-    mb = ext_mode_for(ext_attach, ext_mode, ext_b)
+    ma = ext_mode_for(ext_mode, ext_a)
+    mb = ext_mode_for(ext_mode, ext_b)
     # C_a^{m_a}·pair / C_b^{m_b}·pair with m >= 0 (incl. ∞ = lightlike).
     if ma not in ext_a_fam or mb not in ext_b_fam:
         return False
@@ -507,7 +572,7 @@ def h_relevant(comp, tgt, edges, em, vm, extvs, sc_mode, start_V=None, cross_idx
 
 
 # H component IR compatibility: total inflow — externals in/reaching the block + line momenta of confirmed components — must ∨ to H.
-def h_comp_confirmed(blk, comps, confirmed, edges, em, vm, ext_attach, ext_mode, all_verts):
+def h_comp_confirmed(blk, comps, confirmed, edges, em, vm, ext_attach, ext_mode):
     verts = [v for v in blk[0] if v != 'aux']
     if not verts:
         return False
@@ -518,7 +583,7 @@ def h_comp_confirmed(blk, comps, confirmed, edges, em, vm, ext_attach, ext_mode,
     inflows = []
     for e in ext_attach:
         vv = ext_attach[e]
-        m_ext = ext_mode_for(ext_attach, ext_mode, e)
+        m_ext = ext_mode_for(ext_mode, e)
         if vv in piece:
             inflows.append(m_ext)
         else:
@@ -583,7 +648,7 @@ def cond1_confirms(blk, mode, comps, confirmed, edges, em, vm, ext_attach, ext_m
     # candidates: externals (in the block, or entering by a walk) and line momenta of confirmed components
     cands = []          # (tag, md, entry_points)
     for extn, v0 in ext_attach.items():
-        md = ext_mode_for(ext_attach, ext_mode, extn)
+        md = ext_mode_for(ext_mode, extn)
         if v0 in realV:
             cands.append((extn, md, {v0}))
             continue
@@ -638,21 +703,6 @@ def cond1_confirms(blk, mode, comps, confirmed, edges, em, vm, ext_attach, ext_m
 USE_THIRD_PORT = True
 
 
-# Port-walk hardness test: mw >= X, with G hard, sH never, H only against non-H; else V(mw) <= V(X).
-def _harder_or_eq_regge(mw, X):
-    if mw == X:
-        return True
-    if X == 'H':
-        return False
-    if mw == 'H':
-        return True
-    if mw == 'G':
-        return True
-    if mw == 'sH' or X in ('G', 'sH'):
-        return False
-    return V(mw) <= V(X)
-
-
 # All target elements reachable from the start elements by a non-softer flow; returns the entered real vertices.
 def _collect_entries_regge(blk, start_vs, start_es, cur_mode, edges, em, vm):
     realV = {v for v in blk[0] if v != 'aux'}
@@ -691,7 +741,7 @@ def _collect_entries_regge(blk, start_vs, start_es, cur_mode, edges, em, vm):
             m_nb = mode_of(nb)
             if m_nb in ('G', 'sH'):
                 continue
-            if _harder_or_eq_regge(m_nb, cur):
+            if harder_or_eq(m_nb, cur):
                 visited.add(nb); queue.append((nb, m_nb))
     ev = set()
     for h in hits:
@@ -727,7 +777,7 @@ def _third_port_regge(blk, X, entry_vs, comps_same, vm, edges):
             if w in realV or w in entry_vs:
                 continue
             mw = vm.get(w)
-            if mw is not None and mw != X and _harder_or_eq_regge(mw, X):
+            if mw is not None and mw != X and harder_or_eq(mw, X):
                 return ('B', w)
     return None
 
@@ -737,7 +787,7 @@ def _port_sources_regge(blk, X, edges, em, vm, ext_attach, ext_mode, confirmed, 
     srcs = []
     realV = {v for v in blk[0] if v != 'aux'}
     for extn, v0 in ext_attach.items():
-        md = ext_mode_for(ext_attach, ext_mode, extn)
+        md = ext_mode_for(ext_mode, extn)
         if v0 in realV:
             srcs.append((extn, md, {v0}, {v0}))
         else:
@@ -769,32 +819,16 @@ def _hp_receiver_port_ok(blk, X, edges, em, vm, ext_attach, ext_mode, confirmed,
 
 
 # Regge IR compatibility: fixpoint over the 1VI components, each mode confirmed by its own channels; False if any stays unconfirmed.
-def ir_ok_region(edges, em, vm, ext_attach, ext_mode=None, sum_degrees=None):
+def ir_ok_region(edges, em, vm, ext_attach, ext_mode=None):
     verts = set(v for e in edges for v in e) | set(ext_attach.values())
-    p1, p2 = ext_attach['p1'], ext_attach['p2']
-    p3, p4 = ext_attach['p3'], ext_attach['p4']
     comps = {}
     # collect the 1VI blocks of every mode
     for m in ('H', 'C13', 'C24', 'C1C13', 'C3C13', 'C2C24', 'C4C24', 'S^1C13', 'S^1C24', 'S', 'S^2', 'C1^2C13', 'C3^2C13', 'C2^2C24', 'C4^2C24', 'S^2C13', 'S^2C24', 'S^1C1C13', 'S^1C3C13', 'S^1C2C24', 'S^1C4C24'):
-        # an X-mode component = a 1VI block of the contracted X-subgraph Γ̃_X (NOT a connected component)
         comps[m] = mode_components(m, vm, em, edges, verts)
     # H blocks: each needs its own confirming cut; aux-only blocks are contraction artifacts
     comps['H'] = [b for b in mode_components('H', vm, em, edges, verts) if any(v != 'aux' for v in b[0])]
 
     # ---- tadpole gate: soft blocks without a softer adjacent component ----
-    def _m_of(md):
-        if md == 'S':
-            return 1
-        if md.startswith('S^'):
-            num = ''
-            for ch in md[2:]:
-                if ch.isdigit():
-                    num += ch
-                else:
-                    break
-            return int(num) if num else 1
-        return 0
-
     def _is_pure_soft(md):
         return _m_of(md) >= 1 and 'C' not in md
 
@@ -842,7 +876,7 @@ def ir_ok_region(edges, em, vm, ext_attach, ext_mode=None, sum_degrees=None):
                 pool.append(em[i2])
         for nm, v in ext_attach.items():
             if v in ends:
-                pool.append(ext_mode_for(ext_attach, ext_mode, nm))
+                pool.append(ext_mode_for(ext_mode, nm))
         if len(pool) < 2:
             return False
         for ai in range(len(pool)):
@@ -869,12 +903,6 @@ def ir_ok_region(edges, em, vm, ext_attach, ext_mode=None, sum_degrees=None):
         return ok
     # (pure-aux SC carriers fail the relevance rules automatically — no separate check)
     confirmed = {}
-    # G: kept only if its own cut splits the families
-    for e, m in zip(edges, em):
-        if m == 'G':
-            if not ir_glauber_ok(e, verts, edges, p1, p2, p3, p4):
-                return False
-
     # ---- per-mode confirmation channels: f(blk, i) -> bool; every non-H mode gets cond1 (entry + vee + port) ----
     channels = {}
 
@@ -891,32 +919,25 @@ def ir_ok_region(edges, em, vm, ext_attach, ext_mode=None, sum_degrees=None):
     for mode, ext in (('C1C13', 'p1'), ('C3C13', 'p3'), ('C2C24', 'p2'), ('C4C24', 'p4'),
                       ('C1^2C13', 'p1'), ('C3^2C13', 'p3'), ('C2^2C24', 'p2'), ('C4^2C24', 'p4')):
         vext = ext_attach[ext]
-        m_ext = ext_mode_for(ext_attach, ext_mode, ext)
+        m_ext = ext_mode_for(ext_mode, ext)
         add(mode, lambda blk, i, vext=vext, m_ext=m_ext, mode=mode: vext in blk[0] and m_ext == mode)
     # S-family: messenger channels (simultaneously relevant to the target set with >=1 confirmed)
-    for mode, own, other in (('S^1C13', ('C1C13', 'C3C13'), ('C24',)),
-                             ('S^1C24', ('C2C24', 'C4C24'), ('C13',))):
+    for mode, own, other in (('S^1C13', ('C1C13', 'C3C13'), ('C24',)), ('S^1C24', ('C2C24', 'C4C24'), ('C13',))):
         add(mode, lambda blk, i, mode=mode, own=own, other=other: _cond_allowed(mode, blk) and messenger_confirms(blk, mode, own, other, comps, confirmed, edges, em, vm))
-    for mode, own, other in (('S^2C13', ('C1^2C13', 'C3^2C13'), ('S^1C24', 'C2C24', 'C4C24')),
-                             ('S^2C24', ('C2^2C24', 'C4^2C24'), ('S^1C13', 'C1C13', 'C3C13'))):
+    for mode, own, other in (('S^2C13', ('C1^2C13', 'C3^2C13'), ('S^1C24', 'C2C24', 'C4C24')), ('S^2C24', ('C2^2C24', 'C4^2C24'), ('S^1C13', 'C1C13', 'C3C13'))):
         add(mode, lambda blk, i, mode=mode, own=own, other=other: _cond_allowed(mode, blk) and messenger_confirms(blk, mode, own, other, comps, confirmed, edges, em, vm))
     # S-family: meet-of-two channels (two confirmed relevant components whose modes meet to the block's mode)
-    for mode in ('S', 'S^2', 'S^1C13', 'S^1C24', 'S^2C13', 'S^2C24',
-                 'S^1C1C13', 'S^1C3C13', 'S^1C2C24', 'S^1C4C24'):
+    for mode in ('S', 'S^2', 'S^1C13', 'S^1C24', 'S^2C13', 'S^2C24', 'S^1C1C13', 'S^1C3C13', 'S^1C2C24', 'S^1C4C24'):
         add(mode, lambda blk, i, mode=mode: _cond_allowed(mode, blk) and meet_of_two_confirms(blk, mode, comps, confirmed, edges, em, vm))
     # SC hidden path: an SC bridges two distinct pair-mode components (or S between two C13s / C24s); one confirmed pair conducts to the other
     for sc_mode, pair_mode, ext_a, ext_b, fam_modes, fam_a, fam_b in (
-            ('S^1C24', 'C13', 'p1', 'p3', ('C2C24', 'C4C24'),
-             ('C13', 'C1C13', 'C1^2C13', 'C1∞C13'), ('C13', 'C3C13', 'C3^2C13', 'C3∞C13')),
-            ('S^1C13', 'C24', 'p2', 'p4', ('C1C13', 'C3C13'),
-             ('C24', 'C2C24', 'C2^2C24', 'C2∞C24'), ('C24', 'C4C24', 'C4^2C24', 'C4∞C24')),
-            ('S', 'C13', 'p1', 'p3', ('C24',),
-             ('C13', 'C1C13', 'C1^2C13', 'C1∞C13'), ('C13', 'C3C13', 'C3^2C13', 'C3∞C13')),
-            ('S', 'C24', 'p2', 'p4', ('C13',),
-             ('C24', 'C2C24', 'C2^2C24', 'C2∞C24'), ('C24', 'C4C24', 'C4^2C24', 'C4∞C24'))):
+            ('S^1C24', 'C13', 'p1', 'p3', ('C2C24', 'C4C24'), ('C13', 'C1C13', 'C1^2C13', 'C1∞C13'), ('C13', 'C3C13', 'C3^2C13', 'C3∞C13')),
+            ('S^1C13', 'C24', 'p2', 'p4', ('C1C13', 'C3C13'), ('C24', 'C2C24', 'C2^2C24', 'C2∞C24'), ('C24', 'C4C24', 'C4^2C24', 'C4∞C24')),
+            ('S', 'C13', 'p1', 'p3', ('C24',), ('C13', 'C1C13', 'C1^2C13', 'C1∞C13'), ('C13', 'C3C13', 'C3^2C13', 'C3∞C13')),
+            ('S', 'C24', 'p2', 'p4', ('C13',), ('C24', 'C2C24', 'C2^2C24', 'C2∞C24'), ('C24', 'C4C24', 'C4^2C24', 'C4∞C24'))):
         add(pair_mode, lambda blk, i, sc_mode=sc_mode, pair_mode=pair_mode, ext_a=ext_a, ext_b=ext_b, fam_modes=fam_modes, fam_a=fam_a, fam_b=fam_b: sc_hidden_path_confirms(blk, i, comps, confirmed, edges, em, vm, ext_attach, ext_mode, sc_mode, pair_mode, ext_a, ext_b, fam_modes, fam_a, fam_b))
     # H: total inflow ∨ == H
-    add('H', lambda blk, i: h_comp_confirmed(blk, comps, confirmed, edges, em, vm, ext_attach, ext_mode, verts))
+    add('H', lambda blk, i: h_comp_confirmed(blk, comps, confirmed, edges, em, vm, ext_attach, ext_mode))
 
     # fixpoint: sweep unconfirmed blocks until no new confirmation
     for _ in range(30):
@@ -938,102 +959,6 @@ def ir_ok_region(edges, em, vm, ext_attach, ext_mode=None, sum_degrees=None):
     return True
 
 # ================== REGION REQUIREMENTS AND BUILDER ===================
-
-# G/sH momentum rule: >= 2 small line momenta + exactly one large one cannot balance.
-# Large = H + the collinear family; everything else is small.
-_GV_LARGE = {'H', 'C13', 'C24', 'C1C13', 'C3C13', 'C2C24', 'C4C24', 'C1^2C13', 'C3^2C13', 'C2^2C24', 'C4^2C24', 'C1∞C13', 'C3∞C13', 'C2∞C24', 'C4∞C24'}
-
-
-# Whether a G/sH vertex's incident modes pass the small/large balance rule.
-def glauber_vertex_mom_ok(inc):
-    n_large = sum(1 for m in inc if m in _GV_LARGE)
-    n_small = len(inc) - n_large
-    return not (n_small >= 2 and n_large == 1)
-
-
-# Momentum conservation per vertex: incident momenta split in two nonempty groups of equal ∨-join.
-def momentum_ok_regge(edges, em, vm, ext_attach, ext_mode=None):
-    verts = set(v for e in edges for v in e) | set(ext_attach.values())
-    # one scan builds the per-vertex incident modes (externals grouped separately below)
-    inc_map = {v: [] for v in verts}
-    for i, (a, b) in enumerate(edges):
-        inc_map[a].append(em[i])
-        if b != a: inc_map[b].append(em[i])
-    ext_map = {}
-    for n, vv in ext_attach.items():
-        ext_map.setdefault(vv, []).append(ext_mode_for(ext_attach, ext_mode, n))
-    for v in verts:
-        inc = inc_map[v] + ext_map.get(v, [])
-        if vm.get(v) in ('G', 'sH'):
-            if not glauber_vertex_mom_ok(inc):  # G/sH: >=2 small lines + exactly one large (O(1)) line is forbidden — it cannot cancel
-                return False
-            continue
-        if any(m in ('G', 'sH') for m in inc):  # touches a G/sH line: skip (transverse)
-            continue
-        n = len(inc)
-        if n < 2:
-            return False
-        if n == 2:  # equality of the two line modes
-            a, b = inc
-            if vee([a]) == vee([b]):
-                continue
-            return False
-        ok = False
-        for r in range(1, n):
-            for A in combinations(range(n), r):
-                B = [i for i in range(n) if i not in A]
-                if vee([inc[i] for i in A]) == vee([inc[i] for i in B]):
-                    ok = True
-                    break
-            if ok:
-                break
-        if not ok:
-            return False
-    return True
-
-
-# Every cut vertex separating p1,p3 from p2,p4 must be of G mode.
-def family_cut_vertex_ok(edges, verts, vm, ext_attach):
-    p1, p2, p3, p4 = (ext_attach['p1'], ext_attach['p2'], ext_attach['p3'], ext_attach['p4'])
-    extvs = set(ext_attach.values())
-    for v in verts:
-        if v in extvs:
-            continue
-        if vm.get(v) == 'G':
-            continue
-        rem_v = [vv for vv in verts if vv != v]
-        rem_e = [e for e in edges if v not in e]
-        comp = components(rem_e, rem_v)
-        if (comp[p1] == comp[p3] and comp[p2] == comp[p4] and comp[p1] != comp[p2]):
-            return False
-    return True
-
-
-# Every connected component of the jet graph (vertices+edges) contains at least one of its external vertices
-def jet_components_ok(jv, je, ext_verts):
-    if not jv:
-        return True
-    comp = components(list(je), jv)
-    groups = {}
-    for v in jv:
-        groups.setdefault(comp[v], set()).add(v)
-    for g in groups.values():
-        if not (g & ext_verts):
-            return False
-    return True
-
-
-# no C13/C24 scaleless island: a C13/C24 component whose ADJACENT modes are all softer (𝒱 > 𝒱(C13) = 1) is rejected (First Connectivity Theorem).
-def c13_c24_island_ok(edges, em, vm, verts):
-    for mode in ('C13', 'C24'):
-        for (bv, be, *rest) in mode_components(mode, vm, em, edges, verts):
-            real = {v for v in bv if v != 'aux'}
-            if not real:
-                continue
-            incident = [em[i] for i, (a, b) in enumerate(edges) if a in real or b in real]
-            if incident and all(V(m) > V(mode) for m in incident):
-                return False
-    return True
 
 
 # Build a region from its cuts: overlay, Glauber/semihard adjustment, then all requirements; returns (vm, em) or None.
@@ -1077,9 +1002,6 @@ def _build_region(edges, verts, ext_attach, ext_mode, cut13, cut24, cut1, cut3, 
     # [Fundamental pattern] momentum conservation at every vertex
     if not momentum_ok_regge(edges, em, vm, ext_attach, ext_mode):
         return None
-    # (0) family-separating cut vertices must be G (else hard momentum would be forced through a jet line)
-    if not family_cut_vertex_ok(edges, verts, vm, ext_attach):
-        return None
     # [Fundamental pattern] jet components: every component contains its external vertices
     je13 = {e for e, m in zip(edges, em) if m in J13_FAM}
     jv13 = ({v for v in verts if vm[v] in J13_FAM} | {v for e in je13 for v in e})
@@ -1092,9 +1014,9 @@ def _build_region(edges, verts, ext_attach, ext_mode, cut13, cut24, cut1, cut3, 
     # (3) mojetic (REGGE_NO_MOJETIC=1 disables, for tests)
     if os.environ.get('REGGE_NO_MOJETIC') != '1':
         # k0 (all externals finite C13/C24): each contracted jet 1VI, each H component needs jet edges of BOTH families adjacent
-        k0 = all(ext_mode_for(ext_attach, ext_mode, n) in ('C13', 'C24') for n in ext_attach)
+        k0 = all(ext_mode_for(ext_mode, n) in ('C13', 'C24') for n in ext_attach)
         if k0:
-            if not mojetic_k0_ok(edges, em, vm, J13_FAM, J24_FAM, ext_attach, ext_mode, verts):
+            if not mojetic_k0_ok(edges, em, vm, J13_FAM, J24_FAM, ext_attach):
                 return None
         else:
             gv = {v for v in verts if vm[v] == 'G'}
