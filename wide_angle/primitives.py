@@ -3,7 +3,7 @@ algebra and graph machinery (no region criteria — those live in
 region_checker.py).
 
 Contents:
-  - mode algebra on (m, n, i) tuples [S^m C_i^n; H = (0,0,0)]: V, norm, eq, harder_or_eq, join, meet, marginal_softer, vee;
+  - mode algebra on (m, n, i) tuples [S^m C_i^n; H = (0,0,0)]: V, norm, eq, harder_or_eq, join, meet, marginally_softer, vee;
   - mode scaling: scaling_of (v_e = -V);
   - mode-string parsing: parse_mode (single implementation in read_graph.py; re-exported);
   - graph helpers: Graph (vertex_mode); spanning_tree; find_1vi_blocks (Tarjan; used by the 1VI checks).
@@ -83,7 +83,7 @@ def _join_meet(X, Y):
 
 # Check whether X is marginally softer than Y
 @lru_cache(maxsize=None)
-def marginal_softer(X, Y):
+def marginally_softer(X, Y):
     X, Y = norm(X), norm(Y)
     if eq(X, Y): return False
     if not harder_or_eq(Y, X): return False

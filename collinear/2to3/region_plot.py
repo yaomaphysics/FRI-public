@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""region_plot.py — render two_to_three (collinear 2->3) regions as PNG figures with per-mode colours.
+"""region_plot.py — render collinear 2->3 regions as PNG figures with per-mode colours.
 
-Style spec (final, 2026-09-15) — two_to_three edition:
+Style spec (final, 2026-09-15) — collinear 2->3 edition:
 
   colours  (directions: p1 -> 1, p4 -> 4, p5 -> 5, the p2/p3 pair -> 23)
       H                                          Blue
@@ -24,7 +24,7 @@ Style spec (final, 2026-09-15) — two_to_three edition:
       numbers grey (FontSize 11) offset 0.026 outward; external legs
       (p1..p5 @ vertices 1..5) stub + label in the external-mode colour;
       caption "R{label}:  v = (...)" + one colour->modes line per colour
-      (modes displayed via two_to_three.name(); merged modes listed together).
+      (modes displayed via name(); merged modes listed together).
 
 Rendering runs through `wolframscript` (must be on PATH).
 
@@ -33,7 +33,7 @@ API:
                            outdir=None, image_size=720) -> [png paths]
         items = [(label, region), ...] with region = (vec, cuts, em, vm)
         (the survivors format: skeleton.enumerate_surv, formerly
-        two_to_three.enumerate_regions); em/vm entries are two_to_three mode tuples.
+        region_checker.enumerate_regions); em/vm entries are 2->3 mode tuples.
     render_combined_pdf(edges, verts, items, ext_mode=None, ext_attach=None,
                         outdir=None, nrows=None, font=None) -> atlas PDF path
         Single A4 PDF atlas; rows/page auto (5-7, by the drawn content's
@@ -63,7 +63,7 @@ COLOR_ORDER = ['Blue', 'Green', 'DarkGreen', 'D12', 'D6', 'Magenta', 'Orange', '
 DISPLAY_NAME = {'D12': 'Teal', 'D6': 'Olive', 'Green': 'LightGreen'}   # caption words (display only; figures keep their colours)
 
 
-# (color-name, wl-directive) for one two_to_three mode tuple.
+# (color-name, wl-directive) for one 2->3 mode tuple.
 def mode_color(x):
     if x[0] == 'H':
         return 'Blue', 'Blue'
@@ -83,7 +83,7 @@ def mode_color(x):
     return 'Black', 'Black'
 
 
-# (style, thickness) for one edge — all two_to_three edges are solid.
+# (style, thickness) for one edge — all edges are solid.
 def edge_directive(x):
     return mode_color(x)[1], EDGE_T
 
@@ -304,7 +304,7 @@ def _ts_str(m, font=None):
     return parts[0] if len(parts) == 1 else 'Row[{%s}]' % ', '.join(parts)
 
 
-# WL typeset expression for a two_to_three mode tuple (via its name).
+# WL typeset expression for a 2->3 mode tuple (via its name).
 def ts_mode(x, font=None):
     return _ts_str(mode_name(x), font)
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# two_to_three.py — collinear 2->3 FRI enumerator.
+# region_checker.py — collinear 2->3 FRI enumerator.
 #
 # Pipeline: cuts
 #   -> overlay (em/vm)
@@ -10,15 +10,15 @@
 #        condition 3 = meet-of-two).
 #
 # Mode algebra and graph tools: see primitives.py (zero-judgment base layer).
-# Run:  python3 two_to_three.py [k0..k4] [-v]   (built-in example; default k1)
+# Run:  python3 region_checker.py [k0..k4] [-v]   (built-in example; default k1)
 from itertools import combinations
 
 _DBG = False
 CONDUCT23 = True  # S^mC23 hidden-path conduction (general m; approved 2026-09-19 15:15; supersedes the 03:30 bridge prototype).  Set False to disable.
 
 from primitives import (H, S, W, P, isS, isC, m_of, d_of, n_of, mem_of, V, name, parse,
-    meet23, join23, connected, is_1vi, find_1vi_blocks,
-    marginally_softer23, harder_or_eq23, INF)
+    meet, join, connected, is_1vi, find_1vi_blocks,
+    marginally_softer, harder_or_eq, INF)
 
 def mode_components(mode, vm, em, edges, verts):
     # 1VI blocks of the contracted mode subgraph.
@@ -66,9 +66,9 @@ def build_overlay(edges, verts, ext_attach, ext_mode, cuts, vm_seen=None):
                 acc_map[v] = m
             else:
                 try:
-                    acc_map[v] = meet23(acc, m)
+                    acc_map[v] = meet(acc, m)
                 except ArithmeticError as e:
-                    return None, f'meet23:{e}'
+                    return None, f'meet:{e}'
     vm = {}
     for v in verts:
         acc = acc_map.get(v)
@@ -83,9 +83,9 @@ def build_overlay(edges, verts, ext_attach, ext_mode, cuts, vm_seen=None):
     em = []
     for (a, b) in edges:
         try:
-            em.append(meet23(vm[a], vm[b]))
+            em.append(meet(vm[a], vm[b]))
         except ArithmeticError as e:
-            return None, f'edge-meet23:{e}'
+            return None, f'edge-meet:{e}'
     return (em, vm), 'ok'
 
 # ============================ fundamental pattern ============================
@@ -130,7 +130,7 @@ def momentum_ok(edges, verts, ext_attach, ext_mode, em, vm):
 def acc_join(modes):
     acc = modes[0]
     for m2 in modes[1:]:
-        acc = join23(acc, m2)
+        acc = join(acc, m2)
     return acc
 
 # tightened connectivity for jet pieces (2026-09-19): pieces connect only
@@ -248,8 +248,8 @@ USE_THIRD_PORT = True
 # C23 cut: every component must contain v2 or v3; for all-INF kinematics this reduces to a connected cut containing both incident roots.
 # ============================ IR compatibility ============================
 # relevance (path version): marginally softer + monotone path (V non-increasing), no pass-through H.
-def relevant23(src_blk, dst_blk, dst_mode, edges, em, vm, src_mode):
-    if not marginally_softer23(src_mode, dst_mode): return False
+def relevant(src_blk, dst_blk, dst_mode, edges, em, vm, src_mode):
+    if not marginally_softer(src_mode, dst_mode): return False
     bv, be, *rest = src_blk
     sidx = rest[0] if rest else None
     cv = dst_blk[0]
@@ -332,7 +332,7 @@ def cond1_confirms(blk, mode, comps, confirmed, edges, em, vm, ext_attach, ext_m
                 continue
             ext_comp = ({vv, 'aux'}, [(vv, 'aux')], [])
             tgt = ({v for v in A}, [])
-            if relevant23(ext_comp, tgt, mode, edges, em, vm, m_ext):
+            if relevant(ext_comp, tgt, mode, edges, em, vm, m_ext):
                 inflow.append(m_ext)
         for ei, (a, b) in enumerate(edges):
             m = em[ei]
@@ -346,7 +346,7 @@ def cond1_confirms(blk, mode, comps, confirmed, edges, em, vm, ext_attach, ext_m
                 else:
                     line_comp = ({a, b}, [(a, b)], [])
                     tgt = ({v for v in A}, [])
-                    if relevant23(line_comp, tgt, mode, edges, em, vm, m):
+                    if relevant(line_comp, tgt, mode, edges, em, vm, m):
                         inflow.append(m)
                 break
         return inflow
@@ -358,7 +358,7 @@ def cond1_confirms(blk, mode, comps, confirmed, edges, em, vm, ext_attach, ext_m
         if not inflow: return False
         acc = inflow[0]
         for m2 in inflow[1:]:
-            try: acc = join23(acc, m2)
+            try: acc = join(acc, m2)
             except ArithmeticError: return False
         return acc == mode and _port_ok()
     for mask in range(1, 1 << n):
@@ -369,7 +369,7 @@ def cond1_confirms(blk, mode, comps, confirmed, edges, em, vm, ext_attach, ext_m
         if not inflow: continue
         acc = inflow[0]
         for m2 in inflow[1:]:
-            try: acc = join23(acc, m2)
+            try: acc = join(acc, m2)
             except ArithmeticError: return False
         if acc == mode: return _port_ok()
     return False
@@ -379,7 +379,7 @@ def cond1_confirms(blk, mode, comps, confirmed, edges, em, vm, ext_attach, ext_m
 #   (A) as a same-mode vertex shared with another same-mode component, or
 #   (B) as a harder-mode vertex reached by one of the block's OWN edges.
 # A scale assembled from two sources with no exit port is scaleless.
-def _collect_entries23(blk, start_vs, start_es, cur_mode, edges, em, vm):
+def _collect_entries(blk, start_vs, start_es, cur_mode, edges, em, vm):
     # Element-level first-ENTRY collection: vertices AND edges are elements; walk with monotone harder_or_eq steps;
     # when an element of the block is reached it is a HIT and the walk does not propagate inside the block.
     # Entries = hit vertices / endpoints of hit edges that belong to the block
@@ -414,7 +414,7 @@ def _collect_entries23(blk, start_vs, start_es, cur_mode, edges, em, vm):
             hits.add(el); continue
         for nb in neighbors(el):
             if nb in visited: continue
-            if harder_or_eq23(mode_of(nb), cur):
+            if harder_or_eq(mode_of(nb), cur):
                 visited.add(nb); queue.append((nb, mode_of(nb)))
     ev = set()
     for h in hits:
@@ -427,7 +427,7 @@ def _collect_entries23(blk, start_vs, start_es, cur_mode, edges, em, vm):
 
 # third-port test: (A) same-mode vertex shared with another component, (B) harder vertex via the block's own edge;
 # returns (tag, w) or None.
-def third_port23(blk, X, entry_vs, comps_same, vm, edges):
+def third_port(blk, X, entry_vs, comps_same, vm, edges):
     realV = {v for v in blk[0] if v != 'aux'}
     for w in sorted(realV):
         if w in entry_vs: continue
@@ -442,14 +442,14 @@ def third_port23(blk, X, entry_vs, comps_same, vm, edges):
         for w in (a, b):
             if w in realV or w in entry_vs: continue
             mw = vm.get(w)
-            if mw is not None and mw != X and harder_or_eq23(mw, X):
+            if mw is not None and mw != X and harder_or_eq(mw, X):
                 return ('B', w)
     return None
 
 def _outside_contacts(blk, X, v0, edges, em, vm):
     # Entry candidates of an outside source: element walk from its attach
     # vertex with the vertex's own mode as the starting mode.
-    return _collect_entries23(blk, [v0], [], vm.get(v0, H()), edges, em, vm)
+    return _collect_entries(blk, [v0], [], vm.get(v0, H()), edges, em, vm)
 
 def _port_sources(blk, X, edges, em, vm, ext_attach, ext_mode, confirmed, comps):
     # Contact-based sources for the third-port check: externals (always) + confirmed components
@@ -461,17 +461,17 @@ def _port_sources(blk, X, edges, em, vm, ext_attach, ext_mode, confirmed, comps)
         if v0 in realV:
             srcs.append((extn, md, {v0}))
         else:
-            if md == X or marginally_softer23(md, X):
+            if md == X or marginally_softer(md, X):
                 c = _outside_contacts(blk, X, v0, edges, em, vm)
                 if c:
                     srcs.append((extn, md, c))
     for (cm, ci) in confirmed:
-        if not marginally_softer23(cm, X):
+        if not marginally_softer(cm, X):
             continue
         sblk = comps[cm][ci]
         sv = {v for v in sblk[0] if v != 'aux'}
         se = sblk[2] if len(sblk) > 2 else []
-        c = _collect_entries23(blk, sv, se, cm, edges, em, vm)
+        c = _collect_entries(blk, sv, se, cm, edges, em, vm)
         if c:
             srcs.append(('%s#%d' % (name(cm), ci), cm, c))
     return srcs
@@ -485,20 +485,20 @@ def port_ok_pairs(blk, X, edges, em, vm, ext_attach, ext_mode, confirmed, comps,
     for (_tag, md, cands) in srcs:
         if md == X:
             for a in cands:
-                if third_port23(blk, X, {a}, comps_same, vm, edges):
+                if third_port(blk, X, {a}, comps_same, vm, edges):
                     return True
     for i in range(len(srcs)):
         for j in range(i + 1, len(srcs)):
             md1, c1 = srcs[i][1], srcs[i][2]
             md2, c2 = srcs[j][1], srcs[j][2]
             try:
-                if join23(md1, md2) != X:
+                if join(md1, md2) != X:
                     continue
             except ArithmeticError:
                 continue
             for a in c1:
                 for b in c2:
-                    if third_port23(blk, X, {a, b}, comps_same, vm, edges):
+                    if third_port(blk, X, {a, b}, comps_same, vm, edges):
                         return True
     if dbg is not None:
         dbg.setdefault('port_fail', []).append((name(X), [(t, sorted(c)) for (t, _m, c) in srcs]))
@@ -573,7 +573,7 @@ def messenger_targets(blk, mode, comps, edges, em, vm, ext_attach, ext_mode, deb
             if n_i < 0: continue
             via = None
             if n_i == 0:
-                if relevant23(_kern, d, md, edges, em, vm, mode):
+                if relevant(_kern, d, md, edges, em, vm, mode):
                     via = 'kernel'
             else:
                 for j in range(len(pool)):
@@ -582,7 +582,7 @@ def messenger_targets(blk, mode, comps, edges, em, vm, ext_attach, ext_mode, deb
                     if depth_of(md2) != n_i: continue
                     if d_of(md2) != d_of(md): continue
                     if not _comp_adjacent(b2, _kern, edges): continue
-                    if relevant23(b2, d, md, edges, em, vm, md2):
+                    if relevant(b2, d, md, edges, em, vm, md2):
                         via = name(md2)
                         break
             if via is None: continue
@@ -616,7 +616,7 @@ def messenger_ok(blk, mode, comps, confirmed, edges, em, vm, ext_attach, ext_mod
     # need >=1 confirmed relevant comp
     for (cm, ci) in list(confirmed):
         cblk = comps[cm][ci]
-        if relevant23(blk, cblk, cm, edges, em, vm, mode):
+        if relevant(blk, cblk, cm, edges, em, vm, mode):
             return True
     return False
 
@@ -717,7 +717,7 @@ def ir_ok(edges, verts, em, vm, ext_attach, ext_mode, dbg=None):
 
     def _vee_ok(md, blk):
         # Rule 3: two momenta attached to the component — carrier line
-        # modes (collinear part) or external momenta — with join23 equal to
+        # modes (collinear part) or external momenta — with join equal to
         # its mode.  Pure-soft lines cannot be the scale source of a soft
         # blob and are excluded.
         realV = {v for v in blk[0] if v != 'aux'}
@@ -737,7 +737,7 @@ def ir_ok(edges, verts, em, vm, ext_attach, ext_mode, dbg=None):
             return False
         for a in range(len(pool)):
             for b in range(a + 1, len(pool)):
-                if join23(pool[a], pool[b]) == md:
+                if join(pool[a], pool[b]) == md:
                     return True
         return False
 
@@ -823,7 +823,7 @@ def ir_ok(edges, verts, em, vm, ext_attach, ext_mode, dbg=None):
                     _anchor = False
                     for _am in (P(_cm, 2), P(_cm, 3)):
                         for _j2, _comp in enumerate(comps.get(_am, [])):
-                            if relevant23(_blk, _comp, _am, edges, em, vm, _scm):
+                            if relevant(_blk, _comp, _am, edges, em, vm, _scm):
                                 _anchor = True; break
                         if _anchor: break
                     if not _anchor:
@@ -831,7 +831,7 @@ def ir_ok(edges, verts, em, vm, ext_attach, ext_mode, dbg=None):
                     _dirs = set(); _cand = []
                     for _md in (W(1, _cm), W(4, _cm), W(5, _cm)):
                         for _j2, _comp in enumerate(comps.get(_md, [])):
-                            if relevant23(_blk, _comp, _md, edges, em, vm, _scm):
+                            if relevant(_blk, _comp, _md, edges, em, vm, _scm):
                                 _cand.append((_md, _j2)); _dirs.add(d_of(_md))
                     if len(_dirs) < 2:
                         continue
@@ -848,7 +848,7 @@ def ir_ok(edges, verts, em, vm, ext_attach, ext_mode, dbg=None):
                     # conduction within the (2)-pair: one confirmed => the other confirmed.
                     _A = []
                     for _j2, _comp in enumerate(comps.get(W(_scm[1], 2), [])):
-                        if relevant23(_blk, _comp, W(_scm[1], 2), edges, em, vm, _scm):
+                        if relevant(_blk, _comp, W(_scm[1], 2), edges, em, vm, _scm):
                             _A.append((W(_scm[1], 2), _j2))
                     if not _A:
                         continue
@@ -858,7 +858,7 @@ def ir_ok(edges, verts, em, vm, ext_attach, ext_mode, dbg=None):
                         _md1 = P(0, 0, 0) if _dd == 23 else W(_dd, 1)
                         _lst = []
                         for _j2, _comp in enumerate(comps.get(_md1, [])):
-                            if relevant23(_blk, _comp, _md1, edges, em, vm, _scm):
+                            if relevant(_blk, _comp, _md1, edges, em, vm, _scm):
                                 _lst.append((_md1, _j2))
                         if _lst:
                             _D[_dd] = _lst
@@ -888,7 +888,7 @@ def ir_ok(edges, verts, em, vm, ext_attach, ext_mode, dbg=None):
                     found = False
                     for md in cat:
                         for j, comp in enumerate(comps.get(md, [])):
-                            if relevant23(blk, comp, md, edges, em, vm, scm_m):
+                            if relevant(blk, comp, md, edges, em, vm, scm_m):
                                 found = True
                                 adj.append((md, j))
                     if not found:
@@ -904,13 +904,13 @@ def ir_ok(edges, verts, em, vm, ext_attach, ext_mode, dbg=None):
                 if not _cond_allowed(md, blk): continue
                 hit = []
                 for (cm, ci) in list(confirmed):
-                    if relevant23(blk, comps[cm][ci], cm, edges, em, vm, md):
+                    if relevant(blk, comps[cm][ci], cm, edges, em, vm, md):
                         hit.append(cm)
                 done = False
                 for ia in range(len(hit)):
                     for ib in range(ia + 1, len(hit)):
                         try:
-                            if meet23(hit[ia], hit[ib]) == md:
+                            if meet(hit[ia], hit[ib]) == md:
                                 done = True; break
                         except ArithmeticError:
                             continue

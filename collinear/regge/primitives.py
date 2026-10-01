@@ -3,7 +3,7 @@
 
 Mode-string layer over regge_modes (relations, virtuality, meet/join/vee),
 mode blocks and scaling, external-momentum helpers, and graph tools.
-The region checks (judgment) live in regge_core.py; the enumerators live in
+The region checks (judgment) live in region_checker.py; the enumerators live in
 skeleton.py.
 """
 
@@ -14,13 +14,13 @@ import regge_modes
 
 # ============================ mode string layer ============================
 
-# x marginally softer than y (formula: regge_modes.marginal_softer); the G/sH sentinels and the leg-blind
+# x marginally softer than y (formula: regge_modes.marginally_softer); the G/sH sentinels and the leg-blind
 # legacy symbols have no marginal reading.
 @lru_cache(maxsize=None)
 def marginally_softer(x1, x2):
     if x1 in ('G', 'sH') or x2 in ('G', 'sH') or x1 in regge_modes.LEG_BLIND or x2 in regge_modes.LEG_BLIND:
         return False
-    return regge_modes.marginal_softer(regge_modes.to_mode(x1), regge_modes.to_mode(x2))
+    return regge_modes.marginally_softer(regge_modes.to_mode(x1), regge_modes.to_mode(x2))
 
 # Port-walk hardness test: mw >= X, with G hard, sH never, H only against non-H; else V(mw) <= V(X).
 def harder_or_eq(mw, X):

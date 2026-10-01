@@ -292,7 +292,7 @@ def fold_lines(s, width=ATLAS_FOLD):
     return out
 
 
-def mode_key(m):
+def atlas_mode_key(m):
     m0, n, i = m if m is not None else (0, 0, 0)
     if (m0, n, i) == (0, 0, 0):
         return (2,)
@@ -341,7 +341,7 @@ def atlas_row_exprs(k, r, edges, ext_attach, font=None):
     def nm(m):
         return mode_name(m) if m is not None else 'H'
 
-    for md in sorted(per, key=mode_key):
+    for md in sorted(per, key=atlas_mode_key):
         d = per[md]
         vs = 'v{' + ','.join(str(x) for x in sorted(d['v'])) + '}' if d['v'] else ''
         es = 'e{' + ','.join('[%d,%d]' % e for e in d['e']) + '}' if d['e'] else ''

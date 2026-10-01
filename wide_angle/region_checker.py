@@ -15,13 +15,13 @@ To realize them, the following notions are developed:
                               For each region, it is required that all its mode components are infrared compatible (the infrared-compatibility requirement).
 For more details, it is recommended to read the relevant sections of 2601.22144.
 
-The pipeline checks used by the enumerators (check_fc / momentum_ok / ir_ok_blocks) live here next to the conditions they implement;
+The pipeline checks used by the enumerators (check_fc / momentum_ok / ir_ok) live here next to the conditions they implement;
 the shared base layer (mode algebra, graph and component machinery) is in primitives.py.
 """
 
 from collections import defaultdict, deque
 from itertools import combinations
-from primitives import (V, eq, harder_or_eq, join, meet, marginal_softer, find_1vi_blocks, vee, vertex_mode, H)
+from primitives import (V, eq, harder_or_eq, join, meet, marginally_softer, find_1vi_blocks, vee, vertex_mode, H)
 
 INF = 100   # a large value representing the positive infinity.
 
@@ -79,7 +79,7 @@ def _is_connected_aux(verts, edges, aux_conn=None):
 
 
 # Construction of mode components. (An X component is defined as the union of those elements (edges and vertices) contributing to a 1VI component of the contracted X subgraph.)
-def mode_components_wa(edges_in, em, ext_attach, ext_mode):
+def mode_components(edges_in, em, ext_attach, ext_mode):
     from collections import defaultdict
     # vertex modes: join of incident edge modes (attached externals included when given)
     inc = defaultdict(list)
@@ -186,7 +186,7 @@ def adjacent(g1, g2):
 
 # First element of g2 reached by g1's monotone flow; None if g1 is not relevant to g2.
 def relevant_hit(g1, g2, verts, edges):
-    if not marginal_softer(g1['mode'], g2['mode']): # marginal softness: one necessary condition
+    if not marginally_softer(g1['mode'], g2['mode']): # marginal softness: one necessary condition
         return None
     # element -> mode lookup
     emode = {v: md for v, md in verts.items()}
@@ -390,7 +390,7 @@ def partial_sum_mode(g, confirmed, verts, edges, all_comps, attach, extmode):
         if v in g['V']:
             modes.append(em)
         else:
-            if eq(em, g['mode']) or marginal_softer(em, g['mode']):
+            if eq(em, g['mode']) or marginally_softer(em, g['mode']):
                 # Path from attach vertex to γ through monotonically non-softer elements ("softer than or equal" per element pair; overlapping steps forbidden).
                 emode = {vv: md for vv, md in verts.items()}
                 for (a, b, md) in edges:
@@ -456,7 +456,7 @@ def cond1_sources(g, confirmed, verts, edges, all_comps, attach, extmode):
         if v in g['V']:
             modes.append((em, {v}))
         else:
-            if eq(em, g['mode']) or marginal_softer(em, g['mode']):
+            if eq(em, g['mode']) or marginally_softer(em, g['mode']):
                 hs = _collect_entries({v}, verts.get(v, (0, 0, 0)), elements(g), verts, edges)
                 ev = _entry_set(g, hs)
                 if ev:
@@ -465,7 +465,7 @@ def cond1_sources(g, confirmed, verts, edges, all_comps, attach, extmode):
     for g2 in confirmed:
         if g2 is g:
             continue
-        if not marginal_softer(g2['mode'], g['mode']):
+        if not marginally_softer(g2['mode'], g['mode']):
             continue
         hs = _collect_entries(elements(g2), g2['mode'], elements(g), verts, edges)
         ev = _entry_set(g, hs)
@@ -774,7 +774,7 @@ def confirm_all(all_comps, verts, edges, attach, extmode):
 
 
 # IR compatibility requirement: each mode component confirmed independently by the 3-condition fixpoint.
-def ir_ok_blocks(g, edge_modes, EXTMODE):
+def ir_ok(g, edge_modes, EXTMODE):
     # vertex and edge modes (attached externals included)
     verts = {}
     for v in g.vertices:
@@ -787,6 +787,6 @@ def ir_ok_blocks(g, edge_modes, EXTMODE):
     edges_in = [(u, v) for (u, v, _) in edges]
     em = [md for (_, _, md) in edges]
     # mode components + the confirmation fixpoint
-    all_comps = mode_components_wa(edges_in, em, attach, extmode)
+    all_comps = mode_components(edges_in, em, attach, extmode)
     ok, _order, _confirmed, _stuck = confirm_all(all_comps, verts, edges, attach, extmode)
     return ok

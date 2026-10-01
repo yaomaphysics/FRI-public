@@ -50,7 +50,7 @@ From there the browser can: inspect individual regions (per-mode subgraphs and l
 
 ### Choosing independent loop momenta
 
-For a given region, a basis of loop momenta adapted to its mode hierarchy is what makes the region's power counting manifest: `indep_loops.py` (wide-angle; ported to the Regge kinematics as `regge_indep_loops.py`) constructs one.  For every mode present, its contracted subgraph (the vertices carrying that join mode, plus one auxiliary vertex that absorbs all remaining endpoints) has a cycle rank equal to the number of independent loop momenta of that mode; the module returns a concrete basis (per one-vertex-irreducible block), with an option to force lines into the basis and a feasibility check.  The interactive enumerators expose this under option **1)**.
+For a given region, a basis of loop momenta adapted to its mode hierarchy is what makes the region's power counting manifest: `indep_loops.py` (one per framework — wide-angle, five-point 2->3, and Regge) constructs one.  For every mode present, its contracted subgraph (the vertices carrying that join mode, plus one auxiliary vertex that absorbs all remaining endpoints) has a cycle rank equal to the number of independent loop momenta of that mode; the module returns a concrete basis (per one-vertex-irreducible block), with an option to force lines into the basis and a feasibility check.  The interactive enumerators expose this under option **1)**.
 Whether the choice matters beyond bookkeeping is theory-dependent (e.g. power counting of operators in an EFT expansion) — FRI reports the bases, but performs no power counting itself.
 
 ### Scaleless diagnosis
@@ -88,7 +88,7 @@ Every surviving configuration is judged by the same chain of subgraph requiremen
 non-regions.
 The requirements are derived in [arXiv:2601.22144](https://arxiv.org/abs/2601.22144) for the wide-angle class; the collinear versions (Regge and the five-point 2→3 kinematics) follow the same cycle of subgraph conditions with the collinear mode algebra and will be presented in a forthcoming work.
 A non-region fails at a definite first check — that diagnosis is exactly what `scaleless_diagnosis.py` reports (wide-angle).
-The check implementations live in `wide_angle/region_checker.py`, `collinear/regge/regge_core.py` and `collinear/2to3/two_to_three.py`; the wide-angle mode algebra and graph machinery shared by the enumerator and the checker live in `wide_angle/primitives.py`. The collinear sides keep analogous shared base layers in `collinear/2to3/primitives.py` and `collinear/regge/primitives.py`.
+The check implementations live in `region_checker.py` (one per framework: wide-angle, five-point 2->3, and Regge); the wide-angle mode algebra and graph machinery shared by the enumerator and the checker live in `wide_angle/primitives.py`. The collinear sides keep analogous shared base layers in `collinear/2to3/primitives.py` and `collinear/regge/primitives.py`.
 
 ---
 
@@ -106,7 +106,7 @@ python3 wide_angle/facet_regions_interactive.py
 python3 wide_angle/scaleless_diagnosis.py
 
 # Regge 2->2: interactive enumerator for a new graph (kinematics k0..k5)
-python3 collinear/regge/fri_interactive.py
+python3 collinear/regge/facet_regions_interactive.py
 
 # Regge 2->2: stepper for the mode first-appearance ladder
 python3 collinear/regge/mode_level_interactive.py
@@ -149,22 +149,23 @@ FRI-project/
     ├── 2to3/                          #   part 1: five-point 2->3
     │   ├── primitives.py               #     mode algebra + graph tools (zero-judgment base layer)
     │   ├── skeleton.py                 #     skeleton cut enumerators (k0--k4; per-graph cut-chain levels)
-    │   ├── two_to_three.py             #     region checks / judgment (check chain shared with skeleton)
+    │   ├── region_checker.py           #     region checks / judgment (check chain shared with skeleton)
     │   ├── mode_levels.py              #     mode first-appearance ladder + cut-chain level derivation
     │   ├── mode_level_interactive.py   #     interactive stepper for the mode ladder
     │   ├── facet_regions_interactive.py #     interactive enumerator for a new graph
     │   ├── kin23.py                    #     kinematics table (k0--k4 presets; general virtuality patterns)
+    │   ├── indep_loops.py               #     independent loop momenta + line-momentum parameterization
     │   └── region_plot.py              #     region figures + PDF atlas
     └── regge/                         #   part 2: Regge limit of 2->2
-        ├── regge_core.py              #     engine: mode lattice, cuts, pipeline, IR fixpoint
+        ├── region_checker.py          #     engine: mode lattice, cuts, pipeline, IR fixpoint
         ├── primitives.py              #     mode strings + graph tools (zero-judgment base layer)
         ├── regge_modes.py             #     S^m C_i^n C_ij mode algebra (meet/join)
-        ├── regge_indep_loops.py       #     independent loop momenta (semihard fix)
+        ├── indep_loops.py             #     independent loop momenta (semihard fix)
         ├── regge_graphs.py            #     example graph library + k0--k5 kinematics
         ├── skeleton.py                #     skeleton cut enumerator (fast path) + the full FRI enumerators (k0--k5)
         ├── mode_levels.py             #     mode first-appearance ladder
         ├── mode_level_interactive.py  #     interactive stepper for the mode ladder
-        ├── fri_interactive.py         #     interactive enumerator for a new graph
+        ├── facet_regions_interactive.py #     interactive enumerator for a new graph
         └── region_plot.py             #     region figures + PDF atlas
 ```
 
@@ -178,7 +179,7 @@ Every implementation has been cross-checked against the region finder of [pySecD
 |---|---|---|
 | **wide-angle** | ~830 configurations covering 45+ topologies (2→2 / 2→3 / 1→3; 3--5 loops; planar and nonplanar; including soft-emission families) | 1,200 four-leg + 600 five-leg cases (on top of ~19,000 earlier random cases) |
 | **collinear: 2→3** (p2 ∥ p3) | 11-graph Frog family + 394 variants (a fifth external leg attached to the 2→2 topologies) | 1,000 (3-loop) + 500 (4-loop) + 100 (5-loop) graphs in the five kinematics k0--k4 |
-| **collinear: 2→2 (Regge)** (p1 ∥ p3, p2 ∥ p4) | region files of 56 graphs in the six kinematics k0–k5 (lightlike and off-shell external legs, $\lambda^2$-suppressed virtualities) | 2,000 (3-loop) + 300 (4-loop) + 10 (5-loop) graphs over k0–k5 |
+| **collinear: 2→2 (Regge)** (p1 ∥ p3, p2 ∥ p4) | region files of 56 graphs in the six kinematics k0–k5 (lightlike and off-shell external legs, $\lambda^2$-suppressed virtualities) | 2,000 (3-loop) + 300 (4-loop) + 50 (5-loop) graphs over k0–k5 |
 
 ---
 
@@ -200,5 +201,4 @@ Cleared for now.
 
 **Open items — regge**
 
-The marginal-softer list needs update -- now S^1C2C24 is not regarded as marginally softer than C4C24, which may lead to errors at 5-loop level.
 More random-diagram validation is need at 5 loops; since k4 can be very slow, I may only try other k.

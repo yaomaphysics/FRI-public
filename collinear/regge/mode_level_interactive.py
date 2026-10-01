@@ -1,10 +1,7 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""mode_level_interactive.py — interactive stepper for the mode first-appearance ladder
-(mode_levels module; the public regge 2->2 toolkit).
+"""
+mode_level_interactive.py — interactive stepper for the mode first-appearance ladder (mode_levels module; the public regge 2->2 toolkit).
 
-Ask for the four external-momentum modes (p1..p4; plain Enter = the regge k1
-defaults), show the L = 0 modes, then advance one loop level per key press:
+Ask for the four external-momentum modes (p1..p4; plain Enter = the regge k1 defaults), show the L = 0 modes, then advance one loop level per key press:
 
     SPACE : next loop level (+1)
     ENTER : jump to the next level that has new modes
@@ -21,17 +18,16 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 if HERE not in sys.path:
     sys.path.insert(0, HERE)
 
-from regge_modes import Mode, INF, to_mode, to_old
-from mode_levels import Predictor
+from regge_modes import INF, to_mode, to_old
+from mode_levels import Predictor, leg_check
 
-LMAX = 10
+LMAX = 10 # Stepper display cap (levels are shown up to L = LMAX).
 
 BANNER = '''\
 ==============================================================
   mode first-appearance stepper   (regge)
 --------------------------------------------------------------
-  Enter the four external-momentum modes (Enter = k1 defaults),
-  then:
+  Enter the four external-momentum modes (Enter = k1 defaults), then:
     SPACE = step +1 loop      ENTER = jump to next non-empty loop
     A     = cumulative table  Q/B   = quit
   (levels are capped at L = %d)
@@ -39,22 +35,14 @@ BANNER = '''\
 
 DEFAULT_MOMENTA = ['C1∞C13', 'C2∞C24', 'C3∞C13', 'C4∞C24']
 
+# Cost in words for the source lines (tree / 1 loop / N loops).
 def _fmt_cost(c):
     return 'tree' if c == 0 else ('1 loop' if c == 1 else '%d loops' % c)
 
 
-# True when mode m is admissible as the momentum mode of leg i.
-def leg_check(i, m):
-    if not isinstance(m, Mode):
-        return False
-    fam = 13 if i in (1, 3) else 24
-    if m.n == INF:
-        return m.fam == fam and m.leg == i
-    return m.fam == fam and (m.leg is None or m.leg == i)
-
-
+# input the external modes.
 def ask_momenta():
-    print('Enter the four external-momentum modes (Enter = regge k1 defaults; examples: C13 / C1C13 / C2∞C24 / S^1C13; q/b = quit):')
+    print('Enter the four external-momentum modes (Enter = defaults C1∞C13 / C2∞C24 / C3∞C13 / C4∞C24; q/b = quit):')
     out = {}
     for i, dflt in enumerate(DEFAULT_MOMENTA, 1):
         while True:
@@ -102,7 +90,9 @@ def read_key():
     return ch
 
 
+# Display state for one kinematics: extends the ladder on demand and renders each new mode's origin.
 class Stepper:
+    # Store the entered kinematics; pred/levels/by_name/computed are (re)built lazily by ensure().
     def __init__(self, ext_modes):
         self.ext = dict(ext_modes)
         self.pred = None
@@ -110,6 +100,7 @@ class Stepper:
         self.by_name = {}
         self.computed = -1
 
+    # Extend the computed ladder to level k (recompute with the larger cap when the display has advanced).
     def ensure(self, k):
         k = min(k, LMAX)
         if k <= self.computed:
@@ -120,6 +111,7 @@ class Stepper:
         self.by_name = {to_old(x): x for x in self.pred.cost if x.n != INF}
         self.computed = k
 
+    # New-mode names listed at level k ([] when the level is empty).
     def modes_at(self, k):
         return self.levels.get(k, [])
 
@@ -165,6 +157,7 @@ class Stepper:
             return ('wedge: %s (%s) + %s (%s) + an additional loop' % (to_old(a), _fmt_cost(ca), to_old(b), _fmt_cost(cb)))
         return '—'
 
+    # Names of the finite legs of the other family, for the messenger2 line.
     def _other_legs(self, branch):
         legs = (1, 3) if branch == '24' else (2, 4)
         names = []
@@ -179,6 +172,7 @@ class Stepper:
         return '%s (or %s)' % (names[0], ' or '.join(names[1:]))
 
 
+# Ask for the kinematics, then run the stepper's key loop.
 def main():
     print(BANNER)
     ext = ask_momenta()
@@ -192,6 +186,7 @@ def main():
 
     cur = 0
 
+    # Print level k's new modes with their origins, plus the cumulative count.
     def show(k):
         st.ensure(k)
         names = st.modes_at(k)

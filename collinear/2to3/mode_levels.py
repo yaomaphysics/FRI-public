@@ -38,7 +38,7 @@ S^2 relevant to the C2C23/C3C23 seeds -> S^2 at L = 2, verified against
 pysd_cache region data).  Members may share a level (k4: S^2@2 with S@2).
 
 Known caveat (pending): same-direction joins S^m C_i^n v C_i^inf (m >= 2)
-differ between two_to_three (C_i^{2m+n}) and wide_angle (sigma = m+n); affects
+differ between region_checker (C_i^{2m+n}) and wide_angle (sigma = m+n); affects
 extrapolated high-L output only (can inflate derived levels for L >= 9 on
 k2-like inputs -> those hit the engine's "deeper chains not implemented"
 guard).  See two_to_three_vs_wa_inf_join_note_20260921.md (private).
@@ -49,13 +49,13 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 if HERE not in sys.path:
     sys.path.insert(0, HERE)
 
-import two_to_three as F
+import region_checker as F
 import kin23
 
 
 # ---------------------------------------------------------------- algorithm
 # Returns (levels: {mode tuple -> level}, log: dict). momenta: optional override for the five external-momentum modes
-# (list of two_to_three mode tuples); default = kin23.ext_modes(kin).
+# (list of 2->3 mode tuples); default = kin23.ext_modes(kin).
 def predict(ext_tokens, Lmax, kin='k1', momenta=None):
     ext_modes = [F.parse(t) for t in ext_tokens]
     ext_mom = list(momenta) if momenta is not None else list(kin23.ext_modes(kin).values())
@@ -73,7 +73,7 @@ def predict(ext_tokens, Lmax, kin='k1', momenta=None):
     for m0 in ext_modes:
         add(m0, 0)
 
-    # ---- take vee closure: fixpoint over join23 (modes x modes, modes x momenta, momenta x momenta)
+    # ---- take vee closure: fixpoint over join (modes x modes, modes x momenta, momenta x momenta)
     def vee_closure():
         changed = True
         while changed:
@@ -82,7 +82,7 @@ def predict(ext_tokens, Lmax, kin='k1', momenta=None):
             for i in range(len(pool)):
                 for j in range(i + 1, len(pool)):
                     try:
-                        r = F.join23(pool[i][0], pool[j][0])
+                        r = F.join(pool[i][0], pool[j][0])
                     except Exception:
                         exc_count[0] += 1
                         continue
@@ -97,7 +97,7 @@ def predict(ext_tokens, Lmax, kin='k1', momenta=None):
         for i in range(len(items)):
             for j in range(i + 1, len(items)):
                 try:
-                    r = F.meet23(items[i], items[j])
+                    r = F.meet(items[i], items[j])
                 except Exception:
                     exc_count[0] += 1
                     continue
@@ -106,7 +106,7 @@ def predict(ext_tokens, Lmax, kin='k1', momenta=None):
         return list(miss)
 
     # ---- messenger tower (the single place to swap in the general rule)
-    pair_enabled = True  # two_to_three: the collinear (2,3) pair always brings the C23 family in (via the momenta)
+    pair_enabled = True  # 2->3: the collinear (2,3) pair always brings the C23 family in (via the momenta)
     def messenger_iter():
         m = 1
         while True:
@@ -194,7 +194,7 @@ def derive_external_modes(momenta):
         for i in range(len(cur)):
             for j in range(i + 1, len(cur)):
                 try:
-                    r = F.join23(cur[i], cur[j])
+                    r = F.join(cur[i], cur[j])
                 except Exception:
                     continue
                 if r not in seen:

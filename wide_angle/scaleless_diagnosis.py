@@ -41,7 +41,7 @@ import sys, os, itertools, re, signal
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from read_graph import parse_mode, INF
 from primitives import Graph, vertex_mode, vee, eq, V
-from region_checker import (hard_jet_mojetic_ok, confirm_all, mode_components_wa)
+from region_checker import (hard_jet_mojetic_ok, confirm_all, mode_components)
 
 H = (0, 0, 0)
 
@@ -161,10 +161,10 @@ def fc_fail_subgraph(g, em, extmode):
     return None
 
 
-# IR-compatibility fixed-point flow (2026-08-21: components are 1VI blocks from mode_components_wa, not connected components; 2026-09-26: shared confirm_all core); returns (ok, stuck_components).
+# IR-compatibility fixed-point flow (2026-08-21: components are 1VI blocks from mode_components, not connected components; 2026-09-26: shared confirm_all core); returns (ok, stuck_components).
 def ir_compat_fail(vm, em, edges_in, ext_attach, extmode):
     e3 = [(a, b, md) for (a, b), md in zip(edges_in, em) if md is not None]
-    all_comps = mode_components_wa(edges_in, [md for (_, _, md) in e3], ext_attach, extmode)
+    all_comps = mode_components(edges_in, [md for (_, _, md) in e3], ext_attach, extmode)
     ok, _order, _confirmed, stuck = confirm_all(all_comps, vm, e3, ext_attach, extmode)
     return ok, stuck
 
@@ -199,7 +199,7 @@ def diagnose(edges, em, ext_attach, extmode):
     if j is not None:
         return False, (f'the Coleman--Norton interpretation is violated because jet C_{j} is disconnected')
 
-    # (contracted-1VI check removed — superseded by third_port; mode components are 1VI blocks from mode_components_wa — see ir_ok_blocks.)
+    # (contracted-1VI check removed — superseded by third_port; mode components are 1VI blocks from mode_components — see ir_ok.)
 
     # 3. mojetic (H∪J∖J_i)
     ok, _ = hard_jet_mojetic_ok(edges, em, ext_attach, extmode)

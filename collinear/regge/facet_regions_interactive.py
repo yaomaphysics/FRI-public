@@ -2,7 +2,7 @@
 """Interactive Regge-limit FRI region enumerator.
 
 Usage:
-    python3 fri_interactive.py
+    python3 facet_regions_interactive.py
 
 At startup you pick one of the 6 Regge 2->2 kinematics (k0..k5, default
 k1).  The kinematics sets the external-momentum modes (ext_mode) fed into
@@ -46,7 +46,7 @@ from primitives import to_scaling, mode_components
 from skeleton import skel_regions, skel_regions_k1   # pruned skeleton enumerators
 from regge_modes import to_mode          # mode strings are plain literals
                                          # ('C13', 'sH', ...) everywhere
-from regge_indep_loops import show_basis     # indep loops + edge momenta
+from indep_loops import show_basis     # indep loops + edge momenta
 # The 6 Regge kinematics (ext_mode + momentum-invariant scalings + notes),
 # shared with the graph/kinematics library.
 from regge_graphs import KIN

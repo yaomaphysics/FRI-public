@@ -54,7 +54,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 from primitives import Graph, vee, eq, harder_or_eq, meet, norm
 from read_graph import mode_str, INF
-from region_checker import (jet_connected_ok, hard_jet_mojetic_ok, check_fc, momentum_ok, ir_ok_blocks)
+from region_checker import (jet_connected_ok, hard_jet_mojetic_ok, check_fc, momentum_ok, ir_ok)
 from usable_modes import derive_usable_modes, usable_layers
 
 H = (0, 0, 0)
@@ -326,7 +326,7 @@ def _check_combo(verts, edges_t, g, ext_attach, ext_mode, combo, seen_vm=None):
     ok_mj, _ = hard_jet_mojetic_ok(edges_t, em, ext_attach, ext_mode)
     if not ok_mj:
         return None
-    if not ir_ok_blocks(g, em, ext_mode):
+    if not ir_ok(g, em, ext_mode):
         return None
     return vm, em
 

@@ -7,7 +7,7 @@ the six Regge-limit kinematics k0..k5 (small parameter lmd): the external
 momentum modes fed to the FRI pipeline, and the momentum-invariant
 scalings of each configuration.
 
-Used by fri_interactive.py.
+Used by facet_regions_interactive.py.
 """
 GRAPHS = {
     'box': [(1, 3), (2, 4), (1, 2), (3, 4)],

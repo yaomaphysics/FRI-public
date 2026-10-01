@@ -3,7 +3,7 @@
 
 Mode algebra (canonical mode tuple, constructors, accessors, meet/join), graph
 tools, and the softness-order relations.  The region checks (judgment) live in
-two_to_three.py; the enumerators in skeleton.py.
+region_checker.py; the enumerators in skeleton.py.
 """
 
 import re
@@ -120,7 +120,7 @@ def _decode_wide(m, sig, leg):
     return W(leg, n, m)
 
 
-def _wide23_join_meet(a, b):
+def _wide_join_meet(a, b):
     # wide×wide carrier vee/wedge for finite carrier powers — translated from
     # wide_angle/primitives._join_meet (aligned 2026-09-16; keep the two in sync).
     # tuple view: (m, n, i) = (soft index, carrier power, direction).
@@ -294,7 +294,7 @@ def _pair_candidates(u, v, mode):
     return keep
 
 # pair-family meet (greatest lower bound).
-def _pair_meet23(a, b):
+def _pair_meet(a, b):
     u, v = _pair_parts(a), _pair_parts(b)
     if u == v:
         return a
@@ -315,7 +315,7 @@ def _pair_meet23(a, b):
     return _pair_from(*next(iter(keep)))
 
 # pair-family join (least upper bound).
-def _pair_join23(a, b):
+def _pair_join(a, b):
     u, v = _pair_parts(a), _pair_parts(b)
     if u == v:
         return a
@@ -392,7 +392,7 @@ def _wp_softer_full(u, v):
     return u[0] >= _wp_sig(v)
 
 # cross-family meet (wide x pair).
-def _wide_pair_meet23(a, b):
+def _wide_pair_meet(a, b):
     u, v = _wp_parts(a), _wp_parts(b)
     wleg = u[2] if u[3] == 'W' else v[2]
 
@@ -437,7 +437,7 @@ def _wide_pair_meet23(a, b):
     return conv(next(iter(keep)))
 
 # cross-family join (wide x pair).
-def _wide_pair_join23(a, b):
+def _wide_pair_join(a, b):
     u, v = _wp_parts(a), _wp_parts(b)
     if u == v:
         return _wp_from(*u)
@@ -448,7 +448,7 @@ def _wide_pair_join23(a, b):
     # cross-family closed form: (min m, max m - 1), label from the smaller-m side (leg kept: our base wide is leg-tagged).
     m = min(u[0], v[0]); s = max(u[0], v[0]) - 1
     if s < -1:
-        raise ArithmeticError('join23(%s,%s) produced s < -1' % (name(a), name(b)))
+        raise ArithmeticError('join(%s,%s) produced s < -1' % (name(a), name(b)))
     src = u if u[0] <= v[0] else v
     n = s - m
     if n == -1:
@@ -458,9 +458,9 @@ def _wide_pair_join23(a, b):
 
 # mode meet (AND): softest common refinement; ArithmeticError when undefined.
 # Memoised (lru_cache): the same (a, b) pairs recur thousands of times in the enumerators.
-# Keep the key ordered: tie cases return the first argument (meet23(a, b) may differ from meet23(b, a)).
+# Keep the key ordered: tie cases return the first argument (meet(a, b) may differ from meet(b, a)).
 @lru_cache(maxsize=None)
-def meet23(a, b):
+def meet(a, b):
     if a == b: return a
     if a == H(): return b
     if b == H(): return a
@@ -478,12 +478,12 @@ def meet23(a, b):
         if wide_like(c_):
             nu = n_of(c_)
             if nu == INF:
-                raise ArithmeticError(f'meet23 soft x inf: ({name(a)},{name(b)})')
+                raise ArithmeticError(f'meet soft x inf: ({name(a)},{name(b)})')
             nu = nu - 1
         else:
             nu = n_of(c_)
             if nu == INF:
-                raise ArithmeticError(f'meet23 soft x inf: ({name(a)},{name(b)})')
+                raise ArithmeticError(f'meet soft x inf: ({name(a)},{name(b)})')
         sig = max(m1 - 1, ms + nu)
         nr = sig - mm
         if wide_like(c_):
@@ -499,7 +499,7 @@ def meet23(a, b):
     if wide_like(a) and wide_like(b):
         if n_of(a) != INF and n_of(b) != INF:
             # carrier wedge — same rules as wide_angle/primitives._join_meet (aligned 2026-09-16).
-            return _wide23_join_meet(a, b)[1]
+            return _wide_join_meet(a, b)[1]
         # n = INF keeps the previous handling:
         if same_dir(a, b):
             d_ = d_of(a)
@@ -515,17 +515,17 @@ def meet23(a, b):
         leg = d_of(a) if sig1 > sig2 else (d_of(b) if sig2 > sig1 else None)
         return _decode_wide(m, sig, leg)
     if pair_like(a) and pair_like(b):
-        return _pair_meet23(a, b)
+        return _pair_meet(a, b)
     # wide x pair
     if (wide_like(a) and pair_like(b)) or (pair_like(a) and wide_like(b)):
-        return _wide_pair_meet23(a, b)
+        return _wide_pair_meet(a, b)
     # hybrid wide x pair
     if m_of(a) == 0 and m_of(b) == 0:
         w = a if wide_like(a) else b
         p = b if wide_like(a) else a
         an, k = n_of(w), n_of(p)
         if an == INF or k == INF:
-            raise ArithmeticError(f'meet23 hybrid inf: ({name(a)},{name(b)})')
+            raise ArithmeticError(f'meet hybrid inf: ({name(a)},{name(b)})')
         i, j = d_of(w), mem_of(p)
         if an <= k:
             return P(k - an, j, an) if k - an >= 1 else P(0, 0, an)
@@ -533,12 +533,12 @@ def meet23(a, b):
             return S(k + 1)
         else:
             return W(i, an - k - 1, k + 1)
-    raise ArithmeticError(f'meet23 unhandled: ({name(a)},{name(b)})')
+    raise ArithmeticError(f'meet unhandled: ({name(a)},{name(b)})')
 
 # mode join (OR): combined mode of two momenta at a vertex.
-# Memoised (lru_cache; ordered-key note under meet23).
+# Memoised (lru_cache; ordered-key note under meet).
 @lru_cache(maxsize=None)
-def join23(a, b):
+def join(a, b):
     if a == b: return a
     if a == H() or b == H(): return H()
     if isS(a) and isS(b):
@@ -568,7 +568,7 @@ def join23(a, b):
     if wide_like(a) and wide_like(b):
         if n_of(a) != INF and n_of(b) != INF:
             # carrier vee — same rules as wide_angle/primitives._join_meet (aligned 2026-09-16).
-            return _wide23_join_meet(a, b)[0]
+            return _wide_join_meet(a, b)[0]
         # n = INF keeps the previous handling:
         if same_dir(a, b):
             # S^1C_i^n ∨ C_i^∞ = C_i^{n+1}
@@ -585,10 +585,10 @@ def join23(a, b):
                 return W(d_of(y), x[4], 0)
         return H()
     if pair_like(a) and pair_like(b):
-        return _pair_join23(a, b)
+        return _pair_join(a, b)
     # wide x pair
     if (wide_like(a) and pair_like(b)) or (pair_like(a) and wide_like(b)):
-        return _wide_pair_join23(a, b)
+        return _wide_pair_join(a, b)
     # wide x pair
     return H()
 
@@ -662,7 +662,7 @@ def find_1vi_blocks(verts, edges):
 
 # ============================ mode relations ============================
 # The marginally-softer test and the harder-or-equal order used by the monotone walks.
-def marginally_softer23(src, dst):
+def marginally_softer(src, dst):
     # src marginally softer than dst.
     # Cross-family soft-carrier entries follow the level rule: S^m-carrier -> other-side target
     # of level L iff m == L + 1; same-side targets keep the V-based rule.
@@ -705,13 +705,13 @@ def marginally_softer23(src, dst):
     return False
 
 
-def harder_or_eq23(mw, X):
+def harder_or_eq(mw, X):
     # Order test on the 2->3 modes (S / C_i^n / C_j^kC_23 / H), used by the monotone walks and the port (B) clause.
     if mw == X: return True
     if mw == H(): return True
     if X == H(): return False
     # mode -> (m, n, i) coordinates for the order test.
-    def rc23(x):
+    def rc(x):
         if isS(x): return (x[1], 0, 0)
         if wide_like(x):
             n = x[2]
@@ -722,7 +722,7 @@ def harder_or_eq23(mw, X):
             leg = 2 if x[3] == 2 else (4 if x[3] == 3 else 0)
             return (x[4], INF if k == INF else k, 0 if k == 0 else leg)
         return (0, -1, 0)
-    m1, n1, i1 = rc23(mw); m2, n2, i2 = rc23(X)
+    m1, n1, i1 = rc(mw); m2, n2, i2 = rc(X)
     s1 = INF if n1 == INF else m1 + n1
     s2 = INF if n2 == INF else m2 + n2
     if i1 == i2:

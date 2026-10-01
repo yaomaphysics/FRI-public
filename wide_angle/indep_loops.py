@@ -20,8 +20,14 @@ Given a region, for every mode X:
       - the choice of which edges to delete is otherwise free.
 
 For sanity check: Σ_X r_X = L = |E| − |V| + 1 for every region.
+
+Additionally provides the physical line-momentum parameterization (tree+chords, with the option
+to force lines into the basis) and its display helpers, used by the interactive browser.
 """
 from collections import defaultdict
+
+from primitives import spanning_tree
+from read_graph import mode_str
 
 
 # 1VI components of a subgraph.
@@ -159,3 +165,161 @@ def indep_loops(edges, em, vm):
     # Sanity check: Σ_X r_X = L for every region.
     L = len(edges) - len({v for e in edges for v in e}) + 1
     return results, total_rank, L
+
+# ---------------------------------------------------------------- line-momentum parameterization
+
+# Express line momenta as linear combinations of the loop and external momenta.
+def edge_momenta(edges, em, vm, carriers, ext_attach):
+    verts = sorted({v for e in edges for v in e})
+    E = len(edges)
+    V = len(verts)
+    L = E - V + 1
+    F = set(carriers)
+    if len(F) > L:
+        return False, f'{len(F)} forced lines exceed L = {L}', None, None
+    tree = spanning_tree(verts, edges, F)
+    if tree is None:
+        return False, ('the remaining lines do not connect (a forced line is a bridge and cannot carry a loop momentum)'), None, None
+    chords = [i for i in range(E) if i not in tree]
+    # k-numbering: forced lines first (input order), then remaining chords in edge order
+    order = sorted(F) + [i for i in chords if i not in F]
+    kname = {ei: f'k{order.index(ei) + 1}' for ei in order}
+    orient = {i: (a, b) if a < b else (b, a) for i, (a, b) in enumerate(edges)}
+    # tree adjacency (for the downstream-side computation)
+    adj = {v: [] for v in verts}
+    for ti in tree:
+        a, b = orient[ti]
+        adj[a].append((b, ti))
+        adj[b].append((a, ti))
+    def component_without(removed, root):
+        seen = {root}
+        stack = [root]
+        while stack:
+            v = stack.pop()
+            for (w, ti) in adj[v]:
+                if ti == removed or w in seen:
+                    continue
+                seen.add(w)
+                stack.append(w)
+        return seen
+    momenta = {}
+    for ti in tree:
+        x, y = orient[ti]
+        Y = component_without(ti, y)
+        terms = {}
+        for nm, v in ext_attach.items():
+            if v in Y:
+                terms[nm] = terms.get(nm, 0) + 1
+        for ei in chords:
+            a, b = orient[ei]
+            if a in Y and b not in Y:
+                terms[kname[ei]] = terms.get(kname[ei], 0) + 1
+            elif b in Y and a not in Y:
+                terms[kname[ei]] = terms.get(kname[ei], 0) - 1
+        momenta[ti] = terms
+    for ei in chords:
+        momenta[ei] = {kname[ei]: 1}
+    return True, order, momenta, verts
+
+
+# Check momentum conservation at each vertex.
+def _check_conservation(edges, verts, momenta, ext_attach):
+    for v in verts:
+        flow = {}
+        for ei, (a, b) in enumerate(edges):
+            da, db = (a, b) if a < b else (b, a)
+            terms = momenta[ei]
+            if da == v:                       # outflow at v
+                for t, c in terms.items():
+                    flow[t] = flow.get(t, 0) - c
+            if db == v:                       # inflow at v
+                for t, c in terms.items():
+                    flow[t] = flow.get(t, 0) + c
+        for nm, w in ext_attach.items():
+            if w == v:
+                flow[nm] = flow.get(nm, 0) - 1
+        kvals = [c for t, c in flow.items() if t.startswith('k')]
+        if any(c != 0 for c in kvals):
+            return False
+        pvals = [c for t, c in flow.items() if not t.startswith('k')]
+        if pvals and any(c != pvals[0] for c in pvals):
+            return False
+    return True
+
+
+# Sort key for momentum terms: k's first (numeric), then externals (alphabetical).
+def _term_key(t):
+    return (0, int(t[1:]), '') if t.startswith('k') else (1, 0, t)
+
+
+# {term: coeff} -> readable string such as 'k1 - k2 + p2 + p3'.
+def fmt_expr(terms):
+    if not terms:
+        return '0'
+    items = sorted(terms.items(), key=lambda kv: _term_key(kv[0]))
+    out = []
+    for t, c in items:
+        if c == 1:
+            out.append(t)
+        elif c == -1:
+            out.append(f'-{t}')
+        else:
+            out.append(f'{c}*{t}')
+    s = out[0]
+    for x in out[1:]:
+        s += (' + ' + x) if not x.startswith('-') else (' - ' + x[1:])
+    return s
+
+
+# Print the line-momentum basis and every line's momentum, together with a conservation check.
+def show_edge_momenta(edges, em, vm, carriers, ext_attach, forced=False):
+    ok, payload, momenta, verts = edge_momenta(edges, em, vm, carriers, ext_attach)
+    if not ok:
+        reason = payload
+        if forced:
+            print('  ✗ unfeasible: these line momenta do not form a basis for the loop momenta')
+        else:
+            print(f'  ! default basis cannot serve as loop-momentum carriers: {reason}')
+        return
+    order = payload
+    print('  line momenta: ' + ', '.join(f'k{i+1} ↦ {edges[ei]} along {edges[ei][0]}→{edges[ei][1]}' for i, ei in enumerate(order)))
+    print('  edge momenta (flow along the displayed direction; p_i = external):')
+    for ei in range(len(edges)):
+        a, b = edges[ei]
+        print(f'    ({a},{b}) {a}→{b}: {fmt_expr(momenta[ei])}')
+    if _check_conservation(edges, verts, momenta, ext_attach):
+        print('  ✓ momentum conservation at every vertex')
+    else:
+        print('  ✗ momentum conservation FAILED (bug!)')
+    print('  These line momenta can form a loop-momentum basis.')
+
+
+# ---------------------------------------------------------------- basis display
+
+# Display name for a mode tuple ('∅' when missing).
+def _ms(md):
+    return mode_str(md) if md is not None else '∅'
+
+
+# Show a loop-momentum basis (forced lines or the default per-mode basis) and the momenta.
+def show_basis(edges, em, vm, F=None, ext_attach=None):
+    if F:
+        show_edge_momenta(edges, em, vm, F, ext_attach, forced=True)
+    else:
+        results, total, L = indep_loops(edges, em, vm)
+        print('  independent loop momenta (a concrete basis):')
+        for r in results:
+            X = r['mode']
+            for b in r['blocks']:
+                if not b['basis']:
+                    continue
+                desc = []
+                for j in b['basis']:
+                    u, v = edges[j]
+                    s = f'#{j} ({u},{v})'
+                    if u == v:
+                        s += ' [self-loop]'
+                    desc.append(s)
+                print(f'    mode {_ms(X)}: basis = {", ".join(desc)}')
+        basis_all = [j for r in results for b in r['blocks'] for j in b['basis']]
+        show_edge_momenta(edges, em, vm, basis_all, ext_attach)

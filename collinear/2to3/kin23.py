@@ -25,7 +25,7 @@ is swept over k0..k4) and as defaults in the interactive browser:
     them no special treatment).
 
 Usage:  import kin23 as K
-        K.ext_modes('k3')                    -> two_to_three ext_mode dict {'p1'..'p5'}
+        K.ext_modes('k3')                    -> the ext_mode dict {'p1'..'p5'}
         K.ext_modes((1, 2, INF, INF, INF))   -> the same, built directly
         K.mass_exprs('k3')                   -> pySecDec m_i**2 expressions
 """
@@ -55,7 +55,7 @@ def mass_exprs(kind_or_ms):
     return list(KIN[kind_or_ms]['mass_exprs'])
 
 
-# two_to_three ext_mode dict {'p1'..'p5'} for a preset name or a raw (m1, ..., m5) virtuality tuple (general kinematics).
+# the ext_mode dict {'p1'..'p5'} for a preset name or a raw (m1, ..., m5) virtuality tuple (general kinematics).
 def ext_modes(kind_or_ms):
     ms = KIN[kind_or_ms]['ms'] if isinstance(kind_or_ms, str) else tuple(kind_or_ms)
     m1, m2, m3, m4, m5 = ms

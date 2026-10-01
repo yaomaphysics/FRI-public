@@ -50,11 +50,11 @@ import os, sys
 from itertools import combinations, product
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
-import two_to_three as F
+import region_checker as F
 import kin23 as K
 import mode_levels as ML
 from primitives import INF
-from two_to_three import (build_overlay, momentum_ok, jets_ok, h_c23_connected_ok, uncovered_ok, mojetic_all_ok, island_ok, ir_ok)
+from region_checker import (build_overlay, momentum_ok, jets_ok, h_c23_connected_ok, uncovered_ok, mojetic_all_ok, island_ok, ir_ok)
 # ---- shared helpers (moved from skel23.py, 2026-09-20; that file was
 # removed) ----
 
@@ -835,13 +835,13 @@ def _k0_union(edges, verts, ext_attach, comp_adj2=True, cut_mem2=True, excl_h=Tr
 #       P1..P5  : the leg "jet" paths from each external vertex to H
 #                 (P2/P3 form a Y: a shared prefix out of H, then split; they
 #                  may pass through v2/v3, which are both roots of C23),
-#     then expand each leg's cut supersets inside its domain and run two_to_three's
+#     then expand each leg's cut supersets inside its domain and run region_checker's
 #     standard check chain.  Canonical de-duplication skips repeated
 #     representations: identical cut tuples are skipped outright; after the
 #     coverage check, candidates with identical (em, vm) are skipped too —
 #     every check downstream of `uncovered_ok` is a function of (em, vm)
 #     alone, so the skip is safe.
-#   * validated against two_to_three / pySecDec on the random-batch series of
+#   * validated against region_checker / pySecDec on the random-batch series of
 #     2026-09 (spot checks plus full batches via run_random.py --engine skel).
 # ---------------------------------------------------------------------------
 
@@ -1074,7 +1074,7 @@ def enumerate_skel(edges, verts, ext_attach, kin='k1', collect=False):
 # unified entry with full records (interactive browser / plotting)
 # k0 union / k1 engine / k2-k4 chain, returning full region records. Returns (vecs, total, info); additionally
 # info['survivors'] = [(vec, cuts, em, vm), ...] sorted by vec — the survivor shape the interactive browser and
-# region_plot use. [2026-09-21: takes over this role from two_to_three.enumerate_regions.]
+# region_plot use. [2026-09-21: takes over this role from region_checker.enumerate_regions.]
 def enumerate_surv(edges, verts, ext_attach, kin):
     if kin == 'k0':
         return _k0_union(edges, verts, ext_attach, collect=True)

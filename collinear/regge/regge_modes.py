@@ -79,7 +79,7 @@ Order:  H  >-  G  >-  sH  >-  every S^m C_i^n C_ij mode
 They are NOT members of the lattice L = {S^m C_i^n C_ij}; they are overlay
 products, and the separation is enforced by *ordering in time*, not by fiat:
 
-  regge_core._build_region does
+  region_checker._build_region does
      (1) overlay construction  vm from the cuts, em[e] = meet(vm[u], vm[v])  <- L only
      (2) glauber_adjust  assigns G and sH, then recomputes vm with vee   <- sees G/sH
 
@@ -191,7 +191,7 @@ _OLD_REV = {v: k for k, v in _OLD.items()}
 LEG_BLIND = {'S^1C13^2': 13, 'S^1C24^2': 24}
 
 
-# Old regge_core string -> Mode. Leg-blind symbols return a tuple of the two possible readings (the information was
+# Old region_checker string -> Mode. Leg-blind symbols return a tuple of the two possible readings (the information was
 # not in the old symbol).
 def from_old(name: str):
     if name in _OLD:
@@ -257,7 +257,7 @@ def to_old(x: Mode) -> str:
     return str(x)
 
 
-# Old regge_core mode string -> Mode, including the G / sH sentinels.
+# Old region_checker mode string -> Mode, including the G / sH sentinels.
 def to_mode(name: str) -> Mode:
     if name in ('G', 'sH'):
         return G if name == 'G' else SH
@@ -267,7 +267,7 @@ def to_mode(name: str) -> Mode:
     return x[0]                                    # leg-blind: first reading
 
 
-# regge_core-facing meet (string in, string out). meet must NEVER see G/sH in the regge_core pipeline (they are
+# region_checker-facing meet (string in, string out). meet must NEVER see G/sH in the region_checker pipeline (they are
 # assigned only afterwards, by glauber_adjust), so this is the enforcement point.
 def old_meet(a: str, b: str) -> str:
     if a in SPECIAL or b in SPECIAL:
@@ -278,7 +278,7 @@ def old_meet(a: str, b: str) -> str:
     return to_old(meet(to_mode(a), to_mode(b)))
 
 
-# regge_core-facing join (string in, string out). G/sH are legal here: glauber_adjust recomputes
+# region_checker-facing join (string in, string out). G/sH are legal here: glauber_adjust recomputes
 # vertex modes with vee.
 def old_join(a: str, b: str) -> str:
     return to_old(join(to_mode(a), to_mode(b)))
@@ -312,9 +312,14 @@ def harder(a: Mode, b: Mode) -> bool:
     return softer(b, a)
 
 
+# Wide-angle reduction form: x strictly softer than y and x.m <= y.sigma.
+def _wa_reduction(x: Mode, y: Mode) -> bool:
+    return softer(x, y) and not softer(y, x) and x.m <= y.sigma
+
+
 # x marginally softer than y: the sigma/V "strictly between" rule (matches the wide-angle and 2to3 forms).
 @lru_cache(maxsize=None)
-def marginal_softer(x: Mode, y: Mode) -> bool:
+def marginally_softer(x: Mode, y: Mode) -> bool:
     if x == y:
         return False
     if y.n == -1 and y.m == 0:                    # y = H: only bare collinear sources
@@ -328,10 +333,12 @@ def marginal_softer(x: Mode, y: Mode) -> bool:
             return False
         if y.n == 0:                              # -> C_fam: only the bare carrier, strictly harder
             return y.m == 0 and x.V > y.V
-        if y.n != INF and y.n >= 1 and y.m == 0:  # -> C_i^n C_ij (REF targets only)
-            if x.leg == y.leg:
-                return x.V > y.V
-            return x.V > y.V and y.n <= 1
+        if y.n != INF and y.n >= 1 and y.m == 0:  # -> C_i^n C_ij: wide-angle reduction (∞ carrier keeps the old form)
+            if x.n == INF:
+                if x.leg == y.leg:
+                    return x.V > y.V
+                return x.V > y.V and y.n <= 1
+            return _wa_reduction(x, y)
         return False
     # soft-carrier source: S^m C_fam (m >= 1) or S^m C_i C_ij
     if y.n == -1:                                 # -> S^m': soft powers equal
@@ -339,13 +346,22 @@ def marginal_softer(x: Mode, y: Mode) -> bool:
     if y.n == 0:                                  # -> C_fam': same family keeps m, cross family lowers by one
         return y.m == x.m if y.fam == x.fam else y.m == x.m - 1
     if y.n != INF and y.n >= 1:
-        if y.m == 0:                              # -> C_i^n C_ij
+        if y.m == 0:                              # -> C_i^n C_ij: n' = sigma (same leg) or n' = m (cross leg)
             if y.fam == x.fam:
                 if x.n == 0:
                     return y.n == x.m
-                return x.leg == y.leg and y.n == x.m + 1
+                if x.leg == y.leg:
+                    return y.n == x.sigma
+                return y.n == x.m
             return x.n == 0 and y.n + 1 == x.m
-        return x.n == 0 and y.fam == x.fam and y.sigma == x.m   # -> S^m' C_i C_ij
+        # -> S^m' C_i C_ij: same leg keeps m or sigma; cross leg aligns source m with target sigma
+        if x.n == 0:
+            return y.fam == x.fam and y.sigma == x.m
+        if y.fam == x.fam:
+            if x.leg == y.leg:
+                return (x.m == y.m and x.sigma > y.sigma) or (x.sigma == y.sigma and x.m > y.m)
+            return y.sigma == x.m and x.sigma > y.m
+        return False
     return False
 
 
@@ -363,7 +379,7 @@ def _rank(x):
     return 0 if x == H else 3
 
 
-# Softer of the two under the chain H >- G >- sH >- L. NB: never invoked by regge_core -- meet runs before G/sH are
+# Softer of the two under the chain H >- G >- sH >- L. NB: never invoked by region_checker -- meet runs before G/sH are
 # assigned (see module docstring).
 def _chain_meet(a, b):
     if a == b:
@@ -682,7 +698,7 @@ def check_physics(verbose=True):
         good = got == want
         ok &= good
         sym = '/\\' if op == 'meet' else '\\/'
-        note = '' if op == 'join' else '   (dead path in regge_core)'
+        note = '' if op == 'join' else '   (dead path in region_checker)'
         if verbose:
             print(f'  {str(a):4} {sym} {str(b):6} = {got:5} (want {want:5}) {"ok" if good else "*** FAIL"}{note}')
     try:

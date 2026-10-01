@@ -24,7 +24,7 @@ Spec (2026-09-20):
      l2quick; A/B set-equal on the case suite).
 
 Depth caps follow the mode-level framework (k0/k5 (0,0), k2/k3 (0,1),
-k4 (1,2); k1 is loop-count driven).  Checks: regge_core._build_region
+k4 (1,2); k1 is loop-count driven).  Checks: region_checker._build_region
 (stock, unchanged).  k0-k5 are all covered; k1 goes through
 skel_regions_k1 (L-gated refinements + I0/I1/I2 + Cond-1/2/3).
 
@@ -37,7 +37,7 @@ from itertools import combinations
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
-import regge_core as R                                        # noqa: E402
+import region_checker as R                                        # noqa: E402
 from regge_graphs import GRAPHS, KIN, EXT_ATTACHES            # noqa: E402
 from regge_graphs import DEFAULT_EXT_ATTACH as EXT_ATTACH     # noqa: E402
 from primitives import (conn_sets, comp_sets, components, connected, refined_opts, ext_m,

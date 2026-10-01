@@ -191,7 +191,7 @@ def _glauber_cut_vertices(edges, em, vm, ext_attach, big_edges, big_verts, verts
 
 
 # Momentum conservation per vertex: incident momenta split in two nonempty groups of equal ∨-join.
-def momentum_ok_regge(edges, em, vm, ext_attach, ext_mode=None):
+def momentum_ok(edges, em, vm, ext_attach, ext_mode=None):
     verts = set(v for e in edges for v in e) | set(ext_attach.values())
     # one scan builds the per-vertex incident modes (externals grouped separately below)
     inc_map = {v: [] for v in verts}
@@ -676,7 +676,7 @@ def cond1_confirms(blk, mode, comps, confirmed, edges, em, vm, ext_attach, ext_m
     for (_tag, md, ent) in cands:
         if md == mode:
             for a in sorted(ent):
-                if _third_port_regge(blk, mode, {a}, comps.get(mode, []), vm, edges):
+                if third_port(blk, mode, {a}, comps.get(mode, []), vm, edges):
                     return True
     # pairs: join == mode plus a third port
     for i in range(len(cands)):
@@ -690,7 +690,7 @@ def cond1_confirms(blk, mode, comps, confirmed, edges, em, vm, ext_attach, ext_m
                 continue
             for a in e1:
                 for b in e2:
-                    if _third_port_regge(blk, mode, {a, b}, comps.get(mode, []), vm, edges):
+                    if third_port(blk, mode, {a, b}, comps.get(mode, []), vm, edges):
                         return True
     return False
 
@@ -704,7 +704,7 @@ USE_THIRD_PORT = True
 
 
 # All target elements reachable from the start elements by a non-softer flow; returns the entered real vertices.
-def _collect_entries_regge(blk, start_vs, start_es, cur_mode, edges, em, vm):
+def _collect_entries(blk, start_vs, start_es, cur_mode, edges, em, vm):
     realV = {v for v in blk[0] if v != 'aux'}
     tgt = {('v', v) for v in realV}
     tgt |= {('e', ei) for ei in (blk[2] if len(blk) > 2 and blk[2] else [])}
@@ -756,7 +756,7 @@ def _collect_entries_regge(blk, start_vs, start_es, cur_mode, edges, em, vm):
 
 
 # The third port: (A) a same-mode vertex shared with another same-mode component, or (B) a harder-mode exit endpoint.
-def _third_port_regge(blk, X, entry_vs, comps_same, vm, edges):
+def third_port(blk, X, entry_vs, comps_same, vm, edges):
     realV = {v for v in blk[0] if v != 'aux'}
     # (A) same-mode shared vertex
     for w in sorted(realV):
@@ -783,7 +783,7 @@ def _third_port_regge(blk, X, entry_vs, comps_same, vm, edges):
 
 
 # Condition-1 sources: externals (inside the block, or entering by a walk) and confirmed components entering it.
-def _port_sources_regge(blk, X, edges, em, vm, ext_attach, ext_mode, confirmed, comps):
+def _port_sources(blk, X, edges, em, vm, ext_attach, ext_mode, confirmed, comps):
     srcs = []
     realV = {v for v in blk[0] if v != 'aux'}
     for extn, v0 in ext_attach.items():
@@ -792,7 +792,7 @@ def _port_sources_regge(blk, X, edges, em, vm, ext_attach, ext_mode, confirmed, 
             srcs.append((extn, md, {v0}, {v0}))
         else:
             if md == X or marginally_softer(md, X):
-                c = _collect_entries_regge(blk, [v0], [], vm.get(v0, 'H'), edges, em, vm)
+                c = _collect_entries(blk, [v0], [], vm.get(v0, 'H'), edges, em, vm)
                 if c:
                     srcs.append((extn, md, c, set()))
     for (cm, ci) in list(confirmed.keys()):
@@ -801,7 +801,7 @@ def _port_sources_regge(blk, X, edges, em, vm, ext_attach, ext_mode, confirmed, 
         sblk = comps[cm][ci]
         sv = {v for v in sblk[0] if v != 'aux'}
         se = sblk[2] if len(sblk) > 2 and sblk[2] else []
-        c = _collect_entries_regge(blk, sv, se, cm, edges, em, vm)
+        c = _collect_entries(blk, sv, se, cm, edges, em, vm)
         if c:
             srcs.append(('%s#%d' % (cm, ci), cm, c, set()))
     return srcs
@@ -811,15 +811,15 @@ def _port_sources_regge(blk, X, edges, em, vm, ext_attach, ext_mode, confirmed, 
 def _hp_receiver_port_ok(blk, X, edges, em, vm, ext_attach, ext_mode, confirmed, comps):
     if not USE_THIRD_PORT:
         return True
-    srcs = _port_sources_regge(blk, X, edges, em, vm, ext_attach, ext_mode, confirmed, comps)
+    srcs = _port_sources(blk, X, edges, em, vm, ext_attach, ext_mode, confirmed, comps)
     entry = set()
     for (_tag, md, cands, att) in srcs:
         entry |= set(cands)
-    return _third_port_regge(blk, X, entry, comps.get(X, []), vm, edges) is not None
+    return third_port(blk, X, entry, comps.get(X, []), vm, edges) is not None
 
 
 # Regge IR compatibility: fixpoint over the 1VI components, each mode confirmed by its own channels; False if any stays unconfirmed.
-def ir_ok_region(edges, em, vm, ext_attach, ext_mode=None):
+def ir_ok(edges, em, vm, ext_attach, ext_mode=None):
     verts = set(v for e in edges for v in e) | set(ext_attach.values())
     comps = {}
     # collect the 1VI blocks of every mode
@@ -1000,7 +1000,7 @@ def _build_region(edges, verts, ext_attach, ext_mode, cut13, cut24, cut1, cut3, 
         return None
     em, vm = adj
     # [Fundamental pattern] momentum conservation at every vertex
-    if not momentum_ok_regge(edges, em, vm, ext_attach, ext_mode):
+    if not momentum_ok(edges, em, vm, ext_attach, ext_mode):
         return None
     # [Fundamental pattern] jet components: every component contains its external vertices
     je13 = {e for e, m in zip(edges, em) if m in J13_FAM}
@@ -1029,6 +1029,6 @@ def _build_region(edges, verts, ext_attach, ext_mode, cut13, cut24, cut1, cut3, 
     if not c13_c24_island_ok(edges, em, vm, verts):
         return None
     # [Infrared compatibility]
-    if not ir_ok_region(edges, em, vm, ext_attach, ext_mode):
+    if not ir_ok(edges, em, vm, ext_attach, ext_mode):
         return None
     return (vm, em)
