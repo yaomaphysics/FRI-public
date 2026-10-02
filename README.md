@@ -200,4 +200,4 @@ Cleared for now.
 
 **Open items — regge**
 
-More random-diagram validation is need at 5 loops; since k4 can be very slow, I may only try other k.
+Cleared for now.

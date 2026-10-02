@@ -623,26 +623,25 @@ def sc_hidden_path_confirms(blk, i, comps, confirmed, edges, em, vm, ext_attach,
     # the receiver must still pass the port requirement (conduction is not an exemption)
     if not _hp_receiver_port_ok(blk, pair_mode, edges, em, vm, ext_attach, ext_mode, confirmed, comps, _lc=_lc):
         return False
-    cv = {v for v in blk[0] if v != 'aux'}
-    has_a = va in cv
-    has_b = vb in cv
-    if has_a == has_b:
-        # must be attached by exactly one of ext_a, ext_b (distinct comps)
-        return False
+
+    def ext_reaches(v0, comp):
+        # can the external momentum descend into the component (same walk as the port sources)
+        return bool(_collect_entries(comp, [v0], [], vm.get(v0, 'H'), edges, em, vm, _lc=_lc))
+
+    # the two components are told apart by external-momentum relevance
+    # (a C1^mC13 external to one, a C3^mC13 external to the other)
+    ra = ext_reaches(va, blk)
+    rb = ext_reaches(vb, blk)
     partner = None
     for j, cj in enumerate(comps[pair_mode]):
         if j == i:
             continue
-        cjv = {v for v in cj[0] if v != 'aux'}
-        if has_a and vb in cjv:
-            partner = j
-            break
-        if has_b and va in cjv:
+        if not confirmed.get((pair_mode, j)):
+            continue
+        if (ra and ext_reaches(vb, cj)) or (rb and ext_reaches(va, cj)):
             partner = j
             break
     if partner is None:
-        return False
-    if not confirmed.get((pair_mode, partner)):
         return False
     # one SC component relevant to blk, to the partner, AND to at least one fam_modes component
     for sblk in comps[sc_mode]:
