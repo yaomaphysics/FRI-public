@@ -33,9 +33,9 @@ Semihard loops use the γ_sH ∪ γ_G rule (2026-09-01).  Results are
 saved to fri_out/<timestamp>.txt.
 
 Edge-list input formats (all accepted):
-    "1-3,2-4,1-2,3-4"
-    "(1,3),(2,4),(1,2),(3,4)"  or  "[1,3],[2,4],[1,2],[3,4]"
-    "1 3; 2 4; 1 2; 3 4"
+    "1-5,3-5,5-6,2-6,4-6,1-7,3-7,7-8,2-8,4-8"
+    "(1,5),(3,5),(5,6),..."  or  "[1,5],[3,5],[5,6],..."
+    "1 5; 3 5; 5 6; ..."
 """
 import sys, os, time, re, signal
 
@@ -44,7 +44,7 @@ sys.path.insert(0, BASE)
 
 from primitives import to_scaling, mode_components
 from skeleton import skel_regions, skel_regions_k1   # pruned skeleton enumerators
-from regge_modes import to_mode          # mode strings are plain literals
+from primitives import to_mode          # mode strings are plain literals
                                          # ('C13', 'sH', ...) everywhere
 from indep_loops import show_basis     # indep loops + edge momenta
 # The 6 Regge kinematics (ext_mode + momentum-invariant scalings + notes),
@@ -55,7 +55,7 @@ from collections import defaultdict
 KIN_CHOICES = ['k0', 'k1', 'k2', 'k3', 'k4', 'k5']
 
 
-# Parse an edge list leniently: accepts '1-3,2-4,...', '(1,3),(2,4),...' or '[(1,3),(2,4),...]'.
+# Parse an edge list leniently: accepts '1-5,3-5,...', '(1,5),(3,5),...' or '[(1,5),(3,5),...]'.
 def parse_edges(s):
     t = re.sub(r'[\[\](){}]', ' ', s).replace(';', ',')
     dp = re.findall(r'(\d+)\s*-\s*(\d+)', t)
@@ -184,7 +184,7 @@ def parse_forced_lines(edges, line):
 
 
 # Softness order for classification, softest first: lattice modes with m >= 1 by virtuality V desc (tie: m desc, n
-# desc, name), then sH (chain rank 1), then G (chain rank 2). Chain (regge_modes): H >- G >- sH >- every family mode.
+# desc, name), then sH (chain rank 1), then G (chain rank 2). Chain (primitives): H >- G >- sH >- every family mode.
 def _softness_key(mode):
     if mode == 'sH':
         return (1, 0, 0, 0, mode)
@@ -257,7 +257,7 @@ def inspect_regions(edges, regs, ext_attach):
     if input('Select a set of line momenta as independent loop momenta? (y/n) [n] > ').strip().lower() == 'y':
         asked = False
         while True:
-            prompt = ('Force lines into the basis? ((x,y) pairs; empty = show default basis) > ' if not asked else 'Force more lines? ((x,y) pairs; empty = done) > ')
+            prompt = ('Force lines into the basis? ((x,y) pairs; empty = show default basis) > ' if not asked else 'Force lines (new input replaces the previous set)? ((x,y) pairs; empty = done) > ')
             line = input(prompt).strip()
             if line.lower() in ('q', 'quit', 'b', 'back'):
                 break
@@ -429,7 +429,7 @@ def main():
     print('=' * 70)
     print('Regge-limit FRI region enumerator (6 kinematics, k0..k5)')
     print('external momenta: p1@1, p2@2, p3@3, p4@4')
-    print('type an edge list, e.g. 1-3,2-4,1-2,3-4 (the box)')
+    print('type an edge list, e.g. 1-5,3-5,5-6,2-6,4-6,1-7,3-7,7-8,2-8,4-8 (CrownTT)')
     print("commands: 'kin kX' switch kinematics, 'q'/'b' quit")
     print('=' * 70)
     kin_name = choose_kinematics()
@@ -439,7 +439,7 @@ def main():
     print(f'-> using kinematics {kin_name} ({KIN[kin_name]["note"]})')
     while True:
         try:
-            s = input(f'\nedge list (e.g. 1-3,2-4,1-2,3-4) [{kin_name}]> ').strip()
+            s = input(f'\nedge list (e.g. 1-5,3-5,5-6,2-6,4-6,1-7,3-7,7-8,2-8,4-8) [{kin_name}]> ').strip()
         except (EOFError, KeyboardInterrupt):
             print('\nbye!')
             break

@@ -11,13 +11,15 @@ Another key difference from the wide-angle kinematics is that, the Glauber and s
 '''
 
 from itertools import combinations
+from functools import lru_cache
 import os
-from primitives import (V, marginally_softer, harder_or_eq, meet, join, vee, connected, is_1vi, components, mode_components, ext_mode_for)
+from primitives import (V, marginally_softer, harder_or_eq, meet, join, vee, connected, is_1vi, components, mode_components, find_1vi_blocks, ext_mode_for)
 
 J13_FAM = {'C13', 'C1C13', 'C3C13', 'C1^2C13', 'C3^2C13'}
 J24_FAM = {'C24', 'C2C24', 'C4C24', 'C2^2C24', 'C4^2C24'}
 
 # S-power of a mode string ('S' -> 1, 'S^m...' -> m, everything else -> 0).
+@lru_cache(maxsize=None)
 def _m_of(md):
     if md == 'S':
         return 1
@@ -33,7 +35,102 @@ def _m_of(md):
 
 # ================= GLAUBER / SEMIHARD IDENTIFICATION ==================
 # Identifying the Glauber and semihard subgraphs:
-# glauber_adjust finds the Glauber edges and cut vertices; _glauber_semihard turns each blob between two Glauber vertices into semihard.
+# glauber_adjust finds the Glauber edges and cut vertices; _glauber_semihard turns the components attached to no external leg into semihard.
+
+# One-pass helpers for the Glauber search (used by glauber_adjust / _glauber_cut_vertices).
+# Both are content-keyed caches; dropped per case via clear_adjust_caches().
+
+# Bridges of the multigraph (verts, edge_list): {edge position: frozenset(vertex side)}.
+def bridges_with_side(verts, edge_list):
+    adj = {v: [] for v in verts}
+    for k, (a, b) in enumerate(edge_list):
+        adj.setdefault(a, []).append((b, k))
+        adj.setdefault(b, []).append((a, k))
+    disc = {}
+    low = {}
+    t = [0]
+    out = {}
+
+    def dfs(u, pe):
+        disc[u] = low[u] = t[0]
+        t[0] += 1
+        sub = {u}
+        for (w, k) in adj.get(u, ()):
+            if k == pe:
+                continue
+            if w not in disc:
+                csub = dfs(w, k)
+                sub |= csub
+                if low[w] < low[u]:
+                    low[u] = low[w]
+                if low[w] > disc[u]:
+                    out[k] = frozenset(csub)
+            else:
+                if disc[w] < low[u]:
+                    low[u] = disc[w]
+        return sub
+
+    for v in sorted(verts, key=str):
+        if v not in disc:
+            dfs(v, None)
+    return out
+
+
+@lru_cache(maxsize=None)
+def _bridges_cached(big_verts, big_edges):
+    return bridges_with_side(big_verts, list(big_edges))
+
+
+# One DFS giving, per vertex: subtree tag-mask and separator children (child, child subtree mask).
+@lru_cache(maxsize=None)
+def _sep_info_cached(big_verts, big_edges, tag_key):
+    vset = set(big_verts)
+    ptags = {}
+    for v, b in tag_key:
+        ptags[v] = ptags.get(v, 0) | b
+    adj = {v: [] for v in vset}
+    for k, (a, b) in enumerate(big_edges):
+        adj.setdefault(a, []).append((b, k))
+        adj.setdefault(b, []).append((a, k))
+    disc = {}
+    low = {}
+    t = [0]
+    sub_mask = {}
+    sep_children = {}
+
+    def dfs(u, pe):
+        disc[u] = low[u] = t[0]
+        t[0] += 1
+        m = ptags.get(u, 0)
+        sc = []
+        for (w, k) in adj.get(u, ()):
+            if k == pe:
+                continue
+            if w not in disc:
+                cm = dfs(w, k)
+                m |= cm
+                if low[w] < low[u]:
+                    low[u] = low[w]
+                if low[w] >= disc[u]:
+                    sc.append((w, cm))
+            else:
+                if disc[w] < low[u]:
+                    low[u] = disc[w]
+        sub_mask[u] = m
+        sep_children[u] = tuple(sc)
+        return m
+
+    for v in sorted(vset, key=str):
+        if v not in disc:
+            dfs(v, None)
+    return sub_mask, sep_children
+
+
+# Drop the per-case memo tables of the two helpers above (called next to clear_graph_caches()).
+def clear_adjust_caches():
+    _bridges_cached.cache_clear()
+    _sep_info_cached.cache_clear()
+
 
 # Identify the Glauber and semihard subgraphs; returns the adjusted (em, vm), or None if the region is discarded.
 def glauber_adjust(edges, em, vm, ext_attach, ext_mode=None):
@@ -42,7 +139,7 @@ def glauber_adjust(edges, em, vm, ext_attach, ext_mode=None):
     # small-momentum subgraph: every S^m ... mode with m >= 1
     small_edges = {e for e, m in zip(edges, em) if _m_of(m) >= 1}
     small_verts = {v for v in verts if _m_of(vm.get(v)) >= 1}
-    big_edges = tuple(e for e in edges if e not in small_edges) # tuple: cache-key form; the slicing below drops one edge
+    big_edges = tuple(e for e in edges if e not in small_edges) # tuple: cache-key form for the memoised kernels
     big_verts = verts - small_verts
     # the large-momentum subgraph (hard + jets + Glauber + semihard) must be connected
     if not connected(big_verts, big_edges):
@@ -50,20 +147,24 @@ def glauber_adjust(edges, em, vm, ext_attach, ext_mode=None):
     p1, p3 = ext_attach['p1'], ext_attach['p3']
     p2, p4 = ext_attach['p2'], ext_attach['p4']
     big_pairs = [(j, e) for j, e in enumerate(edges) if e not in small_edges]
-    # big-edge positions for the slicing below
-    pos = {j: k for k, (j, e) in enumerate(big_pairs)}
+    # one bridges pass: separating hard edges are the Glauber propagators
+    big_idx = [j for j, _ in big_pairs]
+    brid = _bridges_cached(frozenset(big_verts), tuple(big_edges))
     g_edges = []
-    for i, e in enumerate(edges):
-        # rest = big edges minus edge i, via slicing (small edges: nothing is removed)
-        k = pos.get(i)
-        rest = big_edges if k is None else big_edges[:k] + big_edges[k + 1:]
-        comp = components(rest, verts)
-        # keep only edges separating p1,p3 from p2,p4 in this rest graph
-        if not (comp[p1] == comp[p3] and comp[p2] == comp[p4] and comp[p1] != comp[p2]):
+    for k in sorted(brid):
+        S = set(brid[k])
+        T = set(big_verts) - S
+        if not ((p1 in S and p3 in S) or (p1 in T and p3 in T)):
             continue
+        if not ((p2 in S and p4 in S) or (p2 in T and p4 in T)):
+            continue
+        side1 = S if p1 in S else T
+        if p2 in side1 or p4 in side1:
+            continue
+        i = big_idx[k]
         if em[i] != 'H':  # a non-hard separating edge discards the region
             return None
-        g_edges.append(i) # such hard edges are Glauber propagators
+        g_edges.append(i)
     for i in g_edges:
         em[i] = 'G'
     vm = dict(vm)
@@ -77,72 +178,89 @@ def glauber_adjust(edges, em, vm, ext_attach, ext_mode=None):
         for n, vv in ext_attach.items():
             if vv == v: accs.append(ext_mode_for(ext_mode, n))
         vm[v] = vee(accs) if accs else 'H'
-    # separating cut vertices become G; then blobs between G vertices become sH
+    # separating cut vertices become G; then the semihard assignment
     vm2 = _glauber_cut_vertices(edges, em, vm, ext_attach, big_edges, big_verts, verts)
     if vm2 is not None:
         vm = vm2
-        em, vm = _glauber_semihard(edges, em, vm, [j for j, _ in big_pairs], big_verts, verts, ext_attach, ext_mode)
+        res = _glauber_semihard(edges, em, vm, [j for j, _ in big_pairs], big_verts, verts, ext_attach, ext_mode)
+        if res is None:
+            return None
+        em, vm = res
     return em, vm
 
-# Turn blobs between Glauber vertices into semihard; returns the adjusted (em, vm).
+# Turn the (large-momentum minus Glauber) components attached to no external leg into sH; every sH component must touch exactly 2 Glauber vertices.  Returns the adjusted (em, vm), or None if the check fails.
 def _glauber_semihard(edges, em, vm, big_idx, big_verts, verts, ext_attach, ext_mode):
     em = list(em)
     Gset = {v for v in big_verts if vm.get(v) == 'G'}
     if len(Gset) < 2:
         return em, vm
     changed = False
-    # (a) direct edges between a G-G pair: exactly one -> G; parallel (>=2) -> sH
-    pairs = {}
+    # In (large-momentum subgraph minus Glauber), vertices and edges are independent: an edge stays unless it is a Glauber edge itself.
+    # Components attached to none of the external legs (including edges with both endpoints removed) become sH.
+    rest = big_verts - Gset
+    # vertex components: connected pieces of the rest-vertex graph
+    adj_rest = {v: [] for v in rest}
     for i in big_idx:
         a, b = edges[i]
-        if a in Gset and b in Gset:
-            pairs.setdefault(frozenset((a, b)), []).append(i)
-    for idxs in pairs.values():
-        if len(idxs) == 1:
-            if em[idxs[0]] != 'G':
-                em[idxs[0]] = 'G'
-                changed = True
-        else:
-            for i in idxs:
-                if em[i] != 'sH':
-                    em[i] = 'sH'
-                    changed = True
-    # (b) components of big_verts - Gset adjacent to >=2 Glauber vertices -> the whole blob (internal + attachment edges) becomes sH
-    rest = big_verts - Gset
-    if rest:
-        adj_rest = {v: [] for v in rest}
-        for i in big_idx:
-            a, b = edges[i]
-            if a in rest and b in rest:
-                adj_rest[a].append(b)
-                adj_rest[b].append(a)
-        seen = set()
-        for v0 in rest:
-            if v0 in seen:
-                continue
-            comp = {v0}
-            stack = [v0]
-            while stack:
-                x = stack.pop()
-                for w in adj_rest.get(x, ()):
-                    if w not in comp:
-                        comp.add(w)
-                        stack.append(w)
-            seen |= comp
-            # Glauber vertices attached to this blob (outside endpoints of crossing edges)
-            att = set()
+        if a in rest and b in rest:
+            adj_rest[a].append(b)
+            adj_rest[b].append(a)
+    seen = set()
+    for v0 in rest:
+        if v0 in seen:
+            continue
+        comp = {v0}
+        stack = [v0]
+        while stack:
+            x = stack.pop()
+            for w in adj_rest.get(x, ()):
+                if w not in comp:
+                    comp.add(w)
+                    stack.append(w)
+        seen |= comp
+        # external legs attached to this component (endpoint inside it)
+        att = [nm for nm, vv in ext_attach.items() if vv in comp]
+        if not att:
             for i in big_idx:
                 a, b = edges[i]
-                if a in comp and b not in comp:
-                    if b in Gset: att.add(b)
-                elif b in comp and a not in comp:
-                    if a in Gset: att.add(a)
-            if len(att) >= 2:
-                for i in big_idx:
-                    a, b = edges[i]
-                    if (a in comp or b in comp) and em[i] != 'sH':
-                        em[i] = 'sH'
-                        changed = True
+                if (a in comp or b in comp) and em[i] != 'sH':
+                    em[i] = 'sH'
+                    changed = True
+    # edges with both endpoints removed: they attach to no external leg
+    for i in big_idx:
+        if em[i] == 'G':
+            continue
+        a, b = edges[i]
+        if a not in rest and b not in rest and em[i] != 'sH':
+            em[i] = 'sH'
+            changed = True
+    # Check: every sH component must be adjacent to exactly 2 Glauber vertices.
+    # sH components are the 1VI blocks of the contracted semihard subgraph: the Glauber vertices are identified with one auxiliary vertex.
+    sH_idx = [i for i in big_idx if em[i] == 'sH']
+    if sH_idx:
+        verts2 = {'aux'}
+        edges2 = []
+        for i in sH_idx:
+            a, b = edges[i]
+            if a not in Gset:
+                verts2.add(a)
+            else:
+                a = 'aux'
+            if b not in Gset:
+                verts2.add(b)
+            else:
+                b = 'aux'
+            edges2.append((a, b))
+        for (_bv, eidx2) in find_1vi_blocks(verts2, tuple(edges2)):
+            adjG = set()
+            for j in eidx2:
+                a, b = edges[sH_idx[j]]
+                if a in Gset:
+                    adjG.add(a)
+                if b in Gset:
+                    adjG.add(b)
+            if len(adjG) != 2:
+                return None
     if not changed:
         return em, vm
     vm2 = {}
@@ -161,30 +279,58 @@ def _glauber_semihard(edges, em, vm, big_idx, big_verts, verts, ext_attach, ext_
         vm2[v] = vee(accs) if accs else 'H'
     return em, vm2
 
-# Lift cut vertices that separate p1,p3 from p2,p4 to Glauber; returns the new vm, or None if nothing changed.
+# Lift cut vertices that separate p1,p3 from p2,p4 to Glauber
 def _glauber_cut_vertices(edges, em, vm, ext_attach, big_edges, big_verts, verts):
     p1, p3 = ext_attach['p1'], ext_attach['p3']
     p2, p4 = ext_attach['p2'], ext_attach['p4']
+    biggest = set(big_verts)
+    tag_key = []
+    for p, b in ((p1, 1), (p3, 2), (p2, 4), (p4, 8)):
+        if p in biggest:
+            tag_key.append((p, b))
+    _sub_mask, sep_children = _sep_info_cached(frozenset(big_verts), tuple(big_edges), tuple(tag_key))
+    ptags = {}
+    for v, b in tag_key:
+        ptags[v] = ptags.get(v, 0) | b
+    all_mask = 0
+    for v, b in tag_key:
+        all_mask |= b
+    B13 = 0
+    B24 = 0
+    for p, b in ((p1, 1), (p3, 2), (p2, 4), (p4, 8)):
+        if b & 3:
+            B13 |= b if p in biggest else 0
+        else:
+            B24 |= b if p in biggest else 0
     changed = False
     vm2 = dict(vm)
     for v in big_verts:
-        # tuple rest: cache-key form for the memoised components()
-        rest = tuple([(a, b) for (a, b) in big_edges if a != v and b != v])  # no empty-rest skip: deleting v may isolate everything, still a separation
-        comp = components(rest, verts)
         s13 = [p for p in (p1, p3) if p != v]
         s24 = [p for p in (p2, p4) if p != v]
         if not s13 or not s24:
-            if (v == p1 == p3 or v == p2 == p4):  # p1=p3 or p2=p4 on one vertex: it must be Glauber
+            if (v == p1 == p3 or v == p2 == p4):  # p1 and p3 (or, p2 and p4) enter the same vertex -- must be Glauber
                 inc = [em[i] for i, (a, b) in enumerate(edges) if (a == v or b == v) and ((a, b) in big_edges or (b, a) in big_edges)]
                 if inc:
                     vm2[v] = 'G'
                     changed = True
             continue
-        c13 = {comp[p] for p in s13}
-        if any(comp[p] in c13 for p in s24):  # separating 13 from 24: the sides share no component (either side may split freely)
-            continue
-        vm2[v] = 'G'
-        changed = True
+        vmask = ptags.get(v, 0)
+        total = all_mask & (0b1111 ^ vmask)
+        subs = sep_children[v]
+        sum_sub = 0
+        for (_w, sm) in subs:
+            sum_sub |= sm
+        rem = total & ~sum_sub
+        ok = True
+        for (_w, sm) in subs:
+            if (sm & B13) and (sm & B24):
+                ok = False
+                break
+        if ok and (rem & B13) and (rem & B24):
+            ok = False
+        if ok:
+            vm2[v] = 'G'
+            changed = True
     return vm2 if changed else None
 
 # =========================== FUNDAMENTAL PATTERN ===========================
@@ -316,14 +462,17 @@ def mojetic_ok(hv, he, jv, je, gv, edges, ext_attach, ext_names):
 # This part constructs the subgraph requirements subject to the First Connectivity Theorem (certain unions of mode subgraphs must be connected, see theorem 5.1 of 2601.22144 for the wide-angle scenario).
 
 # no C13/C24 scaleless island: a C13/C24 component whose ADJACENT modes are all softer (𝒱 > 𝒱(C13) = 1) is rejected (First Connectivity Theorem).
+# Components = connected components of the exact-mode subgraph; adjacency = the modes of the edges leaving the component.
 def c13_c24_island_ok(edges, em, vm, verts):
     for mode in ('C13', 'C24'):
-        for (bv, be, *rest) in mode_components(mode, vm, em, edges, verts):
-            real = {v for v in bv if v != 'aux'}
-            if not real:
-                continue
-            incident = [em[i] for i, (a, b) in enumerate(edges) if a in real or b in real]
-            if incident and all(V(m) > V(mode) for m in incident):
+        gv = frozenset(v for v in verts if vm.get(v) == mode)
+        if not gv:
+            continue
+        cmap = components(tuple((a, b) for i, (a, b) in enumerate(edges) if em[i] == mode), gv)
+        for root in sorted(set(cmap.values())):
+            comp = frozenset(v for v in gv if cmap[v] == root)
+            adjacent = [em[i] for i, (a, b) in enumerate(edges) if (a in comp) != (b in comp)]
+            if adjacent and all(V(m) > V(mode) for m in adjacent):
                 return False
     return True
 
@@ -332,30 +481,46 @@ def c13_c24_island_ok(edges, em, vm, verts):
 
 
 # Meet-of-two: relevant to two confirmed components whose modes meet (∧) to the block's mode.
-def meet_of_two_confirms(blk, mode, comps, confirmed, edges, em, vm):
+def meet_of_two_confirms(blk, mode, comps, confirmed, edges, em, vm, _lc=None):
     for mode1, lst1 in comps.items():
         for i1, comp1 in enumerate(lst1):
             if not confirmed.get((mode1, i1)):
                 continue
-            if not relevant(blk, comp1, mode1, edges, em, vm, mode):
+            if not _relevant_lc(_lc, blk, comp1, mode1, edges, em, vm, mode):
                 continue
             for mode2, lst2 in comps.items():
                 for i2, comp2 in enumerate(lst2):
                     if not confirmed.get((mode2, i2)):
                         continue
-                    if not relevant(blk, comp2, mode2, edges, em, vm, mode):
+                    if not _relevant_lc(_lc, blk, comp2, mode2, edges, em, vm, mode):
                         continue
                     if meet(mode1, mode2) == mode:
                         return True
     return False
 
 
+# Local-cache helpers for one ir_ok call: (edges, em, vm, comps) are fixed within a call, so
+# pure sub-results can be reused across the fixpoint rounds via an id-keyed dict.
+_LC_MISS = object()
+
+
+def _relevant_lc(_lc, blk, comp, dst_mode, edges, em, vm, sc_mode):
+    if _lc is None:
+        return relevant(blk, comp, dst_mode, edges, em, vm, sc_mode)
+    key = ('rel', id(blk), id(comp), dst_mode, sc_mode)
+    v = _lc.get(key, _LC_MISS)
+    if v is _LC_MISS:
+        v = relevant(blk, comp, dst_mode, edges, em, vm, sc_mode)
+        _lc[key] = v
+    return v
+
+
 # Messenger (SC/S²C condition): relevant to all of `own` and (if given) at least one of `other`, with >=1 confirmed target.
-def messenger_confirms(blk, mode, own, other, comps, confirmed, edges, em, vm):
+def messenger_confirms(blk, mode, own, other, comps, confirmed, edges, em, vm, _lc=None):
     adj = {}
     for m in own + other:
         for i, comp in enumerate(comps[m]):
-            if relevant(blk, comp, m, edges, em, vm, mode):
+            if _relevant_lc(_lc, blk, comp, m, edges, em, vm, mode):
                 adj.setdefault(m, set()).add(i)
     if not all(m in adj for m in own):
         return False
@@ -447,7 +612,7 @@ def relevant(blk, comp, dst_mode, edges, em, vm, sc_mode):
 
 
 # SC hidden path (Regge-only): an SC relevant to two distinct pair-mode components and one same-side refined component conducts confirmation between them (the SC itself is not confirmed).
-def sc_hidden_path_confirms(blk, i, comps, confirmed, edges, em, vm, ext_attach, ext_mode, sc_mode, pair_mode, ext_a, ext_b, fam_modes, ext_a_fam, ext_b_fam):
+def sc_hidden_path_confirms(blk, i, comps, confirmed, edges, em, vm, ext_attach, ext_mode, sc_mode, pair_mode, ext_a, ext_b, fam_modes, ext_a_fam, ext_b_fam, _lc=None):
     va = ext_attach[ext_a]
     vb = ext_attach[ext_b]
     ma = ext_mode_for(ext_mode, ext_a)
@@ -456,7 +621,7 @@ def sc_hidden_path_confirms(blk, i, comps, confirmed, edges, em, vm, ext_attach,
     if ma not in ext_a_fam or mb not in ext_b_fam:
         return False
     # the receiver must still pass the port requirement (conduction is not an exemption)
-    if not _hp_receiver_port_ok(blk, pair_mode, edges, em, vm, ext_attach, ext_mode, confirmed, comps):
+    if not _hp_receiver_port_ok(blk, pair_mode, edges, em, vm, ext_attach, ext_mode, confirmed, comps, _lc=_lc):
         return False
     cv = {v for v in blk[0] if v != 'aux'}
     has_a = va in cv
@@ -481,14 +646,14 @@ def sc_hidden_path_confirms(blk, i, comps, confirmed, edges, em, vm, ext_attach,
         return False
     # one SC component relevant to blk, to the partner, AND to at least one fam_modes component
     for sblk in comps[sc_mode]:
-        if not relevant(sblk, blk, pair_mode, edges, em, vm, sc_mode):
+        if not _relevant_lc(_lc, sblk, blk, pair_mode, edges, em, vm, sc_mode):
             continue
-        if not relevant(sblk, comps[pair_mode][partner], pair_mode, edges, em, vm, sc_mode):
+        if not _relevant_lc(_lc, sblk, comps[pair_mode][partner], pair_mode, edges, em, vm, sc_mode):
             continue
         ok_fam = False
         for fm in fam_modes:
             for cblk in comps[fm]:
-                if relevant(sblk, cblk, fm, edges, em, vm, sc_mode):
+                if _relevant_lc(_lc, sblk, cblk, fm, edges, em, vm, sc_mode):
                     ok_fam = True
                     break
             if ok_fam:
@@ -612,13 +777,13 @@ def h_comp_confirmed(blk, comps, confirmed, edges, em, vm, ext_attach, ext_mode)
 
 
 # Condition 1: inflow momenta (external or from confirmed components) enter the block with join == mode, and a third port remains.
-def cond1_confirms(blk, mode, comps, confirmed, edges, em, vm, ext_attach, ext_mode):
+def cond1_confirms(blk, mode, comps, confirmed, edges, em, vm, ext_attach, ext_mode, _lc=None):
     # entries: strict monotone entry walk (edge modes checked, first-touch stop); a single entry of the mode is allowed too
     realV = {v for v in blk[0] if v != 'aux'}
     if not realV:
         return False
-    # which real vertices a starting momentum first touches (monotone walk)
-    def entry_walk(start_vs):
+    # which real vertices a starting momentum first touches (monotone walk); cached per ir_ok call
+    def _ew_impl(start_vs):
         src = {v for v in start_vs if vm.get(v) not in ('G', 'H', 'sH')}
         if not src:
             return set()
@@ -645,6 +810,16 @@ def cond1_confirms(blk, mode, comps, confirmed, edges, em, vm, ext_attach, ext_m
                     continue
                 seen.add(w); stack.append((w, wV))
         return touch
+
+    def entry_walk(start_vs):
+        if _lc is None:
+            return _ew_impl(start_vs)
+        key = ('ew', id(blk), tuple(sorted(map(str, start_vs))))
+        v = _lc.get(key, _LC_MISS)
+        if v is _LC_MISS:
+            v = _ew_impl(start_vs)
+            _lc[key] = v
+        return v
     # candidates: externals (in the block, or entering by a walk) and line momenta of confirmed components
     cands = []          # (tag, md, entry_points)
     for extn, v0 in ext_attach.items():
@@ -704,7 +879,14 @@ USE_THIRD_PORT = True
 
 
 # All target elements reachable from the start elements by a non-softer flow; returns the entered real vertices.
-def _collect_entries(blk, start_vs, start_es, cur_mode, edges, em, vm):
+def _collect_entries(blk, start_vs, start_es, cur_mode, edges, em, vm, _lc=None):
+    key = None
+    if _lc is not None:
+        key = ('ce', id(blk), tuple(sorted(map(str, start_vs))),
+               tuple(sorted(map(str, start_es or ()))), cur_mode)
+        v = _lc.get(key, _LC_MISS)
+        if v is not _LC_MISS:
+            return v
     realV = {v for v in blk[0] if v != 'aux'}
     tgt = {('v', v) for v in realV}
     tgt |= {('e', ei) for ei in (blk[2] if len(blk) > 2 and blk[2] else [])}
@@ -752,6 +934,8 @@ def _collect_entries(blk, start_vs, start_es, cur_mode, edges, em, vm):
             for w in edges[h[1]]:
                 if w in realV:
                     ev.add(w)
+    if key is not None:
+        _lc[key] = ev
     return ev
 
 
@@ -783,7 +967,7 @@ def third_port(blk, X, entry_vs, comps_same, vm, edges):
 
 
 # Condition-1 sources: externals (inside the block, or entering by a walk) and confirmed components entering it.
-def _port_sources(blk, X, edges, em, vm, ext_attach, ext_mode, confirmed, comps):
+def _port_sources(blk, X, edges, em, vm, ext_attach, ext_mode, confirmed, comps, _lc=None):
     srcs = []
     realV = {v for v in blk[0] if v != 'aux'}
     for extn, v0 in ext_attach.items():
@@ -792,7 +976,7 @@ def _port_sources(blk, X, edges, em, vm, ext_attach, ext_mode, confirmed, comps)
             srcs.append((extn, md, {v0}, {v0}))
         else:
             if md == X or marginally_softer(md, X):
-                c = _collect_entries(blk, [v0], [], vm.get(v0, 'H'), edges, em, vm)
+                c = _collect_entries(blk, [v0], [], vm.get(v0, 'H'), edges, em, vm, _lc=_lc)
                 if c:
                     srcs.append((extn, md, c, set()))
     for (cm, ci) in list(confirmed.keys()):
@@ -801,17 +985,17 @@ def _port_sources(blk, X, edges, em, vm, ext_attach, ext_mode, confirmed, comps)
         sblk = comps[cm][ci]
         sv = {v for v in sblk[0] if v != 'aux'}
         se = sblk[2] if len(sblk) > 2 and sblk[2] else []
-        c = _collect_entries(blk, sv, se, cm, edges, em, vm)
+        c = _collect_entries(blk, sv, se, cm, edges, em, vm, _lc=_lc)
         if c:
             srcs.append(('%s#%d' % (cm, ci), cm, c, set()))
     return srcs
 
 
 # Hidden-path receiver port check: exclude the union of source entries, then require a third port.
-def _hp_receiver_port_ok(blk, X, edges, em, vm, ext_attach, ext_mode, confirmed, comps):
+def _hp_receiver_port_ok(blk, X, edges, em, vm, ext_attach, ext_mode, confirmed, comps, _lc=None):
     if not USE_THIRD_PORT:
         return True
-    srcs = _port_sources(blk, X, edges, em, vm, ext_attach, ext_mode, confirmed, comps)
+    srcs = _port_sources(blk, X, edges, em, vm, ext_attach, ext_mode, confirmed, comps, _lc=_lc)
     entry = set()
     for (_tag, md, cands, att) in srcs:
         entry |= set(cands)
@@ -903,6 +1087,7 @@ def ir_ok(edges, em, vm, ext_attach, ext_mode=None):
         return ok
     # (pure-aux SC carriers fail the relevance rules automatically — no separate check)
     confirmed = {}
+    _lc = {}   # per-call local cache for pure sub-results (reused across fixpoint rounds)
     # ---- per-mode confirmation channels: f(blk, i) -> bool; every non-H mode gets cond1 (entry + vee + port) ----
     channels = {}
 
@@ -910,7 +1095,7 @@ def ir_ok(edges, em, vm, ext_attach, ext_mode=None):
         channels.setdefault(mode, []).append(fn)
 
     def cond1_ch(mode):
-        return lambda blk, i: cond1_confirms(blk, mode, comps, confirmed, edges, em, vm, ext_attach, ext_mode)
+        return lambda blk, i: cond1_confirms(blk, mode, comps, confirmed, edges, em, vm, ext_attach, ext_mode, _lc=_lc)
 
     for m in comps:
         if m != 'H':
@@ -923,19 +1108,19 @@ def ir_ok(edges, em, vm, ext_attach, ext_mode=None):
         add(mode, lambda blk, i, vext=vext, m_ext=m_ext, mode=mode: vext in blk[0] and m_ext == mode)
     # S-family: messenger channels (simultaneously relevant to the target set with >=1 confirmed)
     for mode, own, other in (('S^1C13', ('C1C13', 'C3C13'), ('C24',)), ('S^1C24', ('C2C24', 'C4C24'), ('C13',))):
-        add(mode, lambda blk, i, mode=mode, own=own, other=other: _cond_allowed(mode, blk) and messenger_confirms(blk, mode, own, other, comps, confirmed, edges, em, vm))
+        add(mode, lambda blk, i, mode=mode, own=own, other=other: _cond_allowed(mode, blk) and messenger_confirms(blk, mode, own, other, comps, confirmed, edges, em, vm, _lc=_lc))
     for mode, own, other in (('S^2C13', ('C1^2C13', 'C3^2C13'), ('S^1C24', 'C2C24', 'C4C24')), ('S^2C24', ('C2^2C24', 'C4^2C24'), ('S^1C13', 'C1C13', 'C3C13'))):
-        add(mode, lambda blk, i, mode=mode, own=own, other=other: _cond_allowed(mode, blk) and messenger_confirms(blk, mode, own, other, comps, confirmed, edges, em, vm))
+        add(mode, lambda blk, i, mode=mode, own=own, other=other: _cond_allowed(mode, blk) and messenger_confirms(blk, mode, own, other, comps, confirmed, edges, em, vm, _lc=_lc))
     # S-family: meet-of-two channels (two confirmed relevant components whose modes meet to the block's mode)
     for mode in ('S', 'S^2', 'S^1C13', 'S^1C24', 'S^2C13', 'S^2C24', 'S^1C1C13', 'S^1C3C13', 'S^1C2C24', 'S^1C4C24'):
-        add(mode, lambda blk, i, mode=mode: _cond_allowed(mode, blk) and meet_of_two_confirms(blk, mode, comps, confirmed, edges, em, vm))
+        add(mode, lambda blk, i, mode=mode: _cond_allowed(mode, blk) and meet_of_two_confirms(blk, mode, comps, confirmed, edges, em, vm, _lc=_lc))
     # SC hidden path: an SC bridges two distinct pair-mode components (or S between two C13s / C24s); one confirmed pair conducts to the other
     for sc_mode, pair_mode, ext_a, ext_b, fam_modes, fam_a, fam_b in (
             ('S^1C24', 'C13', 'p1', 'p3', ('C2C24', 'C4C24'), ('C13', 'C1C13', 'C1^2C13', 'C1∞C13'), ('C13', 'C3C13', 'C3^2C13', 'C3∞C13')),
             ('S^1C13', 'C24', 'p2', 'p4', ('C1C13', 'C3C13'), ('C24', 'C2C24', 'C2^2C24', 'C2∞C24'), ('C24', 'C4C24', 'C4^2C24', 'C4∞C24')),
             ('S', 'C13', 'p1', 'p3', ('C24',), ('C13', 'C1C13', 'C1^2C13', 'C1∞C13'), ('C13', 'C3C13', 'C3^2C13', 'C3∞C13')),
             ('S', 'C24', 'p2', 'p4', ('C13',), ('C24', 'C2C24', 'C2^2C24', 'C2∞C24'), ('C24', 'C4C24', 'C4^2C24', 'C4∞C24'))):
-        add(pair_mode, lambda blk, i, sc_mode=sc_mode, pair_mode=pair_mode, ext_a=ext_a, ext_b=ext_b, fam_modes=fam_modes, fam_a=fam_a, fam_b=fam_b: sc_hidden_path_confirms(blk, i, comps, confirmed, edges, em, vm, ext_attach, ext_mode, sc_mode, pair_mode, ext_a, ext_b, fam_modes, fam_a, fam_b))
+        add(pair_mode, lambda blk, i, sc_mode=sc_mode, pair_mode=pair_mode, ext_a=ext_a, ext_b=ext_b, fam_modes=fam_modes, fam_a=fam_a, fam_b=fam_b: sc_hidden_path_confirms(blk, i, comps, confirmed, edges, em, vm, ext_attach, ext_mode, sc_mode, pair_mode, ext_a, ext_b, fam_modes, fam_a, fam_b, _lc=_lc))
     # H: total inflow ∨ == H
     add('H', lambda blk, i: h_comp_confirmed(blk, comps, confirmed, edges, em, vm, ext_attach, ext_mode))
 

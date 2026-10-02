@@ -32,7 +32,7 @@ def _disp_key(m):
 
 # Spanning tree of a connected block (aux included); returns (tree_edge_indices, basis_edge_indices) — basis =
 # deleted edges.
-def _basis_of_block(block_verts, block_edges, edges2):
+def _basis_of_block(block_verts, block_edges, edges2, skip=None):
     parent = {}
 
     def find(a):
@@ -46,7 +46,7 @@ def _basis_of_block(block_verts, block_edges, edges2):
     tree, basis = [], []
     for i in block_edges:
         a, b = edges2[i]
-        if a == b:                      # self-loop: never a tree edge
+        if a == b or (skip and i in skip):  # self-loop / pinned: never a tree edge
             basis.append(i)
             continue
         ra, rb = find(a), find(b)
@@ -55,6 +55,10 @@ def _basis_of_block(block_verts, block_edges, edges2):
             tree.append(i)
         else:
             basis.append(i)
+    if skip:                            # with the pinned lines removed the block must still span
+        root = find(next(iter(block_verts)))
+        if any(find(v) != root for v in block_verts):
+            return None, None
     return tree, basis
 
 
@@ -89,6 +93,28 @@ def indep_loops(edges, em, vm):
     return results, total, L
 
 
+# Forced-line feasibility over the per-unit 1VI blocks: every forced line must be able to sit in its own block's
+# basis (the block must still span without it); completion picks each block's remaining basis lines as usual, with
+# the forced lines pinned.  Returns (basis, reason) — basis = original edge indices; reason = None when feasible.
+def forced_basis(edges, em, vm, F):
+    verts = sorted({v for e in edges for v in e})
+    Fset = set(F)
+    basis_all = []
+    for unit, blocks in _iter_units(em, vm, edges, verts):
+        for (bv, be, idxs) in blocks:
+            skip = {j for j, ei in enumerate(idxs) if ei in Fset}
+            tree, basis = _basis_of_block(bv, list(range(len(be))), be, skip or None)
+            if tree is None:
+                r = len(idxs) - len(bv) + 1
+                u, v = edges[idxs[min(skip)]]
+                if r == 0:
+                    return None, (f'forced line ({u}, {v}) cannot carry a loop momentum: '
+                                  f'its {name(unit)} block has no loop (r = 0)')
+                return None, (f'the forced lines in the {name(unit)} block cannot all carry a loop momentum '
+                              f'(block r = {r})')
+            basis_all += [idxs[j] for j in basis]
+    return basis_all, None
+
 # ------------------------------------------- physical momentum parameterization
 # Spanning tree of (verts, edge_list) avoiding the skip set; None if no such tree exists (skip set contains a bridge
 # / disconnects).
@@ -122,8 +148,9 @@ def _spanning_tree(verts, edge_list, skip):
 # Momentum of every line as a combination of the loop momenta k1..kL and the externals; tree+chords parameterization on
 # the ORIGINAL graph: carriers = chords (forced lines first in the k numbering), the other |V|-1 lines form a spanning
 # tree (flow along a<b, in - out = p_v). Returns (True, order, momenta, verts) with momenta[ei] = {term: coeff}, or
-# (False, reason, None, None) if unfeasible: |carriers| > L, or the complement of the carriers is disconnected.
-def edge_momenta(edges, carriers, ext_attach):
+# (False, reason, None, None) if unfeasible: |carriers| > L, a forced line cannot sit in its mode block's basis
+# (see forced_basis), or the complement of the carriers is disconnected.
+def edge_momenta(edges, em, vm, carriers, ext_attach):
     verts = sorted({v for e in edges for v in e})
     E = len(edges)
     V = len(verts)
@@ -131,7 +158,11 @@ def edge_momenta(edges, carriers, ext_attach):
     F = set(carriers)
     if len(F) > L:
         return False, f'{len(F)} forced lines exceed L = {L}', None, None
-    tree = _spanning_tree(verts, edges, F)
+    # per-block step: pin the forced lines inside their mode blocks; the rest of the basis is completed per block
+    basis_all, reason = forced_basis(edges, em, vm, F)
+    if reason is not None:
+        return False, reason, None, None
+    tree = _spanning_tree(verts, edges, basis_all)
     if tree is None:
         return False, ('the remaining lines do not connect (a forced line is a bridge and cannot carry a loop momentum)'), None, None
     chords = [i for i in range(E) if i not in tree]
@@ -228,12 +259,12 @@ def fmt_expr(terms):
 
 
 # Print line momenta (k1..kL carriers) and every line's momentum.
-def show_edge_momenta(edges, carriers, ext_attach, forced=False):
-    ok, payload, momenta, verts = edge_momenta(edges, carriers, ext_attach)
+def show_edge_momenta(edges, em, vm, carriers, ext_attach, forced=False):
+    ok, payload, momenta, verts = edge_momenta(edges, em, vm, carriers, ext_attach)
     if not ok:
         reason = payload
         if forced:
-            print('  ✗ unfeasible: these line momenta do not form a basis for the loop momenta')
+            print(f'  ✗ unfeasible: {reason}')
         else:
             print(f'  ! default basis cannot serve as loop-momentum carriers: {reason}')
         return
@@ -254,7 +285,7 @@ def show_edge_momenta(edges, carriers, ext_attach, forced=False):
 # parameterization), then every line's momentum in terms of k1..kL and the external momenta.
 def show_basis(edges, em, vm, F=None, ext_attach=None):
     if F:
-        show_edge_momenta(edges, F, ext_attach, forced=True)
+        show_edge_momenta(edges, em, vm, F, ext_attach, forced=True)
     else:
         results, total, L = indep_loops(edges, em, vm)
         print('  independent loop momenta (a concrete basis):')
@@ -272,4 +303,4 @@ def show_basis(edges, em, vm, F=None, ext_attach=None):
                     desc.append(s)
                 print(f'    mode {name(mode)}: basis = {", ".join(desc)}')
         basis_all = [j for r in results for b in r['blocks'] for j in b['basis']]
-        show_edge_momenta(edges, basis_all, ext_attach)
+        show_edge_momenta(edges, em, vm, basis_all, ext_attach)

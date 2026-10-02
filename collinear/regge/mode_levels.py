@@ -9,10 +9,10 @@ Rules:
     C13 / C24 cost: 0 if external, else 1 (internal base)
 
   costs -- the loop level that a mode starts to appear, with the "producing mechanisms" below:
-    vee  (join A,B):   cost = max(cost A, cost B)
+    vee  (mode_join A,B):   cost = max(cost A, cost B)
                        -- free ONLY as member extension: exactly one operand is an INF carrier (e.g. S^mC24 v C2∞C24 = C2^mC24).
                        carrier-carrier or structure-structure joins are not free (C1C13 v C3C13 = C13, S^2C13 v S^2C24 = S^2).
-    wedge (meet A,B):  cost = cost A + cost B + 1   [union of loops + 1] meets with an INF carrier are skipped.
+    wedge (mode_meet A,B):  cost = cost A + cost B + 1   [union of loops + 1] meets with an INF carrier are skipped.
     messenger tower:   S^mC13 = cost(C24) + 2m,  S^mC24 = cost(C13) + 2m
     messenger at L=2:  S^mC24 @ 2 when m = 1 + min(n over the FINITE 13-legs) (k2/k3: S^1C24; k4: S^2C24), gated by [3];
                        relevant to {C2^mC24, C4^mC24, one finite 13-leg structure}.
@@ -37,7 +37,7 @@ _HERE = os.path.dirname(os.path.abspath(__file__))
 if _HERE not in sys.path:
     sys.path.insert(0, _HERE)
 
-from regge_modes import (Mode, meet, join, to_mode, to_old, C, H, INF)  # noqa: E402
+from primitives import (Mode, mode_meet, mode_join, to_mode, to_old, C, H, INF)  # noqa: E402
 
 LMAX_DEFAULT = 8
 BUDGET_SLACK = 4
@@ -142,12 +142,12 @@ class Predictor:
                     n_carrier = sum(1 for x in (a, b) if x.n == INF)
                     if n_carrier == 1:
                         try:
-                            ch |= self.upd(join(a, b), max(ca, cb), ('vee', a, ca, b, cb))
+                            ch |= self.upd(mode_join(a, b), max(ca, cb), ('vee', a, ca, b, cb))
                         except Exception:
                             pass
                 if (a.n != INF and b.n != INF and ca + cb + 1 <= self.Lmax + BUDGET_SLACK):
                     try:
-                        ch |= self.upd(meet(a, b), ca + cb + 1, ('wedge', a, ca, b, cb))
+                        ch |= self.upd(mode_meet(a, b), ca + cb + 1, ('wedge', a, ca, b, cb))
                     except Exception:
                         pass
             if not ch:

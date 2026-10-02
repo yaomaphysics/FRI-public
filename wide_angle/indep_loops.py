@@ -88,7 +88,7 @@ def find_1vi_blocks(verts, edges):
 
 
 # spanning tree of a connected block (aux included); returns (tree_edge_indices, basis_edge_indices). That is, basis = deleted edges.
-def _basis_of_block(block_verts, block_edges, edges2):
+def _basis_of_block(block_verts, block_edges, edges2, skip=None):
     parent = {}
     def find(a):
         while parent[a] != a:
@@ -100,7 +100,7 @@ def _basis_of_block(block_verts, block_edges, edges2):
     tree, basis = [], []
     for i in block_edges:
         a, b = edges2[i]
-        if a == b:                      # self-loop: never a tree edge
+        if a == b or (skip and i in skip):  # self-loop / pinned: never a tree edge
             basis.append(i)
             continue
         ra, rb = find(a), find(b)
@@ -109,6 +109,10 @@ def _basis_of_block(block_verts, block_edges, edges2):
             tree.append(i)
         else:
             basis.append(i)
+    if skip:                            # with the pinned lines removed the block must still span
+        root = find(next(iter(block_verts)))
+        if any(find(v) != root for v in block_verts):
+            return None, None
     return tree, basis
 
 
@@ -166,6 +170,38 @@ def indep_loops(edges, em, vm):
     L = len(edges) - len({v for e in edges for v in e}) + 1
     return results, total_rank, L
 
+# Forced-line feasibility over the per-mode 1VI blocks: every forced line must be able to sit in its own block's
+# basis (the block must still span without it); completion picks each block's remaining basis lines as usual, with
+# the forced lines pinned.  Returns (basis, reason) — basis = original edge indices; reason = None when feasible.
+def forced_basis(edges, em, vm, F):
+    from primitives import eq
+    H = (0, 0, 0)
+    em2 = [m if m is not None else H for m in em]
+    Fset = set(F)
+    emodes = defaultdict(list)
+    for i, m in enumerate(em2):
+        emodes[m].append(i)
+    basis_all = []
+    for X in sorted(emodes, key=lambda m: (m[0], m[1], m[2])):
+        ex = emodes[X]
+        vx = {v for v, jm in vm.items() if eq(jm, X)}
+        verts2 = set(vx) | {'aux'}
+        edges2 = [('aux' if a not in vx else a, 'aux' if b not in vx else b) for (a, b) in edges]
+        ge2 = [edges2[i] for i in ex]
+        for (bv, be) in find_1vi_blocks(list(verts2), ge2):
+            skip = {j for j in be if ex[j] in Fset}
+            tree, basis = _basis_of_block(bv, be, ge2, skip or None)
+            if tree is None:
+                r = len(be) - len(bv) + 1
+                u, v = edges[ex[min(skip)]]
+                if r == 0:
+                    return None, (f'forced line ({u}, {v}) cannot carry a loop momentum: '
+                                  f'its {_ms(X)} block has no loop (r = 0)')
+                return None, (f'the forced lines in the {_ms(X)} block cannot all carry a loop momentum '
+                              f'(block r = {r})')
+            basis_all += [ex[j] for j in basis]
+    return basis_all, None
+
 # ---------------------------------------------------------------- line-momentum parameterization
 
 # Express line momenta as linear combinations of the loop and external momenta.
@@ -177,7 +213,11 @@ def edge_momenta(edges, em, vm, carriers, ext_attach):
     F = set(carriers)
     if len(F) > L:
         return False, f'{len(F)} forced lines exceed L = {L}', None, None
-    tree = spanning_tree(verts, edges, F)
+    # per-block step: pin the forced lines inside their mode blocks; the rest of the basis is completed per block
+    basis_all, reason = forced_basis(edges, em, vm, F)
+    if reason is not None:
+        return False, reason, None, None
+    tree = spanning_tree(verts, edges, basis_all)
     if tree is None:
         return False, ('the remaining lines do not connect (a forced line is a bridge and cannot carry a loop momentum)'), None, None
     chords = [i for i in range(E) if i not in tree]
@@ -277,7 +317,7 @@ def show_edge_momenta(edges, em, vm, carriers, ext_attach, forced=False):
     if not ok:
         reason = payload
         if forced:
-            print('  ✗ unfeasible: these line momenta do not form a basis for the loop momenta')
+            print(f'  ✗ unfeasible: {reason}')
         else:
             print(f'  ! default basis cannot serve as loop-momentum carriers: {reason}')
         return

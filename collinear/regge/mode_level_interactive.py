@@ -4,7 +4,7 @@ mode_level_interactive.py — interactive stepper for the mode first-appearance 
 Ask for the four external-momentum modes (p1..p4; plain Enter = the regge k1 defaults), show the L = 0 modes, then advance one loop level per key press:
 
     SPACE : next loop level (+1)
-    ENTER : jump to the next level that has new modes
+    ENTER : jump to the next level that has new edge scalings
     A     : show the cumulative table so far
     Q/B/ESC : quit
 
@@ -18,7 +18,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 if HERE not in sys.path:
     sys.path.insert(0, HERE)
 
-from regge_modes import INF, to_mode, to_old
+from primitives import INF, to_mode, to_old
 from mode_levels import Predictor, leg_check
 
 LMAX = 10 # Stepper display cap (levels are shown up to L = LMAX).
@@ -90,7 +90,7 @@ def read_key():
     return ch
 
 
-# Display state for one kinematics: extends the ladder on demand and renders each new mode's origin.
+# Display state for one kinematics: extends the ladder on demand and renders each new edge scaling's origin.
 class Stepper:
     # Store the entered kinematics; pred/levels/by_name/computed are (re)built lazily by ensure().
     def __init__(self, ext_modes):
@@ -186,21 +186,21 @@ def main():
 
     cur = 0
 
-    # Print level k's new modes with their origins, plus the cumulative count.
+    # Print level k's new edge scalings with their origins, plus the cumulative count.
     def show(k):
         st.ensure(k)
         names = st.modes_at(k)
         print()
         if names:
             n = len(names)
-            print('L=%d — %d new mode%s:' % (k, n, 's' if n != 1 else ''))
+            print('L=%d — %d new edge scaling%s:' % (k, n, 's' if n != 1 else ''))
             w = min(22, max(len(nm) for nm in names))
             for nm in names:
                 print('   %-*s — %s' % (w, nm, st.source_text(nm)))
         else:
-            print('L=%d — (no new modes)' % k)
+            print('L=%d — (no new edge scalings)' % k)
         n_le = sum(len(st.modes_at(lv)) for lv in st.levels if lv <= k)
-        print('   cumulative: %d modes (≤L=%d) | SPACE=+1, ENTER=next non-empty, A=all, Q/B=quit' % (n_le, k))
+        print('   cumulative: %d edge scalings (≤L=%d) | SPACE=+1, ENTER=next non-empty, A=all, Q/B=quit' % (n_le, k))
 
     show(cur)
     while True:
@@ -227,7 +227,7 @@ def main():
                     break
                 j0 += 6
             if hit is None:
-                print('  (no new modes up to L=%d)' % LMAX)
+                print('  (no new edge scalings up to L=%d)' % LMAX)
             else:
                 cur = hit
                 show(cur)
@@ -243,7 +243,7 @@ def main():
 
 
 if __name__ == '__main__':
-    signal.signal(signal.SIGINT, signal.default_int_handler)  # keep Ctrl+C working even if the launcher had ignored SIGINT
+    signal.signal(signal.SIGINT, signal.default_int_handler)  # keep Ctrl+C working
     try:
         main()
     except (KeyboardInterrupt, EOFError):

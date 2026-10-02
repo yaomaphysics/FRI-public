@@ -239,7 +239,7 @@ def inspect_regions(edges, regs, ext_attach):
     if input('Select a set of line momenta as independent loop momenta? (y/n) [n] > ').strip().lower() == 'y':
         asked = False
         while True:
-            prompt = ('Force lines into the basis? ((x,y) pairs; empty = show default basis) > ' if not asked else 'Force more lines? ((x,y) pairs; empty = done) > ')
+            prompt = ('Force lines into the basis? ((x,y) pairs; empty = show default basis) > ' if not asked else 'Force lines (new input replaces the previous set)? ((x,y) pairs; empty = done) > ')
             line = input(prompt).strip()
             if line.lower() in ('q', 'quit', 'b', 'back'):
                 break

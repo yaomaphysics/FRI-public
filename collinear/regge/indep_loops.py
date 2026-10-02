@@ -19,7 +19,7 @@ import os, sys
 
 BASE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, BASE)
-from primitives import mode_components, find_1vi_blocks
+from primitives import mode_components, find_1vi_blocks, ext_m
 
 UNION = 'sH∪G'        # combined semihard unit: gamma_sH ∪ gamma_G
 
@@ -28,7 +28,7 @@ UNION = 'sH∪G'        # combined semihard unit: gamma_sH ∪ gamma_G
 
 
 # Spanning tree of a connected block (aux included); returns (tree_edge_indices, basis_edge_indices) — basis = deleted edges.
-def _basis_of_block(block_verts, block_edges, edges2):
+def _basis_of_block(block_verts, block_edges, edges2, skip=None):
     parent = {}
 
     # union-find root with path compression.
@@ -43,7 +43,7 @@ def _basis_of_block(block_verts, block_edges, edges2):
     tree, basis = [], []
     for i in block_edges:
         a, b = edges2[i]
-        if a == b:                      # self-loop: never a tree edge
+        if a == b or (skip and i in skip):  # self-loop / pinned: never a tree edge
             basis.append(i)
             continue
         ra, rb = find(a), find(b)
@@ -52,6 +52,10 @@ def _basis_of_block(block_verts, block_edges, edges2):
             tree.append(i)
         else:
             basis.append(i)
+    if skip:                            # with the pinned lines removed the block must still span
+        root = find(next(iter(block_verts)))
+        if any(find(v) != root for v in block_verts):
+            return None, None
     return tree, basis
 
 
@@ -113,6 +117,28 @@ def indep_loops(edges, em, vm):
     return results, total, L
 
 
+# Forced-line feasibility over the per-unit 1VI blocks: every forced line must be able to sit in its own block's
+# basis (the block must still span without it); completion picks each block's remaining basis lines as usual, with
+# the forced lines pinned.  Returns (basis, reason) — basis = original edge indices; reason = None when feasible.
+def forced_basis(edges, em, vm, F):
+    verts = sorted({v for e in edges for v in e})
+    Fset = set(F)
+    basis_all = []
+    for unit, blocks in _iter_units(em, vm, edges, verts):
+        for (bv, be, idxs) in blocks:
+            skip = {j for j, ei in enumerate(idxs) if ei in Fset}
+            tree, basis = _basis_of_block(bv, list(range(len(be))), be, skip or None)
+            if tree is None:
+                r = len(idxs) - len(bv) + 1
+                u, v = edges[idxs[min(skip)]]
+                if r == 0:
+                    return None, (f'forced line ({u}, {v}) cannot carry a loop momentum: '
+                                  f'its {unit} block has no loop (r = 0)')
+                return None, (f'the forced lines in the {unit} block cannot all carry a loop momentum '
+                              f'(block r = {r})')
+            basis_all += [idxs[j] for j in basis]
+    return basis_all, None
+
 # ------------------------------------------- physical momentum parameterization
 # Spanning tree of (verts, edge_list) avoiding the skip set; None if no such tree exists (bridge / disconnection).
 def _spanning_tree(verts, edge_list, skip):
@@ -145,7 +171,7 @@ def _spanning_tree(verts, edge_list, skip):
 
 
 # Line momenta expressed in terms of k1...kL and the externals; returns (ok, order, momenta, verts) or (False, reason, None, None).
-def edge_momenta(edges, carriers, ext_attach):
+def edge_momenta(edges, em, vm, carriers, ext_attach):
     verts = sorted({v for e in edges for v in e})
     E = len(edges)
     V = len(verts)
@@ -153,7 +179,11 @@ def edge_momenta(edges, carriers, ext_attach):
     F = set(carriers)
     if len(F) > L:
         return False, f'{len(F)} forced lines exceed L = {L}', None, None
-    tree = _spanning_tree(verts, edges, F)
+    # per-block step: pin the forced lines inside their mode blocks; the rest of the basis is completed per block
+    basis_all, reason = forced_basis(edges, em, vm, F)
+    if reason is not None:
+        return False, reason, None, None
+    tree = _spanning_tree(verts, edges, basis_all)
     if tree is None:
         return False, ('the remaining lines do not connect (a forced line is a bridge and cannot carry a loop momentum)'), None, None
     chords = [i for i in range(E) if i not in tree]
@@ -251,12 +281,12 @@ def fmt_expr(terms):
 
 
 # Print line momenta (k1..kL carriers) and every line's momentum.
-def show_edge_momenta(edges, carriers, ext_attach, forced=False):
-    ok, payload, momenta, verts = edge_momenta(edges, carriers, ext_attach)
+def show_edge_momenta(edges, em, vm, carriers, ext_attach, forced=False):
+    ok, payload, momenta, verts = edge_momenta(edges, em, vm, carriers, ext_attach)
     if not ok:
         reason = payload
         if forced:
-            print('  ✗ unfeasible: these line momenta do not form a basis for the loop momenta')
+            print(f'  ✗ unfeasible: {reason}')
         else:
             print(f'  ! default basis cannot serve as loop-momentum carriers: {reason}')
         return
@@ -277,7 +307,7 @@ def show_edge_momenta(edges, carriers, ext_attach, forced=False):
 # A concrete basis: default per-unit 1VI-block algebraic basis, or forced lines F (physical tree+chords parameterization); then every line's momentum in terms of k1..kL and the externals.
 def show_basis(edges, em, vm, F=None, ext_attach=None):
     if F:
-        show_edge_momenta(edges, F, ext_attach, forced=True)
+        show_edge_momenta(edges, em, vm, F, ext_attach, forced=True)
     else:
         results, total, L = indep_loops(edges, em, vm)
         print('  independent loop momenta (a concrete basis):')
@@ -296,12 +326,12 @@ def show_basis(edges, em, vm, F=None, ext_attach=None):
                 print(f'    mode {mode}: basis = {", ".join(desc)}')
         print(f'  Σ |basis| = {total}  vs  L = {L}  {"✓" if total == L else "✗ MISMATCH"}')
         basis_all = [j for r in results for b in r['blocks'] for j in b['basis']]
-        show_edge_momenta(edges, basis_all, ext_attach)
+        show_edge_momenta(edges, em, vm, basis_all, ext_attach)
 
 
 if __name__ == '__main__':
     # quick self-test on the necklace (sH fix) and the box (k0, G edge)
-    from skeleton import fri_regions_full
+    from skeleton import skel_regions, skel_regions_k1
     cases = [
         ('box k1', [(1, 3), (2, 4), (1, 2), (3, 4)], {'p1': 'C1∞C13', 'p2': 'C2∞C24', 'p3': 'C3∞C13', 'p4': 'C4∞C24'}),
         ('box k0', [(1, 3), (2, 4), (1, 2), (3, 4)], {'p1': 'C13', 'p2': 'C24', 'p3': 'C13', 'p4': 'C24'}),
@@ -310,7 +340,11 @@ if __name__ == '__main__':
     ext_attach = {'p1': 1, 'p2': 2, 'p3': 3, 'p4': 4}
     for name, edges, ext_mode in cases:
         verts = sorted({v for e in edges for v in e})
-        regs = fri_regions_full(edges, verts, ext_attach, ext_mode)
+        ms = [ext_m(ext_mode.get(n)) for n in ('p1', 'p2', 'p3', 'p4')]
+        if all(m is None for m in ms):
+            regs, _cnt, _dp = skel_regions_k1(edges, verts, ext_attach, ext_mode)
+        else:
+            regs, _cnt, _dp = skel_regions(edges, verts, ext_attach, ext_mode)
         print(f'== {name}: {len(regs)} regions ==')
         for i, (cut13, cut24, cut1, cut3, cut2, cut4, vm, em) in enumerate(regs, 1):
             results, total, L = indep_loops(edges, em, vm)

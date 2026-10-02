@@ -206,6 +206,7 @@ def _make_mk(mcache, bidx):
 # ---------------------------- main enumerator ----------------------------
 def skel_regions(edges, verts, ext_attach, ext_mode):
     clear_graph_caches() # start each case with empty graph-kernel memo tables
+    R.clear_adjust_caches()
     verts = sorted(verts)
     E = [tuple(e) for e in edges]
     adj = {v: set() for v in verts}
@@ -405,6 +406,7 @@ def skel_regions(edges, verts, ext_attach, ext_mode):
 # Prune mirror [2026-09-20 late]: has_sc_vertex (3<=L<5), I0/I1/I2-family gates, reg3, Cond-1/2/3 branch gates carry over.
 def skel_regions_k1(edges, verts, ext_attach, ext_mode, use_overlap=True):
     clear_graph_caches() # start each case with empty graph-kernel memo tables
+    R.clear_adjust_caches()
     verts = sorted(verts)
     E = [tuple(e) for e in edges]
     adj = {v: set() for v in verts}

@@ -135,14 +135,14 @@ The optional region visualisation additionally uses `wolframscript` (Wolfram Eng
 FRI-project/
 ├── facet_regions_interactive.py       # unified entry: [1] wide-angle / [2] collinear
 ├── wide_angle/                        # class 1: wide-angle scattering (canonical)
-│   ├── region_checker.py              #   region judgment: subgraph requirements + IR fixpoint
-│   ├── skeleton.py                    #   pruned skeleton cut enumerator (enumeration core)
-│   ├── usable_modes.py                #   IR-compatible mode closure (compression)
 │   ├── primitives.py                  #   shared base: mode algebra + graph machinery
-│   ├── read_graph.py                  #   input parsing
+│   ├── skeleton.py                    #   pruned skeleton cut enumerator (enumeration core)
+│   ├── region_checker.py              #   region judgment: subgraph requirements + IR fixpoint
 │   ├── indep_loops.py                 #   independent loop momenta per region
+│   ├── usable_modes.py                #   IR-compatible mode closure (compression)
+│   ├── read_graph.py                  #   input parsing
 │   ├── facet_regions_interactive.py   #   interactive browser (enumerate + menu)
-│   ├── region_plot.py              #   region figures + PDF atlas
+│   ├── region_plot.py                 #   region figures + PDF atlas
 │   ├── scaleless_diagnosis.py         #   why a non-region is scaleless
 │   └── tests/                         #   fast unit tests
 └── collinear/                         # class 2: collinear kinematics
@@ -150,19 +150,18 @@ FRI-project/
     │   ├── primitives.py               #     mode algebra + graph tools (zero-judgment base layer)
     │   ├── skeleton.py                 #     skeleton cut enumerators (k0--k4; per-graph cut-chain levels)
     │   ├── region_checker.py           #     region checks / judgment (check chain shared with skeleton)
+    │   ├── indep_loops.py               #     independent loop momenta + line-momentum parameterization
+    │   ├── kin23.py                    #     kinematics table (k0--k4 presets; general virtuality patterns)
     │   ├── mode_levels.py              #     mode first-appearance ladder + cut-chain level derivation
     │   ├── mode_level_interactive.py   #     interactive stepper for the mode ladder
     │   ├── facet_regions_interactive.py #     interactive enumerator for a new graph
-    │   ├── kin23.py                    #     kinematics table (k0--k4 presets; general virtuality patterns)
-    │   ├── indep_loops.py               #     independent loop momenta + line-momentum parameterization
     │   └── region_plot.py              #     region figures + PDF atlas
     └── regge/                         #   part 2: Regge limit of 2->2
+        ├── primitives.py              #     mode algebra + mode strings + graph tools (zero-judgment base layer)
+        ├── skeleton.py                #     skeleton cut enumerator (fast path) + the full FRI enumerators (k0--k5)
         ├── region_checker.py          #     engine: mode lattice, cuts, pipeline, IR fixpoint
-        ├── primitives.py              #     mode strings + graph tools (zero-judgment base layer)
-        ├── regge_modes.py             #     S^m C_i^n C_ij mode algebra (meet/join)
         ├── indep_loops.py             #     independent loop momenta (semihard fix)
         ├── regge_graphs.py            #     example graph library + k0--k5 kinematics
-        ├── skeleton.py                #     skeleton cut enumerator (fast path) + the full FRI enumerators (k0--k5)
         ├── mode_levels.py             #     mode first-appearance ladder
         ├── mode_level_interactive.py  #     interactive stepper for the mode ladder
         ├── facet_regions_interactive.py #     interactive enumerator for a new graph

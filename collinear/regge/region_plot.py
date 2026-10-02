@@ -41,7 +41,7 @@ API:
     render_individual_pngs(edges, verts, items, ext_mode=None, ext_attach=None,
                            outdir=None, image_size=720, verbose=False) -> [png paths]
         items = [(label, region), ...]; a region is either the 8-tuple from
-        fri_regions_full()  (cut13, cut24, cut1, cut3, cut2, cut4, vm, em)
+        skel_regions()  (cut13, cut24, cut1, cut3, cut2, cut4, vm, em)
         or (vec, cuts, em, vm).  `label` names the figure ("R{label}") and the
         file (r{label:02d}.png).
         ext_mode = {leg: mode_str} colours the external legs (None -> blue).
