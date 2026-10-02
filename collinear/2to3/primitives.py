@@ -617,6 +617,26 @@ def is_1vi(vs, es):
         if not connected(vs - {v}, es): return False
     return True
 
+# connected components of the induced subgraph: {vertex: component_root} via Union-Find.
+@lru_cache(maxsize=None)
+def _components(es, verts):
+    parent = {v: v for v in verts}
+    def find(x):
+        while parent[x] != x:
+            parent[x] = parent[parent[x]]
+            x = parent[x]
+        return x
+    def union(a, b):
+        ra, rb = find(a), find(b)
+        if ra != rb: parent[ra] = rb
+    for (a, b) in es:
+        if a in parent and b in parent: union(a, b)
+    return {v: find(v) for v in verts}
+
+def components(es, verts):
+    # content-keyed memo wrapper: normalise arguments, delegate to the cached impl
+    return _components(es if isinstance(es, tuple) else tuple(map(tuple, es)), verts if isinstance(verts, frozenset) else frozenset(verts))
+
 # 1VI blocks of (verts, edges): self-loops and isolated vertices become single-vertex blocks.
 def find_1vi_blocks(verts, edges):
     loops = [(a, b) for (a, b) in edges if a == b]

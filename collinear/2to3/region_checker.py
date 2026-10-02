@@ -17,7 +17,7 @@ _DBG = False
 CONDUCT23 = True  # S^mC23 hidden-path conduction (general m; approved 2026-09-19 15:15; supersedes the 03:30 bridge prototype).  Set False to disable.
 
 from primitives import (H, S, W, P, isS, isC, m_of, d_of, n_of, mem_of, V, name, parse,
-    meet, join, connected, is_1vi, find_1vi_blocks,
+    meet, join, connected, is_1vi, components, find_1vi_blocks,
     marginally_softer, harder_or_eq, INF)
 
 def mode_components(mode, vm, em, edges, verts):
@@ -233,12 +233,17 @@ def mojetic_all_ok(edges, verts, vm, em, ext_attach, jvje):
     return True
 
 # C23-mode "islands" whose incident modes are all at higher levels are rejected.
+# Components = connected components of the exact-mode subgraph; adjacency = the modes of the edges leaving the component.
 def island_ok(edges, verts, em, vm):
-    for (bv, be, idxs) in mode_components(P(0, 0), vm, em, edges, verts):
-        real = {v for v in bv if v != 'aux'}
-        if not real: continue
-        incident = [em[i] for i, (a, b) in enumerate(edges) if a in real or b in real]
-        if incident and all(V(m) > V(P(0, 0)) for m in incident):
+    mode = P(0, 0)
+    gv = frozenset(v for v in verts if vm.get(v) == mode)
+    if not gv:
+        return True
+    cmap = components(tuple((a, b) for i, (a, b) in enumerate(edges) if em[i] == mode), gv)
+    for root in sorted(set(cmap.values())):
+        comp = frozenset(v for v in gv if cmap[v] == root)
+        adjacent = [em[i] for i, (a, b) in enumerate(edges) if (a in comp) != (b in comp)]
+        if adjacent and all(V(m) > V(mode) for m in adjacent):
             return False
     return True
 
