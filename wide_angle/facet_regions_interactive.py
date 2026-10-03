@@ -10,10 +10,14 @@ Script:
        1) Inspect specific regions  — pick a subset ("e.g., 3, 8--10" = regions 3, 4, 8, 10; empty = all);
            for every picked region, output the mode subgraphs:
            "X: {vertices: {...}, edges: {...}}   loop number = ...."
+           plus the scalar power counting (integration measure / integrand / power, as \\lambda^{...}).
           Optionally, the user can select a set of line momenta as independent loop momenta (a basis) with optional forced lines.
        2) Show Lee-Pomeransky parametric representation — per region the scaling vector v_i (x_i ~ \\lambda^{v_i}, v_i = -(2m+n), input edge order),
-       3) Classify these regions based on their characteristic modes — per region its softest-mode class + by-type counts,
-       4) Visualize the selected regions — per-mode colours; can choose a single PDF atlas (default) or one PNG file per region.
+       3) Group these regions by their characteristic mode — per region its softest-mode class + by-type counts,
+       4) Group these regions by their power — a numerator may be entered first (a polynomial in the edge momenta K_i and the externals p_j; "1" = scalar);
+          each region's power is then computed silently and grouped in ascending order (leading first),
+          with an optional step-by-step derivation report (PDF) for a chosen subset.
+       5) Visualize the selected regions — per-mode colours; can choose a single PDF atlas (default) or one PNG file per region.
   This loops until the user quits (empty or q).
 
 Usage: python3 facet_regions_interactive.py
@@ -29,6 +33,9 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from read_graph import (mode_str, parse_mode, sc_short, type_order, group_by_type)
 from primitives import scaling_of
 from indep_loops import indep_loops, show_basis
+from power_counting import (show_power_counting, measure_power, integrand_power, fmt_power,
+                            parse_numerator, fmt_ast, region_context, numerator_power)
+from power_report import build_report
 from skeleton import run as skeleton_run, kappa_of
 H = (0, 0, 0)
 
@@ -38,6 +45,14 @@ def ms(md):
     return mode_str(md) if md is not None else '∅'
 
 # ---------------------------------------------------------------- input helpers
+# Ask a y/n question (empty = n); any other input re-asks.
+def ask_yn(prompt):
+    while True:
+        ans = input(prompt).strip().lower() or 'n'
+        if ans in ('y', 'n'):
+            return ans == 'y'
+        print('  ! answer y or n (empty = n)')
+
 # Parse an edge list leniently: accepts '1-5,1-8,...', '(1,5),(1,8),...' or '[(1,5),(1,8),...]'.
 def parse_edge_list(s):
     t = re.sub(r'[\[\](){}]', ' ', s).replace(';', ',')
@@ -97,7 +112,7 @@ def ask_externals():
                 print(f'  ! {e}')
         out[nm] = [vtx, s]
         print(f'  added: {nm} = [vertex {vtx}, mode {s}]')
-        if input('  Add another external? (y/n) [n] > ').strip().lower() != 'y':
+        if not ask_yn('  Add another external? (y/n) [n] > '):
             break
     print(f'  externals = {out}')
     return out
@@ -173,6 +188,7 @@ def show_mode_subgraphs(edges, em, vm):
         Es = '{' + ', '.join(f'({u},{v})' for u, v in sorted(E)) + '}'
         print(f'  mode {ms(X)}: {{vertices: {Vs}, edges: {Es}}}   loop number = {rank.get(X, 0)}')
     print(f'  Σ loop numbers = {total}  vs  L = {L}  {"✓" if total == L else "✗ MISMATCH"}')
+    show_power_counting(results, em)
 
 
 # ---------------------------------------------------------------- parsing
@@ -236,7 +252,7 @@ def inspect_regions(edges, regs, ext_attach):
         vm, em = regs[i - 1]
         print(f'  --- region {i}:')
         show_mode_subgraphs(edges, em, vm)
-    if input('Select a set of line momenta as independent loop momenta? (y/n) [n] > ').strip().lower() == 'y':
+    if ask_yn('Select a set of line momenta as independent loop momenta? (y/n) [n] > '):
         asked = False
         while True:
             prompt = ('Force lines into the basis? ((x,y) pairs; empty = show default basis) > ' if not asked else 'Force lines (new input replaces the previous set)? ((x,y) pairs; empty = done) > ')
@@ -287,7 +303,73 @@ def show_classify(regs, edges, kappa):
     print(f'TOTAL: {total} regions')
 
 
-# Option 4: visualize the selected regions via wolframscript (can output PDF atlas or PNGs).
+# Option 4: group the regions by their scalar power (plus the numerator power N if given); computed silently, ascending order.
+def show_group_by_power(regs, edges, ext_attach, extmode, numerator):
+    groups = {}
+    for i, (vm, em) in enumerate(regs, 1):
+        results, _total, _L = indep_loops(edges, em, vm)
+        a0, a1 = measure_power(results)
+        n = 0
+        if numerator is not None:
+            ctx = region_context(edges, em, vm, ext_attach, extmode)
+            n = numerator_power(numerator[0], ctx)
+        groups.setdefault((a0 - integrand_power(em) + n, a1), []).append(i)
+    for (p0, p1), rs in sorted(groups.items()):
+        print()
+        print(f'Region(s) with power = {fmt_power(p0, p1)}:')
+        for i in rs:
+            print(f'  R{i}: {em_sequence(regs[i - 1][1])}')
+
+
+# Ask for the numerator polynomial (in K_i / externals; '1' = scalar); empty keeps the previous one; q/b cancels.
+def ask_numerator(nedge, pnames, current):
+    keep = 'scalar' if current is None else 'previous'
+    while True:
+        line = input(f'Numerator ("1" = scalar; e.g. (p1\\cdot K_1)(K_2\\cdot K_3); empty = keep {keep}; q/b = cancel) > ').strip()
+        if line.lower() in ('q', 'quit', 'b', 'back'):
+            return None, False
+        if not line:
+            if current is None:
+                print('  numerator = 1 (scalar)')
+            else:
+                show = current[1] if len(current[1]) <= 160 else current[1][:157] + '...'
+                print(f'  numerator = {show}')
+            return current, True
+        try:
+            ast, warns = parse_numerator(line, nedge, pnames)
+        except ValueError as e:
+            print(f'  ! {e}')
+            continue
+        for w in warns:
+            print(f'  ! note: {w}')
+        if ast is None:
+            print('  numerator = 1 (scalar)')
+            return None, True
+        text = fmt_ast(ast)
+        show = text if len(text) <= 160 else text[:157] + '...'
+        print(f'  numerator = {show}')
+        return (ast, text), True
+
+
+# Option 4 (follow-up): render a step-by-step derivation PDF for chosen regions (empty = all).
+def offer_derivation_report(edges, regs, ext_attach, internal_lines, externals, extmode, numerator):
+    line = input('Region numbers for the report (e.g. "3, 8--10"; empty = all; q/b = back) > ').strip()
+    if line.lower() in ('q', 'quit', 'b', 'back'):
+        return
+    sel = parse_region_select(line, len(regs)) if line else list(range(1, len(regs) + 1))
+    if sel is None:
+        return
+    print(f'  building the derivation report for {len(sel)} region(s) ...')
+    try:
+        pdf, prev, _lines = build_report(edges, regs, sel, ext_attach, internal_lines, externals, extmode=extmode, numerator=numerator)
+    except Exception as e:
+        print(f'  ! report generation failed: {e}')
+        return
+    print(f'  saved derivation report to: {pdf}')
+    print(f'  first page preview: {prev}')
+
+
+# Option 5: visualize the selected regions via wolframscript (can output PDF atlas or PNGs).
 def visualize_regions(edges, regs, extmode, ext_attach):
     n = len(regs)
     line = input('Region numbers (e.g. "3, 8--10" represents regions 3, 8, 9, and 10; empty = all; q/b = back) > ').strip()
@@ -356,13 +438,15 @@ def main():
         for i, (vm, em) in enumerate(regs, 1):
             print(f'    R{i}: {em_sequence(em)}')
         kappa = kappa_of(extmode)
+        numerator = None
         while True:
             print('  Options:')
             print('    1) Inspect specific regions')
             print('    2) Show Lee-Pomeransky parametric representation')
-            print('    3) Classify these regions based on their characteristic modes')
-            print('    4) Visualize these regions (PDF atlas / PNGs)')
-            opt = input('  (1/2/3/4; empty/q/b = done with this graph) > ').strip().lower()
+            print('    3) Group these regions by their characteristic mode')
+            print('    4) Group these regions by their power')
+            print('    5) Visualize these regions (PDF atlas / PNGs)')
+            opt = input('  (1/2/3/4/5; empty/q/b = done with this graph) > ').strip().lower()
             if opt in ('', 'q', 'quit', 'b', 'back'):
                 break
             if opt == '1':
@@ -372,9 +456,16 @@ def main():
             elif opt == '3':
                 show_classify(regs, edges, kappa)
             elif opt == '4':
+                num, ok = ask_numerator(len(edges), set(extmode), numerator)
+                if ok:
+                    numerator = num
+                    show_group_by_power(regs, edges, ext_attach, extmode, numerator)
+                    if ask_yn('Show the detailed derivation as a PDF report? (y/n) [n] > '):
+                        offer_derivation_report(edges, regs, ext_attach, internal_lines, externals, extmode, numerator)
+            elif opt == '5':
                 visualize_regions(edges, regs, extmode, ext_attach)
             else:
-                print('  ! enter 1, 2, 3, 4, or q')
+                print('  ! enter 1, 2, 3, 4, 5, or q')
         # save
         fdir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'fri_out')
         os.makedirs(fdir, exist_ok=True)
@@ -392,7 +483,7 @@ def main():
                 f.write(f'      vm: {{{vmtxt}}}\n')
         print(f'  saved to: {fname}')
         print('=' * 72)
-        if input('Another graph? (y/n) [n] > ').strip().lower() != 'y':
+        if not ask_yn('Another graph? (y/n) [n] > '):
             break
 
 if __name__ == '__main__':

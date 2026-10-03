@@ -229,6 +229,15 @@ DEFAULT_EDGES = '[(1,5),(1,8),(2,5),(2,7),(3,6),(3,8),(4,6),(4,7),(5,6),(7,8)]'
 DEFAULT_MODES = "['C1','C1','C1','H','H','C1','H','H','C1','C1']"
 
 
+# Ask a y/n question (empty = n); any other input re-asks.
+def ask_yn(prompt):
+    while True:
+        ans = input(prompt).strip().lower() or 'n'
+        if ans in ('y', 'n'):
+            return ans == 'y'
+        print('  ! answer y or n (empty = n)')
+
+
 def ask(label, default=None):
     print(f'{label}:' + (f'  (default: {default})' if default else ''))
     line = input('> ').strip()
@@ -301,7 +310,7 @@ def ask_externals():
                 print(f'  ! {e}')
         out[nm] = [vtx, s]
         print(f'  added: {nm} = [vertex {vtx}, mode {s}]')
-        if input('  Add another external? (y/n) [n] > ').strip().lower() != 'y':
+        if not ask_yn('  Add another external? (y/n) [n] > '):
             break
     print(f'  externals = {out}')
     return out
@@ -337,7 +346,7 @@ def main():
             continue
         is_reg, msg = diagnose(edges, em, ext_attach, extmode)
         print('  ' + msg)
-        if input('Another assignment? (y/n) [n] > ').strip().lower() != 'y':
+        if not ask_yn('Another assignment? (y/n) [n] > '):
             break
 
 

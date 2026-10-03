@@ -42,7 +42,7 @@ In collinear kinematics, on top of these modes above, we also have:
 ### Usage
 
 Run `python3 facet_regions_interactive.py` and choose a kinematics class; the browser takes the graph (edge list + external attachments) as the only input — the cut formalism stays internal.  It enumerates all regions and lists them together with their momentum-space mode assignment: one entry per internal edge, in input order — the same scaling vector that the region finders of pySecDec report, as compared in the cross-checks below.
-From there the browser can: inspect individual regions (per-mode subgraphs and loop numbers, plus a concrete independent-loop-momentum basis), translate them to the Lee-Pomeransky parametric representation ($x_e \sim \lambda^{v_e}$ with $v_e = -V$, edge order) — the language natural to integration-by-regions tools — classify the list by the characteristic (softest) mode of each region, or render regions as figures: a single PDF atlas (default; A4 pages of rows, each with the region figure, `R{n}  v = (...)`, and the per-mode lines) or one PNG per region, written to `<module>/fri_out/regions_<timestamp>/` together with the rendering script and a preview page.  The renderer checks font fidelity first, so a broken font encoding fails loudly instead of producing silent glyph errors.  See *Quick start* for the commands.
+From there the browser can: inspect individual regions (per-mode subgraphs and loop numbers, plus a concrete independent-loop-momentum basis), translate them to the Lee-Pomeransky parametric representation ($x_e \sim \lambda^{v_e}$ with $v_e = -V$, edge order) — the language natural to integration-by-regions tools — classify the list by the characteristic (softest) mode of each region or by power counting (optionally with a numerator polynomial in the edge momenta; a per-region derivation of the power is available as a PDF report), or render regions as figures: a single PDF atlas (default; A4 pages of rows, each with the region figure, `R{n}  v = (...)`, and the per-mode lines) or one PNG per region, written to `<module>/fri_out/regions_<timestamp>/` together with the rendering script and a preview page.  The renderer checks font fidelity first, so a broken font encoding fails loudly instead of producing silent glyph errors.  See *Quick start* for the commands.
 
 ---
 
@@ -51,7 +51,11 @@ From there the browser can: inspect individual regions (per-mode subgraphs and l
 ### Choosing independent loop momenta
 
 For a given region, a basis of loop momenta adapted to its mode hierarchy is what makes the region's power counting manifest: `indep_loops.py` (one per framework — wide-angle, five-point 2->3, and Regge) constructs one.  For every mode present, its contracted subgraph (the vertices carrying that join mode, plus one auxiliary vertex that absorbs all remaining endpoints) has a cycle rank equal to the number of independent loop momenta of that mode; the module returns a concrete basis (per one-vertex-irreducible block), with an option to force lines into the basis and a feasibility check.  The interactive enumerators expose this under option **1)**.
-Whether the choice matters beyond bookkeeping is theory-dependent (e.g. power counting of operators in an EFT expansion) — FRI reports the bases, but performs no power counting itself.
+Whether the choice matters beyond bookkeeping is theory-dependent (e.g. power counting of operators in an EFT expansion) — FRI reports the bases.
+
+### Power counting
+
+For a scalar integral, a region's contribution scales as $\lambda^{A-B}$: the loop measure contributes $A = (2-\epsilon)\sum_X r_X V(X)$ (one factor $(\lambda^{V(X)})^{2-\epsilon}$ per independent loop momentum), the propagators $B = \sum_e V_e$ (the virtuality degrees of the edge modes).  The browser groups all regions by this power and can emit a per-region derivation of it as a PDF report.  A numerator polynomial in the edge momenta $K_i$ (input edge order) is supported as well: it is expanded per region into the independent loop momenta, every scalar product of two modes scales as their join, with sums taking the minimum and products adding, and the resulting integer $N$ enters as $A - B + N$.  Implemented for wide-angle; the collinear frameworks are to follow.
 
 ### Scaleless diagnosis
 
@@ -139,6 +143,8 @@ FRI-project/
 │   ├── skeleton.py                    #   pruned skeleton cut enumerator (enumeration core)
 │   ├── region_checker.py              #   region judgment: subgraph requirements + IR fixpoint
 │   ├── indep_loops.py                 #   independent loop momenta per region
+│   ├── power_counting.py              #   scalar + numerator power counting for the region browser
+│   ├── power_report.py                #   per-region derivation report (PDF) for the power counting
 │   ├── usable_modes.py                #   IR-compatible mode closure (compression)
 │   ├── read_graph.py                  #   input parsing
 │   ├── facet_regions_interactive.py   #   interactive browser (enumerate + menu)
@@ -178,7 +184,7 @@ Every implementation has been cross-checked against the region finder of [pySecD
 |---|---|---|
 | **wide-angle** | ~830 configurations covering 45+ topologies (2→2 / 2→3 / 1→3; 3--5 loops; planar and nonplanar; including soft-emission families) | 1,200 four-leg + 600 five-leg cases (on top of ~19,000 earlier random cases) |
 | **collinear: 2→3** (p2 ∥ p3) | 11-graph Frog family + 394 variants (a fifth external leg attached to the 2→2 topologies) | 1,000 (3-loop) + 500 (4-loop) + 100 (5-loop) graphs in the five kinematics k0--k4 |
-| **collinear: 2→2 (Regge)** (p1 ∥ p3, p2 ∥ p4) | region files of 56 graphs in the six kinematics k0–k5 (lightlike and off-shell external legs, $\lambda^2$-suppressed virtualities) | 2,000 (3-loop) + 300 (4-loop) + 50 (5-loop) graphs over k0–k5 |
+| **collinear: 2→2 (Regge)** (p1 ∥ p3, p2 ∥ p4) | region files of 56 graphs in the six kinematics k0–k5 (lightlike and off-shell external legs, $\lambda^2$-suppressed virtualities) | 1,000 (3-loop) + 700 (4-loop) + 300 (5-loop) graphs over k0–k5 |
 
 ---
 
@@ -188,7 +194,7 @@ Research-grade, version 0.1.0.  License: TBD.
 
 **Open items — general**
 
-Cleared for now.
+Interactive part -- power-counting module: added for wide-angle (scalar integrals and polynomial numerators); the collinear frameworks to follow.
 
 **Open items — wide-angle** 
 

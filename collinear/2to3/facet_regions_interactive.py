@@ -53,6 +53,14 @@ KIN_NOTES = {
 
 
 # ---------------------------------------------------------------- input helpers
+# Ask a y/n question (empty = n); any other input re-asks.
+def ask_yn(prompt):
+    while True:
+        ans = input(prompt).strip().lower() or 'n'
+        if ans in ('y', 'n'):
+            return ans == 'y'
+        print('  ! answer y or n (empty = n)')
+
 # Parse an edge list leniently: accepts '1-3,1-5,...', '(1,3),(1,5),...' or '[(1,3),(1,5),...]'.
 def parse_edges(s):
     t = re.sub(r'[\[\](){}]', ' ', s).replace(';', ',')
@@ -161,7 +169,7 @@ def inspect_regions(edges, regs, ext_attach):
         vec, cuts, em, vm = regs[i - 1]
         print(f'  --- region {i}:')
         show_mode_subgraphs(edges, em, vm)
-    if input('Select a set of line momenta as independent loop momenta? (y/n) [n] > ').strip().lower() == 'y':
+    if ask_yn('Select a set of line momenta as independent loop momenta? (y/n) [n] > '):
         asked = False
         while True:
             prompt = ('Force lines into the basis? ((x,y) pairs; empty = show default basis) > ' if not asked else 'Force lines (new input replaces the previous set)? ((x,y) pairs; empty = done) > ')
