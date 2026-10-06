@@ -20,8 +20,9 @@ Script:
        5) Visualize the selected regions — per-mode colours; can choose a single PDF atlas (default) or one PNG file per region.
   This loops until the user quits (empty or q).
 
-Usage: python3 facet_regions_interactive.py
-  internal_lines: edge list, e.g. "1-5,1-8,..." (a Python list also works); empty line = built-in example, which is the example in Sec. 7.1 of arXiv:2601.22144.
+Usage: python3 facet_regions_interactive.py [-v]
+  (hidden debug switch: 'v' at the edge prompt / -v at startup toggles the enumeration statistics.)
+  internal_lines: edge list, e.g. "1-5,1-8,..." (a Python list also works); empty line = built-in example CrownST (the example in Sec. 7.1 of arXiv:2601.22144).
   externals: prompted one by one (vertex, name, mode) — the example uses p1 = [1,'C1'], p2 = [2,'C2^2'],
   p3 = [3,'C3^inf'], p4 = [4,'C4^inf'] (81 regions in total).
 
@@ -68,13 +69,21 @@ def parse_edge_list(s):
         raise ValueError(f"cannot parse edge list: '{s.strip()}'")
     return [(int(dn[k]), int(dn[k + 1])) for k in range(0, len(dn), 2)]
 
-# Ask for the edge list; empty input = default; 'q' quits; re-prompts on parse errors.
-def ask_edges(label, default):
-    print(f'{label}:' + (f'  (default: {default})' if default else ''))
+# Returned by ask_edges when the hidden debug toggle 'v' is typed (the toggle itself is handled in main).
+TOGGLE_VERBOSE = object()
+
+# Ask for the edge list; empty input = default; 'q' quits; 'v' returns TOGGLE_VERBOSE; re-prompts on parse errors.
+def ask_edges(label, default, default_name=None):
+    shown = default if default_name is None else f'{default_name} — {default}'
+    print(f'{label}:' + (f'  (default: {shown})' if default else ''))
     while True:
         line = input('> ').strip()
-        if line.lower() in ('q', 'quit', 'exit', 'b', 'back'):
+        low = line.lower()
+        if low in ('q', 'quit', 'exit', 'b', 'back'):
             return None
+        # Hidden debug switch: 'v' toggles the enumeration statistics (handled in main).
+        if low in ('v', '-v', 'stats', 'verbose'):
+            return TOGGLE_VERBOSE
         line = line or default
         try:
             return parse_edge_list(line)
@@ -119,9 +128,10 @@ def ask_externals():
 
 # ---------------------------------------------------------------- enumeration
 # Enumerate all regions of the graph; returns a list of (vm, em).
-def enumerate_regions(verts, edges, ext_attach, ext_mode):
+def enumerate_regions(verts, edges, ext_attach, ext_mode, verbose=False):
     regs = {}
-    regions, _nc, _dt = skeleton_run(verts, edges, ext_attach, ext_mode, verbose=False, overlap_strong=True)
+    # verbose: hidden debug switch (see main()); lets the engine print the enumeration statistics.
+    regions, _nc, _dt = skeleton_run(verts, edges, ext_attach, ext_mode, verbose=verbose, overlap_strong=True)
     for vm, em in regions:
         regs.setdefault(tuple(tuple(m) for m in em), (vm, em))
     return list(regs.values())
@@ -406,14 +416,21 @@ def visualize_regions(edges, regs, extmode, ext_attach):
 
 
 # ---------------------------------------------------------------- main loop
-DEFAULT_EDGES = '[(1,5),(1,8),(2,5),(2,7),(3,6),(3,8),(4,6),(4,7),(5,6),(7,8)]'
+DEFAULT_EDGES = '1-5,1-8,2-5,2-7,3-6,3-8,4-6,4-7,5-6,7-8'
 
 # Interactive loop: read a graph, enumerate its regions, serve the menu; save results to fri_out/.
 def main():
+    # Hidden debug switch (not shown to the user): -v/--verbose starts with the enumeration statistics on.
+    verbose = any(a in ('-v', '--verbose') for a in sys.argv[1:])
     print('=== facet-region browser ===')
     print('Input: graph topology + external momenta only.')
     while True:
-        internal_lines = ask_edges('internal_lines (topology, edge list; e.g. 1-5,1-8,...; q/b = back)', DEFAULT_EDGES)
+        internal_lines = ask_edges('internal_lines (topology, edge list; q/b = back)', DEFAULT_EDGES, 'CrownST')
+        # Hidden debug switch: 'v' toggles the enumeration statistics.
+        if internal_lines is TOGGLE_VERBOSE:
+            verbose = not verbose
+            print(f'-> enumeration statistics {"ON" if verbose else "OFF"}')
+            continue
         if internal_lines is None:
             print('bye!')
             return
@@ -431,7 +448,7 @@ def main():
             continue
         print(f'\n  enumerating all regions ({len(edges)} edges, {len(verts)} vertices) ...')
         t0 = time.time()
-        regs = enumerate_regions(verts, edges, ext_attach, extmode)
+        regs = enumerate_regions(verts, edges, ext_attach, extmode, verbose)
         dt = time.time() - t0
         edge_seq = ', '.join(f'({u},{v})' for u, v in edges)
         print(f'  {len(regs)} regions in {dt:.1f}s (presented in terms of the edge modes {edge_seq}):')

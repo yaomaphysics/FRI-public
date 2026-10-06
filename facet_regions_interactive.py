@@ -7,7 +7,7 @@ First choose a framework; the framework's own interactive browser then runs (all
     [2] collinear
           [1] 2->3           -> collinear/2to3/facet_regions_interactive.py
           [2] 2->2 (Regge)   -> collinear/regge/facet_regions_interactive.py
-          [3] mode stepper   -> 2->3: collinear/2to3/mode_level_interactive.py
+          [3] mode ladder    -> 2->3: collinear/2to3/mode_level_interactive.py
                                 2->2: collinear/regge/mode_level_interactive.py
 
 Every browser shares the same workflow: give a graph (topology + external kinematics ONLY — the cut formalism stays internal), enumerate ALL its regions, list them, then
@@ -15,7 +15,7 @@ Every browser shares the same workflow: give a graph (topology + external kinema
     2) Lee-Pomeransky parametric representation (scaling vectors),
     3) classification by characteristic (softest) mode.
 
-([3] is the exception: a stepper for the mode first-appearance ladder — no graph needed, just the external-momentum modes.)
+([3] is the exception: it shows what modes appear at which loop level — no graph needed, just the external-momentum modes.)
 
 Usage: python3 facet_regions_interactive.py
 """
@@ -63,15 +63,15 @@ def run_two_to_three():
 
 def run_mode_ladder():
     print()
-    print('  mode first-appearance stepper:')
+    print('  mode ladder — what modes appear at which loop level?')
     print('    [1] 2->3')
     print('    [2] 2->2 (Regge)')
     print('    [b] back')
-    s = _ask('stepper [1/2/b] > ', ('1', '2', 'b'))
+    s = _ask('mode ladder [1/2/b] > ', ('1', '2', 'b'))
     if s == '1':
-        run_backend(os.path.join(HERE, 'collinear', '2to3', 'mode_level_interactive.py'), 'mode first-appearance ladder')
+        run_backend(os.path.join(HERE, 'collinear', '2to3', 'mode_level_interactive.py'), 'mode ladder (2->3)')
     elif s == '2':
-        run_backend(os.path.join(HERE, 'collinear', 'regge', 'mode_level_interactive.py'), 'mode first-appearance ladder (2->2 Regge)')
+        run_backend(os.path.join(HERE, 'collinear', 'regge', 'mode_level_interactive.py'), 'mode ladder (2->2 Regge)')
 
 
 def main():
@@ -95,7 +95,7 @@ def main():
             print('  collinear:')
             print('    [1] 2->3 scattering (p2 collinear to p3)')
             print('    [2] 2->2 scattering (Regge limit, p1 collinear to p3 while p2 collinear to p4)')
-            print('    [3] mode first-appearance stepper')
+            print('    [3] mode ladder (what modes appear at which loop level?)')
             print('    [b] back')
             s = _ask('sub-framework [1/2/3/b] > ', ('1', '2', '3', 'b'))
             if s == 'b':

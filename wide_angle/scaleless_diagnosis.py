@@ -225,7 +225,7 @@ def diagnose(edges, em, ext_attach, extmode):
 
 
 # ---------------------------------------------------------------- interactive
-DEFAULT_EDGES = '[(1,5),(1,8),(2,5),(2,7),(3,6),(3,8),(4,6),(4,7),(5,6),(7,8)]'
+DEFAULT_EDGES = '1-5,1-8,2-5,2-7,3-6,3-8,4-6,4-7,5-6,7-8'
 DEFAULT_MODES = "['C1','C1','C1','H','H','C1','H','H','C1','C1']"
 
 
@@ -267,8 +267,9 @@ def parse_edge_list(s):
     return [(int(dn[k]), int(dn[k + 1])) for k in range(0, len(dn), 2)]
 
 # Ask for the edge list; empty input = default; 'q' quits; re-prompts on parse errors.
-def ask_edges(label, default):
-    print(f'{label}:' + (f'  (default: {default})' if default else ''))
+def ask_edges(label, default, default_name=None):
+    shown = default if default_name is None else f'{default_name} — {default}'
+    print(f'{label}:' + (f'  (default: {shown})' if default else ''))
     while True:
         line = input('> ').strip()
         if line.lower() in ('q', 'quit', 'exit', 'b', 'back'):
@@ -321,7 +322,7 @@ def main():
     print('Input: graph + external kinematics + an edge-mode assignment.')
     print('Vertex modes are derived: 𝒳(v) = ∨(incident edge modes ∪ externals).')
     while True:
-        internal_lines = ask_edges('internal_lines (topology, edge list; e.g. 1-5,1-8,...)', DEFAULT_EDGES)
+        internal_lines = ask_edges('internal_lines (topology, edge list)', DEFAULT_EDGES, 'CrownST')
         if internal_lines is None:
             print('bye!')
             return

@@ -2,7 +2,7 @@
 """Interactive Regge-limit FRI region enumerator.
 
 Usage:
-    python3 facet_regions_interactive.py
+    python3 facet_regions_interactive.py [-v]
 
 At startup you pick one of the 6 Regge 2->2 kinematics (k0..k5, default
 k1).  The kinematics sets the external-momentum modes (ext_mode) fed into
@@ -19,8 +19,10 @@ regge_graphs.py.  Enumeration runs on the pruned skeleton enumerator
   k5: p1^2, p2^2 ~ lambda, p3^2 = p4^2 = 0
 
 Type an edge list to enumerate (external momenta p1..p4 attach at
-vertices 1, 2, 3, 4).  Commands:  'kin kX' switches kinematics on the
-fly, 'q' quits.  After enumeration a menu offers:
+vertices 1, 2, 3, 4).  At the edge prompt: 'kin k3' switches kinematics
+on the fly, 'v' toggles the enumeration statistics, 'q'/'b' quits.
+Start with -v to have the statistics on from the beginning.  After
+enumeration a menu offers:
     1) Inspect specific regions   — per-mode subgraphs + loop numbers
        (Σ r_X vs L), then optionally a concrete independent-loop-momentum
        basis (default or forced lines) and the physical line momenta
@@ -349,7 +351,7 @@ def choose_kinematics():
         print(f'  [error] unknown kinematics "{s}" — choose from {", ".join(KIN_CHOICES)} (q/b = back)')
 
 
-def run_graph(edges_raw, kin_name):
+def run_graph(edges_raw, kin_name, verbose=False):
     kin = KIN[kin_name]
     edges = [tuple(e) for e in edges_raw]
     verts = sorted({v for e in edges for v in e})
@@ -368,9 +370,9 @@ def run_graph(edges_raw, kin_name):
     t0 = time.time()
     try:
         if kin_name == 'k1':
-            regs, _cnt, _depth = skel_regions_k1(edges, verts, ext_attach, ext_mode)
+            regs, cnt, depth = skel_regions_k1(edges, verts, ext_attach, ext_mode)
         else:
-            regs, _cnt, _depth = skel_regions(edges, verts, ext_attach, ext_mode)
+            regs, cnt, depth = skel_regions(edges, verts, ext_attach, ext_mode)
     except (Exception, SystemExit) as e:
         print(f'  [error] skeleton engine could not handle this input: {e}')
         return
@@ -379,6 +381,10 @@ def run_graph(edges_raw, kin_name):
     # 2->3 browser after its skeleton switch (2026-09-21).
     regs = sorted(regs, key=lambda r: (to_scaling(r[7]), tuple(str(m) for m in r[7])))
     print(f'  FRI regions: {len(regs)}  ({dt:.1f}s)')
+    # Enumeration statistics (hidden debug switch: 'v' at the edge prompt / -v at startup).
+    if verbose:
+        rej = ', '.join(f'{k}={v}' for k, v in sorted(cnt.items()) if k != 'combos')
+        print(f'  [stats] combos={cnt["combos"]}  kept={len(regs)}  depth={"/".join(str(x) for x in depth)}  counters: {rej or "none"}')
     scal = set()
     for i, (cut13, cut24, cut1, cut3, cut2, cut4, vm, em) in enumerate(regs, 1):
         sc = to_scaling(em)
@@ -435,11 +441,13 @@ def run_graph(edges_raw, kin_name):
 
 
 def main():
+    # Hidden debug switch (not shown to the user): -v/--verbose starts with the enumeration statistics on.
+    verbose = any(a in ('-v', '--verbose') for a in sys.argv[1:])
     print('=' * 70)
     print('Regge-limit FRI region enumerator (6 kinematics, k0..k5)')
     print('external momenta: p1@1, p2@2, p3@3, p4@4')
     print('type an edge list, e.g. 1-5,3-5,5-6,2-6,4-6,1-7,3-7,7-8,2-8,4-8 (CrownTT)')
-    print("commands: 'kin kX' switch kinematics, 'q'/'b' quit")
+    print("at the edge prompt: 'kin k3' switches kinematics, 'q'/'b' quits")
     print('=' * 70)
     kin_name = choose_kinematics()
     if kin_name is None:
@@ -448,7 +456,7 @@ def main():
     print(f'-> using kinematics {kin_name} ({KIN[kin_name]["note"]})')
     while True:
         try:
-            s = input(f'\nedge list (e.g. 1-5,3-5,5-6,2-6,4-6,1-7,3-7,7-8,2-8,4-8) [{kin_name}]> ').strip()
+            s = input(f'\nedge list [{kin_name}]> ').strip()
         except (EOFError, KeyboardInterrupt):
             print('\nbye!')
             break
@@ -466,6 +474,11 @@ def main():
             else:
                 print(f'  [error] unknown kinematics "{k}" — choose from {", ".join(KIN_CHOICES)}')
             continue
+        # Hidden debug switch: 'v' toggles the enumeration statistics.
+        if low in ('v', '-v', 'stats', 'verbose'):
+            verbose = not verbose
+            print(f'-> enumeration statistics {"ON" if verbose else "OFF"}')
+            continue
         try:
             edges = parse_edges(s)
         except Exception as e:
@@ -475,7 +488,7 @@ def main():
             print('  [error] empty input')
             continue
         t0 = time.time()
-        run_graph(edges, kin_name)
+        run_graph(edges, kin_name, verbose)
         print(f'  (this graph took {time.time() - t0:.1f}s total)')
 
 

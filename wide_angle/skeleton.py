@@ -43,6 +43,11 @@ the soft corpora (464/464 files; see verify_soft_full.py).
   mask-based (per-graph memoization; fixed-slot int arrays).  Semantically
   identical — verified by old-vs-new A/B (region sets + per-case counters
   byte-identical, 2026-09-22).
+* enumeration: depth-first over legs; partial assignments are pruned as soon
+  as some overlap requirement is provably unsatisfiable for all completions
+  (route violations prune at the offending leg) — regions identical to the
+  full product enumeration, far fewer combos visited.
+  [A/B escape: FRI_NO_REFUTE=1]
 
 (v1/v2/v3/v3.2 development history preserved in
 private/skeleton_rules_history.md.)
@@ -520,6 +525,7 @@ def run(verts, edges, ext_attach, ext_mode, verbose=True, use_overlap=True, use_
     t0 = time.time()
     _DBG_OVL = bool(os.environ.get('FRI_DEBUG_OVL'))
     _DBG_ROUTE = bool(os.environ.get('FRI_DEBUG_ROUTE'))
+    _no_prune = bool(os.environ.get('FRI_NO_REFUTE'))   # [A/B escape: disable the early pruning]
     # Soft externals: supported since the 2026-09-20 spec; validated against the soft corpora (464/464); allow_soft kept for backward compatibility (no-op).
     # k0: always the union construction (single-path route removed 2026-09-20).
     r = _run_k0_union(verts, edges, ext_attach, ext_mode, verbose=verbose, vm_dedup=vm_dedup)
@@ -585,6 +591,41 @@ def run(verts, edges, ext_attach, ext_mode, verbose=True, use_overlap=True, use_
                         allowed_by_cut[name][idx].discard(ext_attach[ln_])
     ctype = [n for n in ext_cuts if ext_mode[n][0] == 0]
     stype = [n for n in ext_cuts if ext_mode[n][0] != 0]   # S^mC^n / S^m, m>=1
+    # Check plan for early refutation: per checked cut (C-type leg, layer n < m) —
+    # partner slot pairs (same sigma = n, other directions; SC slots included)
+    # + soft-support slots (soft power == n).
+    _legnames = sorted(ext_cuts.keys())
+    _legpos = {_n: _i for _i, _n in enumerate(_legnames)}
+    _nslots = [len(ext_cuts.get(_n, [])) for _n in _legnames]
+    _checks = []
+    for _n in _legnames:
+        _md = ext_mode[_n]
+        if _md[0] != 0:
+            continue
+        for _ci, _cut in enumerate(ext_cuts[_n]):
+            _lv = _cut.mode[1]
+            if not (_lv < _md[1]):
+                continue
+            _i = _cut.mode[2]
+            _bydir = {}
+            for _n2 in _legnames:
+                if _n2 == _n:
+                    continue
+                for _ci2, _c2 in enumerate(ext_cuts[_n2]):
+                    _j2 = _c2.mode[2]
+                    if _j2 == 0 or _j2 == _i:
+                        continue
+                    if _c2.mode[0] + _c2.mode[1] != _lv:
+                        continue
+                    _bydir.setdefault(_j2, []).append((_n2, _ci2))
+            _dirs = list(_bydir.keys())
+            _pairs = [(_bydir[_dirs[_a]], _bydir[_dirs[_b]])
+                      for _a in range(len(_dirs)) for _b in range(_a + 1, len(_dirs))]
+            _soft = [(_n2, emask[_n2]) for _n2 in ext_mode
+                     if _n2 != _n and ext_mode[_n2][0] == _lv]
+            _checks.append({'owner': _legpos[_n], 'own': (_n, _ci), 'lv': _lv,
+                            'pairs': _pairs, 'soft': _soft})
+
     if verbose:
         print('kappa=%d externals: %s | C-type: %s | soft: %s' % (kappa, {n: mode_str(ext_mode[n]) for n in ext_mode}, ctype, stype))
 
@@ -597,6 +638,8 @@ def run(verts, edges, ext_attach, ext_mode, verbose=True, use_overlap=True, use_
     n_skip = 0
     n_ov_kill = 0
     n_route_kill = 0
+    n_prune = 0
+    n_prune_rt = 0
     seen_ck = set()
     seen_vm = set()
     tH0 = time.time()
@@ -680,9 +723,120 @@ def run(verts, edges, ext_attach, ext_mode, verbose=True, use_overlap=True, use_
             if not okc:
                 continue
             leglist = sorted(chain_opts.keys())
+            # per-slot possibility masks (union over this context's chain options), used by the refutation
+            _slotposs = {}
+            for _n in leglist:
+                for _ci in range(len(ext_cuts.get(_n, []))):
+                    _pm = 0
+                    for _ch in chain_opts[_n]:
+                        if len(_ch) > _ci:
+                            _pm |= _ch[_ci][1]
+                    _slotposs[(_n, _ci)] = _pm
+            _use_refute = bool(use_overlap and overlap_strong and overlap_level and _checks
+                               and _legnames == leglist)
             # route masks: P_j as a bitmask (route test:  m & pmask[jn])
             pmask = {jn: mk(P) for jn, P in path_assign.items()}
-            for combo_chains in itertools.product(*[chain_opts[n] for n in leglist]):
+            # Enumeration: depth-first over legs; a subtree is pruned as soon as the overlap
+            # requirements (or route exclusion) are provably unsatisfiable for all completions —
+            # regions identical to a full product enumeration, just far fewer combos visited.
+            _opts = [chain_opts[n] for n in leglist]
+            _nleg = len(leglist)
+            # visit legs owning overlap checks first (they unlock refutation), the rest after
+            _haschk = [False] * len(leglist)
+            for _ck in _checks:
+                _haschk[_ck['owner']] = True
+            _dord = ([_i for _i in range(len(leglist)) if _haschk[_i]] +
+                     [_i for _i in range(len(leglist)) if not _haschk[_i]])
+            _cur = [None] * len(leglist)
+            _chc = [None] * len(leglist)
+            _curall = [0] * len(leglist)
+            # route early-prune: for each leg, mask of vertices forbidden by OTHER legs' paths P_j
+            _forb = []
+            for _i in range(len(leglist)):
+                _f = 0
+                for _j, _m in pmask.items():
+                    if _j != leglist[_i]:
+                        _f |= _m
+                _forb.append(_f)
+
+            def _slot_val(_n, _ci):
+                # mask of a cut slot: actual if its leg is assigned, else a possibility upper bound
+                _v = _cur[_legpos[_n]]
+                if _v is not None:
+                    return _v[_ci]
+                return _slotposs.get((_n, _ci), 0)
+
+            def _ref_kills():
+                # True if some overlap check is provably failed for every completion of this prefix
+                for _ck in _checks:
+                    _v = _cur[_ck['owner']]
+                    if _v is None:
+                        continue
+                    _ci = _ck['own'][1]
+                    _m = _v[_ci]
+                    if _m == 0:
+                        continue
+                    _exempt = False
+                    for _ci2 in range(_ci + 1, _nslots[_ck['owner']]):
+                        if _v[_ci2] == _m:
+                            _exempt = True
+                            break
+                    if _exempt:
+                        continue
+                    _live = False
+                    for (_sa, _sb) in _ck['pairs']:
+                        _ma = 0
+                        for (_ln, _lc) in _sa:
+                            _ma |= _slot_val(_ln, _lc)
+                        _mb = 0
+                        for (_ln, _lc) in _sb:
+                            _mb |= _slot_val(_ln, _lc)
+                        if _m & _ma & _mb:
+                            _live = True
+                            break
+                    if not _live and _ck['soft']:
+                        for (_ln, _eb) in _ck['soft']:
+                            if _m & _eb:
+                                _live = True
+                                break
+                    if not _live:
+                        return True
+                return False
+
+            _stack = [(0, iter(_opts[_dord[0]]))]
+            while _stack:
+                _d, _it = _stack[-1]
+                _nx = next(_it, None)
+                if _nx is None:
+                    _stack.pop()
+                    _cur[_dord[_d]] = None
+                    _chc[_dord[_d]] = None
+                    _curall[_dord[_d]] = 0
+                    continue
+                _li = _dord[_d]
+                _cur[_li] = tuple(_nx[_c][1] if _c < len(_nx) else 0
+                                  for _c in range(_nslots[_li]))
+                _chc[_li] = _nx
+                _allm = 0
+                for _mm in _cur[_li]:
+                    _allm |= _mm
+                _curall[_li] = _allm
+                if not _no_prune and (_allm & _forb[_li]):
+                    _sk = 1
+                    for _dd in range(_d + 1, _nleg):
+                        _sk *= len(_opts[_dord[_dd]])
+                    n_prune_rt += _sk
+                    continue
+                if _d < _nleg - 1:
+                    if _use_refute and not _no_prune and _ref_kills():
+                        _sk = 1
+                        for _dd in range(_d + 1, _nleg):
+                            _sk *= len(_opts[_dord[_dd]])
+                        n_prune += _sk
+                        continue
+                    _stack.append((_d + 1, iter(_opts[_dord[_d + 1]])))
+                    continue
+                combo_chains = tuple(_chc)
                 assign = []
                 for n, chain in zip(leglist, combo_chains):
                     cs = ext_cuts[n]
@@ -799,5 +953,5 @@ def run(verts, edges, ext_attach, ext_mode, verbose=True, use_overlap=True, use_
                     regions[key] = (vm, em)
     dt = time.time() - t0
     if verbose:
-        print('skeleton: candidates %d (dup-skipped %d, vm-unique %d, overlap-killed %d, route-killed %d), regions %d, %.1fs' % (n_cand, n_skip, len(seen_vm), n_ov_kill, n_route_kill, len(regions), dt))
+        print('skeleton: candidates %d (dup-skipped %d, vm-unique %d, early-pruned %d, overlap-killed %d, route-killed %d), regions %d, %.1fs' % (n_cand, n_skip, len(seen_vm), n_prune + n_prune_rt, n_ov_kill, n_route_kill, len(regions), dt))
     return list(regions.values()), n_cand, dt

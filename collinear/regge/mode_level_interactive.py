@@ -1,5 +1,5 @@
 """
-mode_level_interactive.py — interactive stepper for the mode first-appearance ladder (mode_levels module; the public regge 2->2 toolkit).
+mode_level_interactive.py — interactive mode ladder: what modes appear at which loop level? (mode_levels module; the public regge 2->2 toolkit).
 
 Ask for the four external-momentum modes (p1..p4; plain Enter = the regge k1 defaults), show the L = 0 modes, then advance one loop level per key press:
 
@@ -25,7 +25,7 @@ LMAX = 10 # Stepper display cap (levels are shown up to L = LMAX).
 
 BANNER = '''\
 ==============================================================
-  mode first-appearance stepper   (regge)
+  What modes appear at which loop level?   (regge)
 --------------------------------------------------------------
   Enter the four external-momentum modes (Enter = k1 defaults), then:
     SPACE = step +1 loop      ENTER = jump to next non-empty loop

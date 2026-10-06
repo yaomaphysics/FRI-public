@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""mode_level_interactive.py — interactive stepper for the mode first-appearance ladder
+"""mode_level_interactive.py — interactive mode ladder: what modes appear at which loop level?
 (mode_levels module; the public 2->3 toolkit).
 
 Ask for the five external-momentum modes (p1..p5; plain Enter = the 2->3 k1
@@ -31,7 +31,7 @@ LMAX = 10
 
 BANNER = '''\
 ==============================================================
-  mode first-appearance stepper   (2->3)
+  What modes appear at which loop level?   (2->3)
 --------------------------------------------------------------
   Enter the five external-momentum modes (Enter = k1 defaults),
   then:

@@ -40,13 +40,13 @@ def _ms(md):
     return mode_str(md) if md is not None else '∅'
 
 
-# 'p0 + p1\epsilon' / 'p0 - p1\epsilon' / 'p0': exponent body without the \lambda^.
-def _exp_body(p0, p1):
-    if p1 == 0:
-        return f'{p0}'
-    if p1 > 0:
-        return f'{p0} + {p1}\\epsilon'
-    return f'{p0} - {-p1}\\epsilon'
+# 'a0 + a1\epsilon' / 'a0 - a1\epsilon' / 'a0': exponent body without the \lambda^.
+def _exp_body(a0, a1):
+    if a1 == 0:
+        return f'{a0}'
+    if a1 > 0:
+        return f'{a0} + {a1}\\epsilon'
+    return f'{a0} - {-a1}\\epsilon'
 
 
 # ---------------------------------------------------------------- derivation text
@@ -56,8 +56,7 @@ def region_lines(edges, vm, em, ext_attach, extmode, i, numerator=None):
     results, _total, _L = indep_loops(edges, em, vm)
     a0, a1 = measure_power(results)
     b = integrand_power(em)
-    p0, p1 = a0 - b, a1
-    out.append(f'R{i}  —  power = {fmt_power(p0, p1)}')
+    out.append(f'R{i}  —  power = {fmt_power(a0 - b, a1)}')
     out.append(f"  edge modes (input order): {', '.join(_ms(m) for m in em)}")
     vmtxt = ', '.join(f'{v}: {_ms(vm[v])}' for v in sorted(vm, key=str))
     out.append(f'  vertex modes: {{{vmtxt}}}')
@@ -107,9 +106,9 @@ def region_lines(edges, vm, em, ext_attach, extmode, i, numerator=None):
         for j, (ttext, tp) in enumerate(pairs, 1):
             out.append(f'    term {j}: {ttext}   ->  {fmt_power(tp, 0)}')
         out.append(f'    N = min = {fmt_power(n, 0)}')
-        out.append(f'  power = A - B + N = {_exp_body(p0 + n, p1)}')
+        out.append(f'  power = A - B + N = {_exp_body(a0 - b + n, a1)}')
     else:
-        out.append(f'  power = A - B = {_exp_body(p0, p1)}')
+        out.append(f'  power = A - B = {_exp_body(a0 - b, a1)}')
     return out
 
 
@@ -176,7 +175,7 @@ def build_report(edges, regs, sel, ext_attach, internal_lines, externals, extmod
     os.makedirs(fdir, exist_ok=True)
     ts = time.strftime('%Y%m%d-%H%M%S')
     pdf = os.path.join(fdir, f'power_derivation_{ts}.pdf')
-    prev = os.path.join(fdir, f'power_derivation_{ts}_p1.png')
+    prev = os.path.join(fdir, f'power_derivation_{ts}_page1.png')
     render_pdf(lines, pdf, 'FRI power-counting derivation report',
                'scalar integrals — per-region derivation of \\lambda^{A-B}', preview=prev)
     return pdf, prev, lines

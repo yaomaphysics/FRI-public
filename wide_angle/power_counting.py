@@ -1,55 +1,49 @@
-#!/usr/bin/env python3
-r"""power_counting.py — scalar-integral power counting, with numerator polynomials.
+r"""
+power_counting.py — compute the expansion power w.r.t. a given region in dimensional regularization.
 
-Scalar part.  The contribution of a region to a scalar Feynman integral
-(integrand 1/(product of propagators)) scales as \lambda^{A-B}:
+The contribution of a region to a Feynman integral (integrand 1/(product of propagators)) scales as \lambda^{A-B+N}, where
+    integration measure ~ \lambda^A,
+    denominator ~ \lambda^B,
+    numerator ~ \lambda^N.
 
-  integration measure:  A = (2 - eps) * sum over the independent loop momenta
-      of V(k).  A loop momentum of mode X = S^m C_i^n scales as
-      (\lambda^m, \lambda^{m+n}, \lambda^{m+n/2}); its measure is
-      (\lambda^{V})^(2-eps) with V = 2m + n = pr_V(X).
-  integrand:  B = sum of V(edge mode) over the propagators (their
-      virtualities), i.e. product of propagators ~ \lambda^B.
-  power = A - B.
+To compute A. First consider the independent loop momenta of this region.
+              A S^m C_i^n-mode loop momentum scales as (\lambda^m, \lambda^{m+n}, \lambda^{m+n/2}), contributing \lambda^{(2m+n) \cdot (2-eps)} to the integration measure.
+              Note that 2m + n is also the virtuality degree of S^m C_i^n.
 
-Numerator part.  A polynomial in the edge momenta K_i (i = input edge
-order) and the externals p_j; coefficients and signs are irrelevant for
-the power.  For each region, every K_i is expanded (via the line-momentum
-decomposition of that region) into its independent loop momenta k_a and
-the externals, and the lambda-power of the result is evaluated with
+To compute B. B = sum of V(edge mode) over the propagators.
 
-  atom (x.y):  lambda^{V(X_x vee X_y)};   sum -> min; product -> add; power -> times n.
-
-`numerator_power` returns that integer N, so a region's power becomes A - B + N.
+To compute N. First express the numerator (given by the user) in terms of the independent loop momenta k1, k2 ....
+              Then it should be a sum of products of ki.kj or ki.pj.
+              The power of ki.kj is then the virtuality degree of Xi\vee Xj (with Xi and Xj being modes of ki and kj, respectively). ki.pj similar.
+              Namely, ki.kj ~ \lambda^{V(Xi\vee Xj)}.
 """
 
 import re
-
 from primitives import V, join
 from indep_loops import indep_loops, edge_momenta
 
 
-# ============================== SCALAR PART ==============================
+# ============================== INTEGRATION MEASURE & INTEGRAND ==============================
 
-# Integration measure: A = (2 - eps) * sum of rank*V over the per-mode loop classes. Returned as (p0, p1) for \lambda^{p0 + p1*eps}.
+# A: each S^m C_i^n-mode loop momentum contributes \lambda^{(2m+n) \cdot (2-eps)} to the integration measure; Returned as (a0, a1) for \lambda^{a0 + a1*eps}.
 def measure_power(results):
     p = sum(r['rank'] * V(r['mode']) for r in results)
     return 2 * p, -p
 
 
-# Product of propagators: \lambda^B with B = sum of the edge-mode virtualities V.
+# B: the product of propagators ~ \lambda^B, with B = sum of V(edge mode) over the propagators.
 def integrand_power(em):
     return sum(0 if m is None else V(m) for m in em)
 
 
-# \lambda^{p0 + p1*eps} as a LaTeX-ready string ('- 7\\epsilon' style).
-def fmt_power(p0, p1):
-    if p1 == 0:
-        exp = f'{p0}'
-    elif p1 > 0:
-        exp = f'{p0} + {p1}\\epsilon'
+# \lambda^{a0 + a1*eps} as a LaTeX-ready string.
+def fmt_power(a0, a1):
+    if a1 == 0:
+        exp = f'{a0}'
+    elif a1 > 0:
+        exp = f'{a0} + {a1}\\epsilon'
     else:
-        exp = f'{p0} - {-p1}\\epsilon'
+        exp = f'{a0} - {-a1}\\epsilon'
     return f'\\lambda^{{{exp}}}'
 
 
@@ -62,7 +56,7 @@ def show_power_counting(results, em):
     print(f'  power = {fmt_power(a0 - b, a1)}')
 
 
-# ============================== NUMERATOR PART ==============================
+# ============================== NUMERATOR ==============================
 
 # ---------------------------------------------------------------- preprocessing
 # Drop LaTeX decoration: '$', \cdot -> '·', leftover backslashes -> spaces, subscripts 'K_{1}'/'K_1' -> 'K1'.
@@ -261,8 +255,9 @@ def fmt_ast(node):
 
 
 # ---------------------------------------------------------------- per-region evaluation
-# Context for one region: k_modes (a -> mode of k_a), p_modes (name -> mode), K_terms (i -> [(kind, key), ...]).
-# The K_i expansion follows this region's own loop-momentum decomposition (indep_loops / edge_momenta).
+# Per-region context for the numerator expansion: modes of the independent loop momenta (k_modes),
+# modes of the externals (p_modes), and each K_i expressed in k1, k2, ... / p_j (K_terms),
+# following this region's own loop-momentum decomposition.
 def region_context(edges, em, vm, ext_attach, extmode):
     results, _total, _L = indep_loops(edges, em, vm)
     basis_all = [j for r in results for b in r['blocks'] for j in b['basis']]
@@ -286,7 +281,7 @@ def region_context(edges, em, vm, ext_attach, extmode):
     return {'k_modes': k_modes, 'p_modes': dict(extmode), 'K_terms': K_terms}
 
 
-# The lambda-power (an integer) of the numerator for one region; scales like lambda^N.
+# N: the numerator's expansion power for one region (an integer): each atom ki.kj contributes \lambda^{V(Xi \vee Xj)}.
 def numerator_power(ast, ctx):
     # Expansion terms of an operand: k_a / p_j are single tokens; K_i expands into its region terms.
     def terms_of(v):
@@ -295,11 +290,11 @@ def numerator_power(ast, ctx):
     def mode_of(t):
         return ctx['k_modes'][t[1]] if t[0] == 'k' else ctx['p_modes'][t[1]]
 
-    # min over the expansion pairs (a.b), a from v1's terms, b from v2's terms
+    # Power of one atom x.y: min over the expansion pairs a.b (a from v1, b from v2) of V(X_a \vee X_b).
     def pair_pow(v1, v2):
         return min(V(join(mode_of(a), mode_of(b))) for a in terms_of(v1) for b in terms_of(v2))
 
-    # Recursive evaluation: the docstring rules (sum -> min, product -> add, power -> times n); atoms go to pair_pow.
+    # Recursive evaluation (rules in the module docstring): atom -> V(Xi \vee Xj); sum -> min; product -> add; power -> times n.
     def ev(node):
         kind = node[0]
         if kind == 'num':

@@ -17,10 +17,10 @@ at vertices 1,2,3,4,5.  The script:
        4) Visualize the selected regions: one PDF atlas (default) or PNG figures (per-mode colours; saved under fri_out/regions_*/),
    and loops until the user quits (empty or q).
 
-Kinematics: k0..k4 (defined in kin23.py; default k1).  Commands inside
-the edge prompt: 'kin kX' switches kinematics, 'v' toggles the
-enumeration statistics, 'q' quits.  Start with -v to have the statistics
-on from the beginning.
+Kinematics: k0..k4 (defined in kin23.py; default k1).  At the edge
+prompt: 'kin k3' switches kinematics, 'v' toggles the enumeration
+statistics, 'q'/'b' quits.  Start with -v to have the statistics on from
+the beginning.
 Results are saved to fri_out/<timestamp>.txt after each graph.
 
 Usage: python3 facet_regions_interactive.py [-v]
@@ -322,6 +322,7 @@ def run_graph(edges_raw, kin_name, verbose=False):
     dt = time.time() - t0
     regs = sorted(surv, key=lambda s: (tuple(float(x) for x in s[0]), tuple(name(m) for m in s[2])))
     print(f'  FRI regions: {len(regs)}  ({dt:.1f}s)')
+    # Enumeration statistics (hidden debug switch: 'v' at the edge prompt / -v at startup).
     if verbose:
         rej = ', '.join(f'{k}={v}' for k, v in sorted(stats.items()) if k != 'survivors')
         print(f'  [stats] combos={total}  kept={len(regs)}  counters: {rej or "none"}')
@@ -370,12 +371,13 @@ def run_graph(edges_raw, kin_name, verbose=False):
 
 
 def main():
+    # Hidden debug switch (not shown to the user): -v/--verbose starts with the enumeration statistics on.
     verbose = any(a in ('-v', '--verbose') for a in sys.argv[1:])
     print('=' * 72)
     print('collinear 2->3 FRI region enumerator (k0..k4)')
     print('external momenta: p1@1, p2@2, p3@3, p4@4, p5@5')
     print('type an edge list, e.g. 1-3,1-5,2-3,2-5,3-4,4-5 (the Frog)')
-    print("commands: 'kin kX' switch kinematics, 'v' toggle stats, 'q'/'b' quit")
+    print("at the edge prompt: 'kin k3' switches kinematics, 'q'/'b' quits")
     print('=' * 72)
     kin_name = choose_kinematics()
     if kin_name is None:
@@ -384,7 +386,7 @@ def main():
     print(f'-> using kinematics {kin_name}')
     while True:
         try:
-            s = input(f'\nedge list (e.g. 1-3,1-5,2-3,2-5,3-4,4-5) [{kin_name}]> ').strip()
+            s = input(f'\nedge list [{kin_name}]> ').strip()
         except (EOFError, KeyboardInterrupt):
             print('\nbye!')
             break
@@ -402,6 +404,7 @@ def main():
             else:
                 print(f'  [error] unknown kinematics "{k}" — choose from {", ".join(KIN_CHOICES)}')
             continue
+        # Hidden debug switch: 'v' toggles the enumeration statistics.
         if low in ('v', '-v', 'stats', 'verbose'):
             verbose = not verbose
             print(f'-> enumeration statistics {"ON" if verbose else "OFF"}')
