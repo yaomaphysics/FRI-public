@@ -184,12 +184,12 @@ Every implementation has been cross-checked against the region finder of [pySecD
 
 <table>
 <tr><th colspan="2">class</th><th>hand-built</th><th>random</th></tr>
-<tr><td rowspan="4"><b>wide-angle</b></td><td><b>4 legs</b></td><td>306 configurations: 51 topologies over k0–k4 (2→2; 3–5 loops, planar and nonplanar) plus 51 decay configurations (1→3)</td><td>1,200 four-leg graphs over k0–k5 (on top of ~19,000 earlier random cases), plus a 200-graph 5-loop batch (first 25 graphs)</td></tr>
-<tr><td><b>5 legs</b></td><td>44 configurations: the Frog family — 11 two-loop topologies over k0–k3 (2→3)</td><td>600 five-leg graphs over k0–k3 (4- and 5-loop), plus a 500-graph 5-loop batch (first 20 graphs)</td></tr>
+<tr><td rowspan="4"><b>wide-angle</b></td><td><b>4 legs</b><br><span style="font-size: 90%; white-space: nowrap;">(with&nbsp;6&nbsp;kinematics)</span></td><td>52 topologies (3–5 loops)</td><td>1,200 (4-loop) + 200 (5-loop) graphs (on top of ~19,000 earlier random cases)</td></tr>
+<tr><td><b>5 legs</b><br><span style="font-size: 90%; white-space: nowrap;">(with&nbsp;4&nbsp;kinematics)</span></td><td>397 graphs (a 5th leg attached to some 4-leg topologies)</td><td>500 (4-loop) + 100 (5-loop) + a 500-graph 5-loop batch (first 20 graphs)</td></tr>
 <tr><td><b>soft emission</b></td><td>470 configurations: the soft-emission families (Crown*ASE, v5-ASE, Frog soft-leg) plus CheesePizza</td><td>—</td></tr>
 <tr><td><b>other topologies</b></td><td>2 configurations: MTest1</td><td>—</td></tr>
-<tr><td colspan="2"><b>collinear: 2→3</b> (p2 ∥ p3)</td><td>11-graph Frog family + 394 variants (a fifth external leg attached to the 2→2 topologies)</td><td>1,000 (3-loop) + 500 (4-loop) + 100 (5-loop) graphs in the five kinematics k0--k4</td></tr>
-<tr><td colspan="2"><b>collinear: 2→2 (Regge)</b> (p1 ∥ p3, p2 ∥ p4)</td><td>region files of 56 graphs in the six kinematics k0–k5 (lightlike and off-shell external legs, λ²-suppressed virtualities)</td><td>1,000 (3-loop) + 700 (4-loop) + 300 (5-loop) graphs over k0–k5</td></tr>
+<tr><td colspan="2"><b>collinear: 2→3</b> (p2 ∥ p3)<br><span style="font-size: 90%; white-space: nowrap;">(with&nbsp;5&nbsp;kinematics)</span></td><td>397 graphs (a 5th leg attached to some 4-leg topologies)</td><td>1,000 (3-loop) + 700 (4-loop) + 100 (5-loop) graphs</td></tr>
+<tr><td colspan="2"><b>collinear: 2→2 (Regge)</b> (p1 ∥ p3, p2 ∥ p4)<br><span style="font-size: 90%; white-space: nowrap;">(with&nbsp;6&nbsp;kinematics)</span></td><td>region files of 56 graphs</td><td>1,000 (3-loop) + 700 (4-loop) + 300 (5-loop) graphs</td></tr>
 </table>
 
 ---

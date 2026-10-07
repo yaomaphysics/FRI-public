@@ -42,6 +42,13 @@ bitmasks; the cut-dedup keys and the strong-overlap test are mask-based
 (fixed-slot int arrays; mk cached per enumeration).  Semantically identical —
 verified by old-vs-new A/B (vectors + per-case counters).
 
+Early pruning in enumerate_skelg: the chain constructions are descended depth-first; a subject
+cut that can never reach the strong-overlap requirement (no possible partner pair among the
+still-available downstream cuts) kills the whole subtree; extra later retests on the (1,1)/(1,2)/
+(4,1)/(4,2) subjects catch the candidates a single early test can miss.  Escapes: FRI_NO_RT=1
+disables the retests, FRI_NO_TAIL=1 the (2,1)/(3,1) tests; pruning counters are returned
+in info.
+
 Use:  enumerate_skelg(edges, verts, ext_attach, kin, use_overlap=True,
                       overlap_strict=False, overlap_strong=True)  # k0,k2,k3,k4
       enumerate_skel(edges, verts, ext_attach, kin='k1')          # k1
@@ -170,6 +177,26 @@ _CUT_SLOTS = ('C23', 'C1', 'C4', 'C5', 'C1R1', 'C4R1', 'C5R1', 'C2R1', 'C3R1', '
 _SUB_IDX = {(1, 1): 1, (1, 2): 4, (4, 1): 2, (4, 2): 5, (5, 1): 3, (5, 2): 6, (2, 1): 7, (3, 1): 8}
 
 
+# Early pruning: subject (leg i, level n, mask msx) is provably dead
+# once no pair of partner directions can still supply two same-power cuts
+# sharing a vertex with it.  pools[leg][n-1] = exact slot mask where the
+# choice is fixed, else the union over all still-possible cuts (upper bound).
+def _prune_dead(msx, i, n, pools):
+    for j1 in (1, 2, 3, 4, 5):
+        if j1 == i:
+            continue
+        U1 = pools[j1][n - 1]
+        if not U1:
+            continue
+        for j2 in (1, 2, 3, 4, 5):
+            if j2 == i or j2 == j1:
+                continue
+            U2 = pools[j2][n - 1]
+            if U2 and (msx & U1 & U2):
+                return False
+    return True
+
+
 # refined_opts23 shape: empty + connected supersets of `root` inside base, avoiding `forbid`.
 def _refined_opts(root, base, forbid, adj):
     allowed = {v for v in base if v not in forbid}
@@ -266,95 +293,91 @@ def enumerate_skelg(edges, verts, ext_attach, kin, use_overlap=True, overlap_str
     skip_emvm = 0
     n_vmdup = 0
     n_overlap = 0
+    _use_prune = bool(use_overlap and overlap_strong)   # early pruning mirrors the strong-overlap form only
+    _RT = _use_prune and not os.environ.get('FRI_NO_RT')       # later-stage (re-)tests
+    _TAIL = ((1 < m2 - 1) or (1 < m3 - 1)) and _use_prune and not os.environ.get('FRI_NO_TAIL')
+    n_prune = 0          # subtrees skipped by the overlap pruning
+    n_prune_split = {'11': 0, '12': 0, '41': 0, '42': 0, '51': 0, '52': 0, '21': 0, '31': 0,
+                   '11r': 0, '12r': 0, '41r': 0, '42r': 0}
+    skip_combos = 0       # complete combos skipped (accounting vs total_cand)
     cuts_seen = set()
     emvm_seen = set()
     vm_seen = set()   # vm-level dedup (2026-09-18)
     found = {}
     SURV = {}   # collect=True: (ek, vk) -> (cuts, em, vm)
 
-    def run_checks(C1, C1R1, C4, C4R1, C5, C5R1, C2, C3, C23):
+    def run_checks(C1, C1R1, C4, C4R1, C5, C5R1, C2, C3, C23, M=None):
         nonlocal total_cand, dup_cuts, skip_emvm, n_overlap, n_vmdup
         total_cand += 1
-        # cuts: shared references; every consumer only reads (no per-call copies)
-        cuts = {'C23': C23, 'C1': C1, 'C4': C4, 'C5': C5, 'C1R1': C1R1, 'C4R1': C4R1, 'C5R1': C5R1, 'C2R1': C2, 'C3R1': C3, 'C2R2': frozenset(), 'C3R2': frozenset()}
-        # fast path (2026-09-22): bitmasks for the fixed cut slots; mk is
-        # cached per frozenset, so recurring partner cuts cost a dict lookup
-        # per-candidate masks as plain locals (consumed by the dedup key and
-        # the level-mask table below)
-        mC23 = mk(C23); mC1 = mk(C1); mC4 = mk(C4); mC5 = mk(C5)
-        mC1R1 = mk(C1R1); mC4R1 = mk(C4R1); mC5R1 = mk(C5R1)
-        mC2 = mk(C2); mC3 = mk(C3)
+        # fast path (2026-09-22 / v3): bitmasks for the fixed cut slots; hot
+        # callers pass the already-computed tuple M, otherwise look up via the
+        # per-candidate mk cache.
+        if M is not None:
+            mC23, mC1, mC4, mC5, mC1R1, mC4R1, mC5R1, mC2, mC3 = M
+        else:
+            mC23 = mk(C23); mC1 = mk(C1); mC4 = mk(C4); mC5 = mk(C5)
+            mC1R1 = mk(C1R1); mC4R1 = mk(C4R1); mC5R1 = mk(C5R1)
+            mC2 = mk(C2); mC3 = mk(C3)
         # fast path (2026-09-22): fixed-slot mask tuple as the dedup key
         # (was: sorted (name, sorted-set-tuple) pairs — same equality classes)
         mslot = (mC23, mC1, mC4, mC5, mC1R1, mC4R1, mC5R1, mC2, mC3, 0, 0)
         ck = mslot
-        # partner-mask table: lvlmsk[j][p-1] = direction-j cut mask at total C-power p (p in {1, 2})
-        lvlmsk = (None, (mslot[1], mslot[4]), (mslot[0], mslot[7]),
-                  (mslot[0], mslot[8]), (mslot[2], mslot[5]), (mslot[3], mslot[6]))
         if ck in cuts_seen:
             dup_cuts += 1
             return
         cuts_seen.add(ck)
         if use_overlap:
-            # subjects: C_i^n / C_i^nC23 cuts with n < m
-            # wide: m = m_i (n=1 base, n=2 first refinement)
-            # pair: m = m_i - 1 (first pair level n=1)
-            subs = []
-            if C1 and 1 < m1:
-                subs.append((1, 1, C1))
-            if C4 and 1 < m4:
-                subs.append((4, 1, C4))
-            if C5 and 1 < m5:
-                subs.append((5, 1, C5))
-            if C1R1:  # 2026-09-19: C1^2 also in the overlap list (三等价 with C4^2/C5^2)
-                subs.append((1, 2, C1R1))
-            if C4R1 and 2 < m4:
-                subs.append((4, 2, C4R1))
-            if C5R1 and 2 < m5:
-                subs.append((5, 2, C5R1))
-            if C2 and 1 < m2 - 1:
-                subs.append((2, 1, C2))
-            if C3 and 1 < m3 - 1:
-                subs.append((3, 1, C3))
-
-            # fast path (2026-09-22): the partner cuts are tested as
-            # bitmasks — "shares a vertex with T1 and T2" <=> mSx & mT1 & mT2
-            # Direction-j cut with total C-power p (same naming as before: C_j^p for wide j=1,4,5; C_j^{p-1}C23 for pair j=2,3,
-            # p=1 -> C23), returned as a bitmask.
-            for i, n, Sx in subs:
-                if overlap_strong:
-                    # strengthened (2026-09-19): a vertex shared by
-                    # this cut and two cuts from two distinct other
-                    # directions, both of total C-power p = n (wide) /
-                    # n+1 (pair).  Overlap = shared vertex only.
-                    p = n  # partners at total C-power n (2026-09-19: the n+1 was a slip)
-                    mSx = mslot[_SUB_IDX[(i, n)]]
-                    ok = False
-                    for j1 in (1, 2, 3, 4, 5):
-                        if j1 == i:
-                            continue
-                        mT1 = lvlmsk[j1][p - 1]
-                        if not mT1:
-                            continue
-                        for j2 in (1, 2, 3, 4, 5):
-                            if j2 == i or j2 == j1:
-                                continue
-                            mT2 = lvlmsk[j2][p - 1]
-                            if not mT2:
-                                continue
-                            if mSx & mT1 & mT2:
-                                ok = True
-                                break
-                        if ok:
-                            break
-                    if not ok:
-                        n_overlap += 1
-                        return
-                else:
-                    # literal bookkeeping (2026-09-16): every C_i^n /
-                    # C_i^nC23 cut with n < m must overlap some existing
-                    # cut of another direction; targets: other directions'
-                    # cuts (bases included) plus C23; C23 never a subject.
+            if overlap_strong:
+                # v3 fused form (exact masks): each subject condition is a
+                # single mask AND against its partner-pair OR; semantics match
+                # the pair search it replaces (validated by A/B).
+                if C1 and 1 < m1 and not (mC1 & ((mC4 & mC5) | mC23)):
+                    n_overlap += 1
+                    return
+                if C4 and 1 < m4 and not (mC4 & ((mC1 & mC5) | mC23)):
+                    n_overlap += 1
+                    return
+                if C5 and 1 < m5 and not (mC5 & ((mC1 & mC4) | mC23)):
+                    n_overlap += 1
+                    return
+                if C1R1 and not (mC1R1 & ((mC4R1 & mC5R1) | ((mC4R1 | mC5R1) & (mC2 | mC3)) | (mC2 & mC3))):
+                    n_overlap += 1
+                    return
+                if C4R1 and 2 < m4 and not (mC4R1 & ((mC1R1 & mC5R1) | ((mC1R1 | mC5R1) & (mC2 | mC3)) | (mC2 & mC3))):
+                    n_overlap += 1
+                    return
+                if C5R1 and 2 < m5 and not (mC5R1 & ((mC1R1 & mC4R1) | ((mC1R1 | mC4R1) & (mC2 | mC3)) | (mC2 & mC3))):
+                    n_overlap += 1
+                    return
+                if C2 and 1 < m2 - 1 and not (mC2 & ((mC1 & mC4) | (mC1 & mC5) | (mC4 & mC5) | (mC23 & (mC1 | mC4 | mC5)))):
+                    n_overlap += 1
+                    return
+                if C3 and 1 < m3 - 1 and not (mC3 & ((mC1 & mC4) | (mC1 & mC5) | (mC4 & mC5) | (mC23 & (mC1 | mC4 | mC5)))):
+                    n_overlap += 1
+                    return
+            else:
+                # literal bookkeeping (2026-09-16): every C_i^n /
+                # C_i^nC23 cut with n < m must overlap some existing
+                # cut of another direction; targets: other directions'
+                # cuts (bases included) plus C23; C23 never a subject.
+                subs = []
+                if C1 and 1 < m1:
+                    subs.append((1, 1, C1))
+                if C4 and 1 < m4:
+                    subs.append((4, 1, C4))
+                if C5 and 1 < m5:
+                    subs.append((5, 1, C5))
+                if C1R1:
+                    subs.append((1, 2, C1R1))
+                if C4R1 and 2 < m4:
+                    subs.append((4, 2, C4R1))
+                if C5R1 and 2 < m5:
+                    subs.append((5, 2, C5R1))
+                if C2 and 1 < m2 - 1:
+                    subs.append((2, 1, C2))
+                if C3 and 1 < m3 - 1:
+                    subs.append((3, 1, C3))
+                for i, n, Sx in subs:
                     others = []
                     for dn, cts in ((1, (C1, C1R1)), (4, (C4, C4R1)), (5, (C5, C5R1)), (2, (C2,)), (3, (C3,))):
                         if dn == i:
@@ -365,6 +388,8 @@ def enumerate_skelg(edges, verts, ext_attach, kin, use_overlap=True, overlap_str
                     if not any(_overlap_pair(Sx, T, adj, strict=overlap_strict) for T in others):
                         n_overlap += 1
                         return
+        # v3: cuts dict built only for the survivors of the overlap stage
+        cuts = {'C23': C23, 'C1': C1, 'C4': C4, 'C5': C5, 'C1R1': C1R1, 'C4R1': C4R1, 'C5R1': C5R1, 'C2R1': C2, 'C3R1': C3, 'C2R2': frozenset(), 'C3R2': frozenset()}
         if not uncovered_ok(edges, V, cuts):
             return
         res, why = build_overlay(edges, V, ext_attach, ext_mode, cuts, vm_seen=vm_seen)
@@ -501,6 +526,19 @@ def enumerate_skelg(edges, verts, ext_attach, kin, use_overlap=True, overlap_str
                 L1map = ({C1: _refined_opts(roots['p1'], C1, extv - {roots['p1']}, adj) for C1 in C1s} if LEVELS['p1'] else {C1: [frozenset()] for C1 in C1s})
                 L4map = ({C4: _refined_opts(roots['p4'], C4, extv - {roots['p4']}, adj) for C4 in C4s} if LEVELS['p4'] else {C4: [frozenset()] for C4 in C4s})
                 L5map = ({C5: _refined_opts(roots['p5'], C5, extv - {roots['p5']}, adj) for C5 in C5s} if LEVELS['p5'] else {C5: [frozenset()] for C5 in C5s})
+                # prune pools for legs 4/5: unions over all still-possible cuts
+                # (fixed decisions override them at the test points below)
+                U4a = U4b = U5a = U5b = 0
+                for _c4 in C4s:
+                    U4a |= mk(_c4)
+                    for _l4 in L4map[_c4]:
+                        U4b |= mk(_l4)
+                for _c5 in C5s:
+                    U5a |= mk(_c5)
+                    for _l5 in L5map[_c5]:
+                        U5b |= mk(_l5)
+                N4 = sum(len(L4map[_c4]) for _c4 in C4s)
+                N5 = sum(len(L5map[_c5]) for _c5 in C5s)
                 if S2 is not None or S3 is not None:
                     for C23 in _c23_opts(a2 | a3, Vset - Hset - a1 - a4 - a5, v2r, v3r, adj):
                         D = frozenset(set(C23) - a2 - a3)
@@ -514,25 +552,180 @@ def enumerate_skelg(edges, verts, ext_attach, kin, use_overlap=True, overlap_str
                             for j in range(len(br3)):
                                 T = frozenset(br3[j:])
                                 C3s.update(_conn_sets(T, T | D, adj))
+                        # prune pools for the pair legs (C23 fixed; C2/C3 open)
+                        # tests: each subject condition = single mask AND with a pair-mask
+                        # OR built from fixed / union slot masks.
+                        mC23r = mk(C23)
+                        U2b = 0
+                        for _c2 in C2s:
+                            U2b |= mk(_c2)
+                        U3b = 0
+                        for _c3 in C3s:
+                            U3b |= mk(_c3)
+                        n_c2 = len(C2s); n_c3 = len(C3s)
+                        S2x = U2b | U3b
+                        P23x = U2b & U3b
+                        T11 = (U4a & U5a) | mC23r
+                        T12 = (U4b & U5b) | ((U4b | U5b) & S2x) | P23x
                         for C1 in C1s:
+                            mC1x = mk(C1)
+                            if _use_prune and C1 and 1 < m1 and not (mC1x & T11):
+                                n_prune += 1; n_prune_split['11'] += 1
+                                skip_combos += len(L1map[C1]) * N4 * N5 * n_c2 * n_c3
+                                continue
+                            T41 = (mC1x & U5a) | mC23r
                             for L1 in L1map[C1]:
+                                mL1x = mk(L1)
+                                if _use_prune and L1 and not (mL1x & T12):
+                                    n_prune += 1; n_prune_split['12'] += 1
+                                    skip_combos += N4 * N5 * n_c2 * n_c3
+                                    continue
+                                T42 = (mL1x & U5b) | ((mL1x | U5b) & S2x) | P23x
                                 for C4 in C4s:
+                                    mC4x = mk(C4)
+                                    if _use_prune and C4 and 1 < m4 and not (mC4x & T41):
+                                        n_prune += 1; n_prune_split['41'] += 1
+                                        skip_combos += len(L4map[C4]) * N5 * n_c2 * n_c3
+                                        continue
                                     for L4 in L4map[C4]:
+                                        mL4x = mk(L4)
+                                        if _use_prune and L4 and 2 < m4 and not (mL4x & T42):
+                                            n_prune += 1; n_prune_split['42'] += 1
+                                            skip_combos += N5 * n_c2 * n_c3
+                                            continue
+                                        if _RT and C1 and 1 < m1 and not (mC1x & ((mC4x & U5a) | mC23r)):
+                                            n_prune += 1; n_prune_split['11r'] += 1
+                                            skip_combos += N5 * n_c2 * n_c3
+                                            continue
+                                        if _RT and L1 and not (mL1x & ((mL4x & U5b) | ((mL4x | U5b) & S2x) | P23x)):
+                                            n_prune += 1; n_prune_split['12r'] += 1
+                                            skip_combos += N5 * n_c2 * n_c3
+                                            continue
+                                        T51 = (mC1x & mC4x) | mC23r
+                                        T52 = (mL1x & mL4x) | ((mL1x | mL4x) & S2x) | P23x
+                                        W12 = mL4x | S2x; Z12 = (mL4x & S2x) | P23x
+                                        W42 = mL1x | S2x; Z42 = (mL1x & S2x) | P23x
                                         for C5 in C5s:
+                                            mC5x = mk(C5)
+                                            if _TAIL:
+                                                T21c = ((mC1x & mC4x) | (mC1x & mC5x) | (mC4x & mC5x)
+                                                        | (mC23r & (mC1x | mC4x | mC5x)))
+                                            else:
+                                                T21c = 0
+                                            if _use_prune and C5 and 1 < m5 and not (mC5x & T51):
+                                                n_prune += 1; n_prune_split['51'] += 1
+                                                skip_combos += len(L5map[C5]) * n_c2 * n_c3
+                                                continue
+                                            if _RT and C1 and 1 < m1 and not (mC1x & ((mC5x & mC4x) | mC23r)):
+                                                n_prune += 1; n_prune_split['11r'] += 1
+                                                skip_combos += len(L5map[C5]) * n_c2 * n_c3
+                                                continue
+                                            if _RT and C4 and 1 < m4 and not (mC4x & ((mC5x & mC1x) | mC23r)):
+                                                n_prune += 1; n_prune_split['41r'] += 1
+                                                skip_combos += len(L5map[C5]) * n_c2 * n_c3
+                                                continue
                                             for L5 in L5map[C5]:
+                                                mL5x = mk(L5)
+                                                if _use_prune and L5 and 2 < m5 and not (mL5x & T52):
+                                                    n_prune += 1; n_prune_split['52'] += 1
+                                                    skip_combos += n_c2 * n_c3
+                                                    continue
+                                                if _RT and L1 and not (mL1x & ((mL5x & W12) | Z12)):
+                                                    n_prune += 1; n_prune_split['12r'] += 1
+                                                    skip_combos += n_c2 * n_c3
+                                                    continue
+                                                if _RT and L4 and 2 < m4 and not (mL4x & ((mL5x & W42) | Z42)):
+                                                    n_prune += 1; n_prune_split['42r'] += 1
+                                                    skip_combos += n_c2 * n_c3
+                                                    continue
                                                 for C2 in C2s:
+                                                    if _TAIL and C2 and 1 < m2 - 1 and not (mk(C2) & T21c):
+                                                        n_prune += 1; n_prune_split['21'] += 1
+                                                        skip_combos += n_c3
+                                                        continue
                                                     for C3 in C3s:
-                                                        run_checks(C1, L1, C4, L4, C5, L5, C2, C3, C23)
+                                                        if _TAIL and C3 and 1 < m3 - 1 and not (mk(C3) & T21c):
+                                                            n_prune += 1; n_prune_split['31'] += 1
+                                                            skip_combos += 1
+                                                            continue
+                                                        run_checks(C1, L1, C4, L4, C5, L5, C2, C3, C23,
+                                                                   (mC23r, mC1x, mC4x, mC5x, mL1x, mL4x, mL5x, mk(C2), mk(C3)))
                 else:
+                    mC23r = 0; U2b = U3b = 0; n_c2 = n_c3 = 1
+                    S2x = 0; P23x = 0
+                    T11 = U4a & U5a
+                    T12 = U4b & U5b
                     for C1 in C1s:
+                        mC1x = mk(C1)
+                        if _use_prune and C1 and 1 < m1 and not (mC1x & T11):
+                            n_prune += 1; n_prune_split['11'] += 1
+                            skip_combos += len(L1map[C1]) * N4 * N5
+                            continue
+                        T41 = (mC1x & U5a) | mC23r
                         for L1 in L1map[C1]:
+                            mL1x = mk(L1)
+                            if _use_prune and L1 and not (mL1x & T12):
+                                n_prune += 1; n_prune_split['12'] += 1
+                                skip_combos += N4 * N5
+                                continue
+                            T42 = (mL1x & U5b) | ((mL1x | U5b) & S2x) | P23x
                             for C4 in C4s:
+                                mC4x = mk(C4)
+                                if _use_prune and C4 and 1 < m4 and not (mC4x & T41):
+                                    n_prune += 1; n_prune_split['41'] += 1
+                                    skip_combos += len(L4map[C4]) * N5
+                                    continue
                                 for L4 in L4map[C4]:
+                                    mL4x = mk(L4)
+                                    if _use_prune and L4 and 2 < m4 and not (mL4x & T42):
+                                        n_prune += 1; n_prune_split['42'] += 1
+                                        skip_combos += N5
+                                        continue
+                                    if _RT and C1 and 1 < m1 and not (mC1x & ((mC4x & U5a) | mC23r)):
+                                        n_prune += 1; n_prune_split['11r'] += 1
+                                        skip_combos += N5
+                                        continue
+                                    if _RT and L1 and not (mL1x & ((mL4x & U5b) | ((mL4x | U5b) & S2x) | P23x)):
+                                        n_prune += 1; n_prune_split['12r'] += 1
+                                        skip_combos += N5
+                                        continue
+                                    T51 = (mC1x & mC4x) | mC23r
+                                    T52 = (mL1x & mL4x) | ((mL1x | mL4x) & S2x) | P23x
+                                    W12 = mL4x | S2x; Z12 = (mL4x & S2x) | P23x
+                                    W42 = mL1x | S2x; Z42 = (mL1x & S2x) | P23x
                                     for C5 in C5s:
+                                        mC5x = mk(C5)
+                                        if _use_prune and C5 and 1 < m5 and not (mC5x & T51):
+                                            n_prune += 1; n_prune_split['51'] += 1
+                                            skip_combos += len(L5map[C5])
+                                            continue
+                                        if _RT and C1 and 1 < m1 and not (mC1x & ((mC5x & mC4x) | mC23r)):
+                                            n_prune += 1; n_prune_split['11r'] += 1
+                                            skip_combos += len(L5map[C5])
+                                            continue
+                                        if _RT and C4 and 1 < m4 and not (mC4x & ((mC5x & mC1x) | mC23r)):
+                                            n_prune += 1; n_prune_split['41r'] += 1
+                                            skip_combos += len(L5map[C5])
+                                            continue
                                         for L5 in L5map[C5]:
-                                            run_checks(C1, L1, C4, L4, C5, L5, frozenset(), frozenset(), frozenset())
+                                            mL5x = mk(L5)
+                                            if _use_prune and L5 and 2 < m5 and not (mL5x & T52):
+                                                n_prune += 1; n_prune_split['52'] += 1
+                                                skip_combos += 1
+                                                continue
+                                            if _RT and L1 and not (mL1x & ((mL5x & W12) | Z12)):
+                                                n_prune += 1; n_prune_split['12r'] += 1
+                                                skip_combos += 1
+                                                continue
+                                            if _RT and L4 and 2 < m4 and not (mL4x & ((mL5x & W42) | Z42)):
+                                                n_prune += 1; n_prune_split['42r'] += 1
+                                                skip_combos += 1
+                                                continue
+                                            run_checks(C1, L1, C4, L4, C5, L5, frozenset(), frozenset(), frozenset(),
+                                                       (0, mC1x, mC4x, mC5x, mL1x, mL4x, mL5x, 0, 0))
 
-    info = {'dup_cuts': dup_cuts, 'skip_emvm': skip_emvm, 'overlap_kill': n_overlap, 'vm_dup': n_vmdup}
+    info = {'dup_cuts': dup_cuts, 'skip_emvm': skip_emvm, 'overlap_kill': n_overlap, 'vm_dup': n_vmdup,
+            'n_prune': n_prune, 'prune_split': dict(n_prune_split), 'skip_combos': skip_combos}
     if collect:
         info['survivors'] = [(vv,) + sv for vv, sv in sorted(((vv, SURV[k]) for k, vv in found.items()), key=lambda t: t[0])]
     return sorted(found.values()), total_cand, info

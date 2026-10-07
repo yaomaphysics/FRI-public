@@ -45,6 +45,7 @@ def mode_components(mode, vm, em, edges, verts):
 
 # ============================ overlay ============================
 CUT_MODES = {'C23': P(0, 0), 'C1': W(1, 1), 'C4': W(4, 1), 'C5': W(5, 1), 'C1R1': W(1, 2), 'C4R1': W(4, 2), 'C5R1': W(5, 2), 'C2R1': P(1, 2), 'C3R1': P(1, 3), 'C2R2': P(2, 2), 'C3R2': P(2, 3)}
+_CUT_NAMES = tuple(CUT_MODES)   # fixed iteration order for build_overlay
 
 def build_overlay(edges, verts, ext_attach, ext_mode, cuts, vm_seen=None):
     # cuts: {name: frozenset}. Returns (em, vm) or (None, reason).
@@ -56,34 +57,39 @@ def build_overlay(edges, verts, ext_attach, ext_mode, cuts, vm_seen=None):
     # per-vertex meets built in one pass over the cuts; the vertex loop
     # below just reads them off
     acc_map = {}
-    for nm, S in cuts.items():
+    _cm = CUT_MODES
+    _meet = meet
+    for nm in _CUT_NAMES:
+        S = cuts.get(nm)
         if not S:
             continue
-        m = CUT_MODES[nm]
+        m = _cm[nm]
         for v in S:
             acc = acc_map.get(v)
             if acc is None:
                 acc_map[v] = m
             else:
                 try:
-                    acc_map[v] = meet(acc, m)
+                    acc_map[v] = _meet(acc, m)
                 except ArithmeticError as e:
                     return None, f'meet:{e}'
     vm = {}
+    _H = H
     for v in verts:
         acc = acc_map.get(v)
-        vm[v] = acc if acc is not None else H()
+        vm[v] = acc if acc is not None else _H()
     if vm_seen is not None:
         # fast path (2026-09-22): fixed vertex order (callers pass the
         # sorted V); same equality classes as the old frozenset-of-pairs key
-        vkey = tuple(vm[v] for v in verts)
+        vkey = tuple(map(vm.__getitem__, verts))
         if vkey in vm_seen:
             return None, 'vm-dup'
         vm_seen.add(vkey)
     em = []
+    _ap = em.append
     for (a, b) in edges:
         try:
-            em.append(meet(vm[a], vm[b]))
+            _ap(_meet(vm[a], vm[b]))
         except ArithmeticError as e:
             return None, f'edge-meet:{e}'
     return (em, vm), 'ok'
@@ -188,13 +194,38 @@ def h_c23_connected_ok(edges, verts, em, vm):
 
 # the subgraph outside all cuts (H) must be nonempty and connected.
 def uncovered_ok(edges, verts, cuts):
+    # one fewer temp set; inline BFS for the pre-filtered (hv, he)
+    # (he endpoints are a subset of hv by construction — no re-check needed).
     covered_v = set()
-    for nm, S in cuts.items():
-        if S: covered_v.update(S)  # in-place; no temporary set per cut
-    hv = set(verts) - covered_v
-    if not hv: return False
+    for S in cuts.values():
+        if S:
+            covered_v.update(S)
+    hv = set(verts)
+    hv.difference_update(covered_v)
+    if not hv:
+        return False
     he = [(a, b) for (a, b) in edges if a not in covered_v and b not in covered_v]
-    return connected(hv, he)
+    if len(hv) <= 1:
+        return True
+    adj = {}
+    for (a, b) in he:
+        if a in adj:
+            adj[a].append(b)
+        else:
+            adj[a] = [b]
+        if b in adj:
+            adj[b].append(a)
+        else:
+            adj[b] = [a]
+    seen = {next(iter(hv))}
+    st = list(seen)
+    while st:
+        v = st.pop()
+        for u in adj.get(v, ()):
+            if u not in seen:
+                seen.add(u)
+                st.append(u)
+    return len(seen) == len(hv)
 
 # 1VI test on the contracted (outside + jets + aux) graph.
 def mojetic_ok(hv, he, jv, je, edges, ext_attach, ext_names):
