@@ -1,8 +1,8 @@
 # Runtime summary — FRI vs pySecDec
 #
-# Dedicated FRI-only timing runs (2026-10-08) over the validation batches; all entries are
-# per-case averages.  "ratio" = mean(pySecDec) / mean(FRI).  Scaleless cases have no pySecDec
-# reference time and are excluded from the pySecDec means.
+# Dedicated FRI-only timing runs (2026-10-08) over the validation batches; all entries are per-case averages.
+# "ratio" = mean(pySecDec) / mean(FRI). 
+# Scaleless cases have no pySecDec reference time and are excluded from the pySecDec means.
 
 ## wide-angle 4 legs, 4-loop  (1,200 graphs x k0-k5)
 k       N    OK  mism  scal | FRI mean   FRI max | pySecDec mean  pySecDec max | ratio

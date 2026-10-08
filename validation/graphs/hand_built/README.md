@@ -10,8 +10,6 @@ The hand-built graphs used in the validation, one spec book per class (internal 
 | `lightlike_2to2_1soft.txt` | 409 | soft-emission variants of the 4-leg topologies (soft + hard external legs) |
 | `decay_1to3_1soft.txt` | 61 | soft-emission variants in the decay kinematics |
 
-Each book contains one spec block per case: the graph (internal lines), the external lines, and the kinematics (replacement rules), in the same format as the pySecDec inputs in
-[`../examples/`](../examples/).
+Each book contains one spec block per case: the graph (internal lines), the external lines, and the kinematics (replacement rules), in the same format as the pySecDec inputs in [`../examples/`](../examples/).
 
-Per-case records (verdict, region count, date) are in
-[`../../results/handbuilt_summary.txt`](../../results/handbuilt_summary.txt).
+Per-case records (verdict, region count, date) are in [`../../results/handbuilt_summary.txt`](../../results/handbuilt_summary.txt).
