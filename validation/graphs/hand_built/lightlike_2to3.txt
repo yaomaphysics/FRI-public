@@ -1,0 +1,3107 @@
+# hand-built configurations -- lightlike_2to3 (44 cases)
+# one spec block per case (graph + kinematics; pySecDec LoopIntegralFromGraph convention)
+
+# ==== Frog_k0.txt ====
+name = 'Frog_k0'
+    smallness_parameters = ['t1']
+    internal_lines = [['0', [1, 3]], ['0', [1, 5]], ['0', [2, 3]], ['0', [2, 5]], ['0', [3, 4]], ['0', [4, 5]]]
+    external_lines = [['p1', 1], ['p2', 2], ['p3', 3], ['p4', 4], ['p5', 5]]
+    li = psd.LoopIntegralFromGraph(
+       internal_lines = internal_lines,
+       external_lines = external_lines,
+       replacement_rules = [
+                              ('p1*p1', 'm1**2'),
+                              ('p2*p2', 'm2**2'),
+                              ('p3*p3', 'm3**2'),
+                              ('p4*p4', 'm4**2'),
+                              ('p5*p5', 'm5**2'),
+                              ('p1*p2', '(s12-m1**2-m2**2)/2'),
+                              ('p1*p3', '(s13-m1**2-m3**2)/2'),
+                              ('p1*p4', '(s14-m1**2-m4**2)/2'),
+                              ('p2*p3', '(s23-m2**2-m3**2)/2'),
+                              ('p2*p4', '(s24-m2**2-m4**2)/2'),
+                              ('p3*p4', '(m5**2 + 2*m1**2 + 2*m2**2 + m3**2 + m4**2 - s12 - s13 - s14 - s23 - s24)/2'),
+                              ('p1*p5', '(m1**2 + m2**2 + m3**2 + m4**2 - s12 - s13 - s14)/2'),
+                              ('p2*p5', '(m1**2 + m2**2 + m3**2 + m4**2 - s12 - s23 - s24)/2'),
+                              ('p3*p5', '(s12 + s14 + s24 - m1**2 - m2**2 - m3**2 - m4**2 - m5**2)/2'),
+                              ('p4*p5', '(s12 + s13 + s23 - m1**2 - m2**2 - m3**2 - m4**2 - m5**2)/2'),
+                              ('m1**2', 't1*m1s'),
+                              ('m2**2', 't1*m2s'),
+                              ('m3**2', 't1*m3s'),
+                              ('m4**2', 't1*m4s'),
+                              ('m5**2', 't1*m5s'),
+    ]
+    )
+
+Region (-2,-1,-2,-1,-1,0,1)
+Region (-2,-1,-1,0,-2,-1,1)
+Region (-2,-1,-1,0,-1,0,1)
+Region (-1,-2,-1,-2,0,-1,1)
+Region (-1,-2,0,-1,-1,-2,1)
+Region (-1,-2,0,-1,0,-1,1)
+Region (-1,-1,-1,-1,0,0,1)
+Region (-1,-1,0,0,-1,-1,1)
+Region (-1,-1,0,0,0,0,1)
+Region (-1,0,-2,-1,-2,-1,1)
+Region (-1,0,-2,-1,-1,0,1)
+Region (-1,0,-1,0,-2,-1,1)
+Region (-1,0,-1,0,-1,0,1)
+Region (0,-1,-1,-2,-1,-2,1)
+Region (0,-1,-1,-2,0,-1,1)
+Region (0,-1,0,-1,-1,-2,1)
+Region (0,-1,0,-1,0,-1,1)
+Region (0,0,-1,-1,-1,-1,1)
+Region (0,0,-1,-1,0,0,1)
+Region (0,0,0,0,-1,-1,1)
+Region (0,0,0,0,0,0,1)
+
+# FRI (momentum-space) regions: 21 (runtime 0.0s)
+FRI region  1: [S, C_1, S, C_2, C_3, H]  ->  scaling vector (-2, -1, -2, -1, -1, 0, 1)
+FRI region  2: [S, C_1, C_3, H, S, C_4]  ->  scaling vector (-2, -1, -1, 0, -2, -1, 1)
+FRI region  3: [S, C_1, C_3, H, C_3, H]  ->  scaling vector (-2, -1, -1, 0, -1, 0, 1)
+FRI region  4: [C_1, S, C_2, S, H, C_5]  ->  scaling vector (-1, -2, -1, -2, 0, -1, 1)
+FRI region  5: [C_1, S, H, C_5, C_4, S]  ->  scaling vector (-1, -2, 0, -1, -1, -2, 1)
+FRI region  6: [C_1, S, H, C_5, H, C_5]  ->  scaling vector (-1, -2, 0, -1, 0, -1, 1)
+FRI region  7: [C_1, C_1, C_2, C_2, H, H]  ->  scaling vector (-1, -1, -1, -1, 0, 0, 1)
+FRI region  8: [C_1, C_1, H, H, C_4, C_4]  ->  scaling vector (-1, -1, 0, 0, -1, -1, 1)
+FRI region  9: [C_1, C_1, H, H, H, H]  ->  scaling vector (-1, -1, 0, 0, 0, 0, 1)
+FRI region 10: [C_3, H, S, C_2, S, C_4]  ->  scaling vector (-1, 0, -2, -1, -2, -1, 1)
+FRI region 11: [C_3, H, S, C_2, C_3, H]  ->  scaling vector (-1, 0, -2, -1, -1, 0, 1)
+FRI region 12: [C_3, H, C_3, H, S, C_4]  ->  scaling vector (-1, 0, -1, 0, -2, -1, 1)
+FRI region 13: [C_3, H, C_3, H, C_3, H]  ->  scaling vector (-1, 0, -1, 0, -1, 0, 1)
+FRI region 14: [H, C_5, C_2, S, C_4, S]  ->  scaling vector (0, -1, -1, -2, -1, -2, 1)
+FRI region 15: [H, C_5, C_2, S, H, C_5]  ->  scaling vector (0, -1, -1, -2, 0, -1, 1)
+FRI region 16: [H, C_5, H, C_5, C_4, S]  ->  scaling vector (0, -1, 0, -1, -1, -2, 1)
+FRI region 17: [H, C_5, H, C_5, H, C_5]  ->  scaling vector (0, -1, 0, -1, 0, -1, 1)
+FRI region 18: [H, H, C_2, C_2, C_4, C_4]  ->  scaling vector (0, 0, -1, -1, -1, -1, 1)
+FRI region 19: [H, H, C_2, C_2, H, H]  ->  scaling vector (0, 0, -1, -1, 0, 0, 1)
+FRI region 20: [H, H, H, H, C_4, C_4]  ->  scaling vector (0, 0, 0, 0, -1, -1, 1)
+FRI region 21: [H, H, H, H, H, H]  ->  scaling vector (0, 0, 0, 0, 0, 0, 1)
+
+# ==== Frog_k1.txt ====
+name = 'Frog_k1'
+    smallness_parameters = ['t1']
+    internal_lines = [['0', [1, 3]], ['0', [1, 5]], ['0', [2, 3]], ['0', [2, 5]], ['0', [3, 4]], ['0', [4, 5]]]
+    external_lines = [['p1', 1], ['p2', 2], ['p3', 3], ['p4', 4], ['p5', 5]]
+    li = psd.LoopIntegralFromGraph(
+       internal_lines = internal_lines,
+       external_lines = external_lines,
+       replacement_rules = [
+                              ('p1*p1', 'm1**2'),
+                              ('p2*p2', 'm2**2'),
+                              ('p3*p3', 'm3**2'),
+                              ('p4*p4', 'm4**2'),
+                              ('p5*p5', 'm5**2'),
+                              ('p1*p2', '(s12-m1**2-m2**2)/2'),
+                              ('p1*p3', '(s13-m1**2-m3**2)/2'),
+                              ('p1*p4', '(s14-m1**2-m4**2)/2'),
+                              ('p2*p3', '(s23-m2**2-m3**2)/2'),
+                              ('p2*p4', '(s24-m2**2-m4**2)/2'),
+                              ('p3*p4', '(m5**2 + 2*m1**2 + 2*m2**2 + m3**2 + m4**2 - s12 - s13 - s14 - s23 - s24)/2'),
+                              ('p1*p5', '(m1**2 + m2**2 + m3**2 + m4**2 - s12 - s13 - s14)/2'),
+                              ('p2*p5', '(m1**2 + m2**2 + m3**2 + m4**2 - s12 - s23 - s24)/2'),
+                              ('p3*p5', '(s12 + s14 + s24 - m1**2 - m2**2 - m3**2 - m4**2 - m5**2)/2'),
+                              ('p4*p5', '(s12 + s13 + s23 - m1**2 - m2**2 - m3**2 - m4**2 - m5**2)/2'),
+                              ('m1**2', 't1*m1s'),
+                              ('m2**2', 't1*m2s'),
+                              ('m3**2', 't1*m3s'),
+                              ('m4**2', '0'),
+                              ('m5**2', '0'),
+    ]
+    )
+
+Region (-2,-1,-2,-1,-1,0,1)
+Region (-2,-1,-1,0,-1,0,1)
+Region (-1,-1,-1,-1,0,0,1)
+Region (-1,-1,0,0,0,0,1)
+Region (-1,0,-2,-1,-1,0,1)
+Region (-1,0,-1,0,-1,0,1)
+Region (0,0,-1,-1,0,0,1)
+Region (0,0,0,0,0,0,1)
+
+# FRI (momentum-space) regions: 8 (runtime 0.0s)
+FRI region  1: [S, C_1, S, C_2, C_3, H]  ->  scaling vector (-2, -1, -2, -1, -1, 0, 1)
+FRI region  2: [S, C_1, C_3, H, C_3, H]  ->  scaling vector (-2, -1, -1, 0, -1, 0, 1)
+FRI region  3: [C_1, C_1, C_2, C_2, H, H]  ->  scaling vector (-1, -1, -1, -1, 0, 0, 1)
+FRI region  4: [C_1, C_1, H, H, H, H]  ->  scaling vector (-1, -1, 0, 0, 0, 0, 1)
+FRI region  5: [C_3, H, S, C_2, C_3, H]  ->  scaling vector (-1, 0, -2, -1, -1, 0, 1)
+FRI region  6: [C_3, H, C_3, H, C_3, H]  ->  scaling vector (-1, 0, -1, 0, -1, 0, 1)
+FRI region  7: [H, H, C_2, C_2, H, H]  ->  scaling vector (0, 0, -1, -1, 0, 0, 1)
+FRI region  8: [H, H, H, H, H, H]  ->  scaling vector (0, 0, 0, 0, 0, 0, 1)
+
+# ==== Frog_k2.txt ====
+name = 'Frog_k2'
+    smallness_parameters = ['t1']
+    internal_lines = [['0', [1, 3]], ['0', [1, 5]], ['0', [2, 3]], ['0', [2, 5]], ['0', [3, 4]], ['0', [4, 5]]]
+    external_lines = [['p1', 1], ['p2', 2], ['p3', 3], ['p4', 4], ['p5', 5]]
+    li = psd.LoopIntegralFromGraph(
+       internal_lines = internal_lines,
+       external_lines = external_lines,
+       replacement_rules = [
+                              ('p1*p1', 'm1**2'),
+                              ('p2*p2', 'm2**2'),
+                              ('p3*p3', 'm3**2'),
+                              ('p4*p4', 'm4**2'),
+                              ('p5*p5', 'm5**2'),
+                              ('p1*p2', '(s12-m1**2-m2**2)/2'),
+                              ('p1*p3', '(s13-m1**2-m3**2)/2'),
+                              ('p1*p4', '(s14-m1**2-m4**2)/2'),
+                              ('p2*p3', '(s23-m2**2-m3**2)/2'),
+                              ('p2*p4', '(s24-m2**2-m4**2)/2'),
+                              ('p3*p4', '(m5**2 + 2*m1**2 + 2*m2**2 + m3**2 + m4**2 - s12 - s13 - s14 - s23 - s24)/2'),
+                              ('p1*p5', '(m1**2 + m2**2 + m3**2 + m4**2 - s12 - s13 - s14)/2'),
+                              ('p2*p5', '(m1**2 + m2**2 + m3**2 + m4**2 - s12 - s23 - s24)/2'),
+                              ('p3*p5', '(s12 + s14 + s24 - m1**2 - m2**2 - m3**2 - m4**2 - m5**2)/2'),
+                              ('p4*p5', '(s12 + s13 + s23 - m1**2 - m2**2 - m3**2 - m4**2 - m5**2)/2'),
+                              ('m1**2', 't1*m1s'),
+                              ('m2**2', 't1*m2s'),
+                              ('m3**2', '0'),
+                              ('m4**2', '0'),
+                              ('m5**2', '0'),
+    ]
+    )
+
+Region (-1,-1,-1,-1,0,0,1)
+Region (-1,-1,0,0,0,0,1)
+Region (0,0,-1,-1,0,0,1)
+Region (0,0,0,0,0,0,1)
+
+# FRI (momentum-space) regions: 4 (runtime 0.0s)
+FRI region  1: [C_1, C_1, C_2, C_2, H, H]  ->  scaling vector (-1, -1, -1, -1, 0, 0, 1)
+FRI region  2: [C_1, C_1, H, H, H, H]  ->  scaling vector (-1, -1, 0, 0, 0, 0, 1)
+FRI region  3: [H, H, C_2, C_2, H, H]  ->  scaling vector (0, 0, -1, -1, 0, 0, 1)
+FRI region  4: [H, H, H, H, H, H]  ->  scaling vector (0, 0, 0, 0, 0, 0, 1)
+
+# ==== Frog_k3.txt ====
+name = 'Frog_k3'
+    smallness_parameters = ['t1']
+    internal_lines = [['0', [1, 3]], ['0', [1, 5]], ['0', [2, 3]], ['0', [2, 5]], ['0', [3, 4]], ['0', [4, 5]]]
+    external_lines = [['p1', 1], ['p2', 2], ['p3', 3], ['p4', 4], ['p5', 5]]
+    li = psd.LoopIntegralFromGraph(
+       internal_lines = internal_lines,
+       external_lines = external_lines,
+       replacement_rules = [
+                              ('p1*p1', 'm1**2'),
+                              ('p2*p2', 'm2**2'),
+                              ('p3*p3', 'm3**2'),
+                              ('p4*p4', 'm4**2'),
+                              ('p5*p5', 'm5**2'),
+                              ('p1*p2', '(s12-m1**2-m2**2)/2'),
+                              ('p1*p3', '(s13-m1**2-m3**2)/2'),
+                              ('p1*p4', '(s14-m1**2-m4**2)/2'),
+                              ('p2*p3', '(s23-m2**2-m3**2)/2'),
+                              ('p2*p4', '(s24-m2**2-m4**2)/2'),
+                              ('p3*p4', '(m5**2 + 2*m1**2 + 2*m2**2 + m3**2 + m4**2 - s12 - s13 - s14 - s23 - s24)/2'),
+                              ('p1*p5', '(m1**2 + m2**2 + m3**2 + m4**2 - s12 - s13 - s14)/2'),
+                              ('p2*p5', '(m1**2 + m2**2 + m3**2 + m4**2 - s12 - s23 - s24)/2'),
+                              ('p3*p5', '(s12 + s14 + s24 - m1**2 - m2**2 - m3**2 - m4**2 - m5**2)/2'),
+                              ('p4*p5', '(s12 + s13 + s23 - m1**2 - m2**2 - m3**2 - m4**2 - m5**2)/2'),
+                              ('m1**2', 't1*m1s'),
+                              ('m2**2', 't1*t1*m2s'),
+                              ('m3**2', '0'),
+                              ('m4**2', '0'),
+                              ('m5**2', '0'),
+    ]
+    )
+
+Region (-1,-1,-2,-2,0,0,1)
+Region (-1,-1,0,0,0,0,1)
+Region (0,0,-2,-2,0,0,1)
+Region (0,0,0,0,0,0,1)
+
+# FRI (momentum-space) regions: 4 (runtime 0.0s)
+FRI region  1: [C_1, C_1, C_2^2, C_2^2, H, H]  ->  scaling vector (-1, -1, -2, -2, 0, 0, 1)
+FRI region  2: [C_1, C_1, H, H, H, H]  ->  scaling vector (-1, -1, 0, 0, 0, 0, 1)
+FRI region  3: [H, H, C_2^2, C_2^2, H, H]  ->  scaling vector (0, 0, -2, -2, 0, 0, 1)
+FRI region  4: [H, H, H, H, H, H]  ->  scaling vector (0, 0, 0, 0, 0, 0, 1)
+
+# ==== FrogS_k0.txt ====
+name = 'FrogS_k0'
+    smallness_parameters = ['t1']
+    internal_lines = [['0', [1, 6]], ['0', [1, 5]], ['0', [2, 6]], ['0', [2, 5]], ['0', [3, 6]], ['0', [3, 4]], ['0', [4, 5]]]
+    external_lines = [['p1', 1], ['p2', 2], ['p3', 3], ['p4', 4], ['p5', 5]]
+    li = psd.LoopIntegralFromGraph(
+       internal_lines = internal_lines,
+       external_lines = external_lines,
+       replacement_rules = [
+                              ('p1*p1', 'm1**2'),
+                              ('p2*p2', 'm2**2'),
+                              ('p3*p3', 'm3**2'),
+                              ('p4*p4', 'm4**2'),
+                              ('p5*p5', 'm5**2'),
+                              ('p1*p2', '(s12-m1**2-m2**2)/2'),
+                              ('p1*p3', '(s13-m1**2-m3**2)/2'),
+                              ('p1*p4', '(s14-m1**2-m4**2)/2'),
+                              ('p2*p3', '(s23-m2**2-m3**2)/2'),
+                              ('p2*p4', '(s24-m2**2-m4**2)/2'),
+                              ('p3*p4', '(m5**2 + 2*m1**2 + 2*m2**2 + m3**2 + m4**2 - s12 - s13 - s14 - s23 - s24)/2'),
+                              ('p1*p5', '(m1**2 + m2**2 + m3**2 + m4**2 - s12 - s13 - s14)/2'),
+                              ('p2*p5', '(m1**2 + m2**2 + m3**2 + m4**2 - s12 - s23 - s24)/2'),
+                              ('p3*p5', '(s12 + s14 + s24 - m1**2 - m2**2 - m3**2 - m4**2 - m5**2)/2'),
+                              ('p4*p5', '(s12 + s13 + s23 - m1**2 - m2**2 - m3**2 - m4**2 - m5**2)/2'),
+                              ('m1**2', 't1*m1s'),
+                              ('m2**2', 't1*m2s'),
+                              ('m3**2', 't1*m3s'),
+                              ('m4**2', 't1*m4s'),
+                              ('m5**2', 't1*m5s'),
+    ]
+    )
+
+Region (-2,-1,-2,-1,-2,-1,0,1)
+Region (-2,-1,-1,-1,-1,0,0,1)
+Region (-2,-1,-1,0,-1,-2,-1,1)
+Region (-2,-1,-1,0,-1,-1,0,1)
+Region (-1,-2,-1,-2,0,0,-1,1)
+Region (-1,-2,0,-1,0,-1,-2,1)
+Region (-1,-2,0,-1,0,0,-1,1)
+Region (-1,-1,-2,-1,-1,0,0,1)
+Region (-1,-1,-1,-1,0,0,0,1)
+Region (-1,-1,-1,0,-2,-1,0,1)
+Region (-1,-1,-1,0,-1,0,0,1)
+Region (-1,-1,0,0,-1,-2,-1,1)
+Region (-1,-1,0,0,-1,-1,0,1)
+Region (-1,-1,0,0,0,-1,-1,1)
+Region (-1,-1,0,0,0,0,0,1)
+Region (-1,0,-2,-1,-1,-2,-1,1)
+Region (-1,0,-2,-1,-1,-1,0,1)
+Region (-1,0,-1,-1,-2,-1,0,1)
+Region (-1,0,-1,-1,-1,0,0,1)
+Region (-1,0,-1,0,-1,-2,-1,1)
+Region (-1,0,-1,0,-1,-1,0,1)
+Region (0,-1,-1,-2,0,-1,-2,1)
+Region (0,-1,-1,-2,0,0,-1,1)
+Region (0,-1,0,-1,0,-1,-2,1)
+Region (0,-1,0,-1,0,0,-1,1)
+Region (0,0,-1,-1,-1,-2,-1,1)
+Region (0,0,-1,-1,-1,-1,0,1)
+Region (0,0,-1,-1,0,-1,-1,1)
+Region (0,0,-1,-1,0,0,0,1)
+Region (0,0,0,0,-1,-2,-1,1)
+Region (0,0,0,0,-1,-1,0,1)
+Region (0,0,0,0,0,-1,-1,1)
+Region (0,0,0,0,0,0,0,1)
+
+# FRI (momentum-space) regions: 33 (runtime 0.0s)
+FRI region  1: [S, C_1, S, C_2, S, C_3, H]  ->  scaling vector (-2, -1, -2, -1, -2, -1, 0, 1)
+FRI region  2: [S, C_1, C_2, C_2, C_2, H, H]  ->  scaling vector (-2, -1, -1, -1, -1, 0, 0, 1)
+FRI region  3: [S, C_1, C_3, H, C_3, S, C_4]  ->  scaling vector (-2, -1, -1, 0, -1, -2, -1, 1)
+FRI region  4: [S, C_1, C_3, H, C_3, C_3, H]  ->  scaling vector (-2, -1, -1, 0, -1, -1, 0, 1)
+FRI region  5: [C_1, S, C_2, S, H, H, C_5]  ->  scaling vector (-1, -2, -1, -2, 0, 0, -1, 1)
+FRI region  6: [C_1, S, H, C_5, H, C_4, S]  ->  scaling vector (-1, -2, 0, -1, 0, -1, -2, 1)
+FRI region  7: [C_1, S, H, C_5, H, H, C_5]  ->  scaling vector (-1, -2, 0, -1, 0, 0, -1, 1)
+FRI region  8: [C_1, C_1, S, C_2, C_1, H, H]  ->  scaling vector (-1, -1, -2, -1, -1, 0, 0, 1)
+FRI region  9: [C_1, C_1, C_2, C_2, H, H, H]  ->  scaling vector (-1, -1, -1, -1, 0, 0, 0, 1)
+FRI region 10: [C_1, C_1, C_1, H, S, C_3, H]  ->  scaling vector (-1, -1, -1, 0, -2, -1, 0, 1)
+FRI region 11: [C_1, C_1, C_1, H, C_1, H, H]  ->  scaling vector (-1, -1, -1, 0, -1, 0, 0, 1)
+FRI region 12: [C_1, C_1, H, H, C_3, S, C_4]  ->  scaling vector (-1, -1, 0, 0, -1, -2, -1, 1)
+FRI region 13: [C_1, C_1, H, H, C_3, C_3, H]  ->  scaling vector (-1, -1, 0, 0, -1, -1, 0, 1)
+FRI region 14: [C_1, C_1, H, H, H, C_4, C_4]  ->  scaling vector (-1, -1, 0, 0, 0, -1, -1, 1)
+FRI region 15: [C_1, C_1, H, H, H, H, H]  ->  scaling vector (-1, -1, 0, 0, 0, 0, 0, 1)
+FRI region 16: [C_3, H, S, C_2, C_3, S, C_4]  ->  scaling vector (-1, 0, -2, -1, -1, -2, -1, 1)
+FRI region 17: [C_3, H, S, C_2, C_3, C_3, H]  ->  scaling vector (-1, 0, -2, -1, -1, -1, 0, 1)
+FRI region 18: [C_2, H, C_2, C_2, S, C_3, H]  ->  scaling vector (-1, 0, -1, -1, -2, -1, 0, 1)
+FRI region 19: [C_2, H, C_2, C_2, C_2, H, H]  ->  scaling vector (-1, 0, -1, -1, -1, 0, 0, 1)
+FRI region 20: [C_3, H, C_3, H, C_3, S, C_4]  ->  scaling vector (-1, 0, -1, 0, -1, -2, -1, 1)
+FRI region 21: [C_3, H, C_3, H, C_3, C_3, H]  ->  scaling vector (-1, 0, -1, 0, -1, -1, 0, 1)
+FRI region 22: [H, C_5, C_2, S, H, C_4, S]  ->  scaling vector (0, -1, -1, -2, 0, -1, -2, 1)
+FRI region 23: [H, C_5, C_2, S, H, H, C_5]  ->  scaling vector (0, -1, -1, -2, 0, 0, -1, 1)
+FRI region 24: [H, C_5, H, C_5, H, C_4, S]  ->  scaling vector (0, -1, 0, -1, 0, -1, -2, 1)
+FRI region 25: [H, C_5, H, C_5, H, H, C_5]  ->  scaling vector (0, -1, 0, -1, 0, 0, -1, 1)
+FRI region 26: [H, H, C_2, C_2, C_3, S, C_4]  ->  scaling vector (0, 0, -1, -1, -1, -2, -1, 1)
+FRI region 27: [H, H, C_2, C_2, C_3, C_3, H]  ->  scaling vector (0, 0, -1, -1, -1, -1, 0, 1)
+FRI region 28: [H, H, C_2, C_2, H, C_4, C_4]  ->  scaling vector (0, 0, -1, -1, 0, -1, -1, 1)
+FRI region 29: [H, H, C_2, C_2, H, H, H]  ->  scaling vector (0, 0, -1, -1, 0, 0, 0, 1)
+FRI region 30: [H, H, H, H, C_3, S, C_4]  ->  scaling vector (0, 0, 0, 0, -1, -2, -1, 1)
+FRI region 31: [H, H, H, H, C_3, C_3, H]  ->  scaling vector (0, 0, 0, 0, -1, -1, 0, 1)
+FRI region 32: [H, H, H, H, H, C_4, C_4]  ->  scaling vector (0, 0, 0, 0, 0, -1, -1, 1)
+FRI region 33: [H, H, H, H, H, H, H]  ->  scaling vector (0, 0, 0, 0, 0, 0, 0, 1)
+
+# ==== FrogS_k1.txt ====
+name = 'FrogS_k1'
+    smallness_parameters = ['t1']
+    internal_lines = [['0', [1, 6]], ['0', [1, 5]], ['0', [2, 6]], ['0', [2, 5]], ['0', [3, 6]], ['0', [3, 4]], ['0', [4, 5]]]
+    external_lines = [['p1', 1], ['p2', 2], ['p3', 3], ['p4', 4], ['p5', 5]]
+    li = psd.LoopIntegralFromGraph(
+       internal_lines = internal_lines,
+       external_lines = external_lines,
+       replacement_rules = [
+                              ('p1*p1', 'm1**2'),
+                              ('p2*p2', 'm2**2'),
+                              ('p3*p3', 'm3**2'),
+                              ('p4*p4', 'm4**2'),
+                              ('p5*p5', 'm5**2'),
+                              ('p1*p2', '(s12-m1**2-m2**2)/2'),
+                              ('p1*p3', '(s13-m1**2-m3**2)/2'),
+                              ('p1*p4', '(s14-m1**2-m4**2)/2'),
+                              ('p2*p3', '(s23-m2**2-m3**2)/2'),
+                              ('p2*p4', '(s24-m2**2-m4**2)/2'),
+                              ('p3*p4', '(m5**2 + 2*m1**2 + 2*m2**2 + m3**2 + m4**2 - s12 - s13 - s14 - s23 - s24)/2'),
+                              ('p1*p5', '(m1**2 + m2**2 + m3**2 + m4**2 - s12 - s13 - s14)/2'),
+                              ('p2*p5', '(m1**2 + m2**2 + m3**2 + m4**2 - s12 - s23 - s24)/2'),
+                              ('p3*p5', '(s12 + s14 + s24 - m1**2 - m2**2 - m3**2 - m4**2 - m5**2)/2'),
+                              ('p4*p5', '(s12 + s13 + s23 - m1**2 - m2**2 - m3**2 - m4**2 - m5**2)/2'),
+                              ('m1**2', 't1*m1s'),
+                              ('m2**2', 't1*m2s'),
+                              ('m3**2', 't1*m3s'),
+                              ('m4**2', '0'),
+                              ('m5**2', '0'),
+    ]
+    )
+
+Region (-2,-1,-2,-1,-2,-1,0,1)
+Region (-2,-1,-1,-1,-1,0,0,1)
+Region (-2,-1,-1,0,-1,-1,0,1)
+Region (-1,-1,-2,-1,-1,0,0,1)
+Region (-1,-1,-1,-1,0,0,0,1)
+Region (-1,-1,-1,0,-2,-1,0,1)
+Region (-1,-1,-1,0,-1,0,0,1)
+Region (-1,-1,0,0,-1,-1,0,1)
+Region (-1,-1,0,0,0,0,0,1)
+Region (-1,0,-2,-1,-1,-1,0,1)
+Region (-1,0,-1,-1,-2,-1,0,1)
+Region (-1,0,-1,-1,-1,0,0,1)
+Region (-1,0,-1,0,-1,-1,0,1)
+Region (0,0,-1,-1,-1,-1,0,1)
+Region (0,0,-1,-1,0,0,0,1)
+Region (0,0,0,0,-1,-1,0,1)
+Region (0,0,0,0,0,0,0,1)
+
+# FRI (momentum-space) regions: 17 (runtime 0.0s)
+FRI region  1: [S, C_1, S, C_2, S, C_3, H]  ->  scaling vector (-2, -1, -2, -1, -2, -1, 0, 1)
+FRI region  2: [S, C_1, C_2, C_2, C_2, H, H]  ->  scaling vector (-2, -1, -1, -1, -1, 0, 0, 1)
+FRI region  3: [S, C_1, C_3, H, C_3, C_3, H]  ->  scaling vector (-2, -1, -1, 0, -1, -1, 0, 1)
+FRI region  4: [C_1, C_1, S, C_2, C_1, H, H]  ->  scaling vector (-1, -1, -2, -1, -1, 0, 0, 1)
+FRI region  5: [C_1, C_1, C_2, C_2, H, H, H]  ->  scaling vector (-1, -1, -1, -1, 0, 0, 0, 1)
+FRI region  6: [C_1, C_1, C_1, H, S, C_3, H]  ->  scaling vector (-1, -1, -1, 0, -2, -1, 0, 1)
+FRI region  7: [C_1, C_1, C_1, H, C_1, H, H]  ->  scaling vector (-1, -1, -1, 0, -1, 0, 0, 1)
+FRI region  8: [C_1, C_1, H, H, C_3, C_3, H]  ->  scaling vector (-1, -1, 0, 0, -1, -1, 0, 1)
+FRI region  9: [C_1, C_1, H, H, H, H, H]  ->  scaling vector (-1, -1, 0, 0, 0, 0, 0, 1)
+FRI region 10: [C_3, H, S, C_2, C_3, C_3, H]  ->  scaling vector (-1, 0, -2, -1, -1, -1, 0, 1)
+FRI region 11: [C_2, H, C_2, C_2, S, C_3, H]  ->  scaling vector (-1, 0, -1, -1, -2, -1, 0, 1)
+FRI region 12: [C_2, H, C_2, C_2, C_2, H, H]  ->  scaling vector (-1, 0, -1, -1, -1, 0, 0, 1)
+FRI region 13: [C_3, H, C_3, H, C_3, C_3, H]  ->  scaling vector (-1, 0, -1, 0, -1, -1, 0, 1)
+FRI region 14: [H, H, C_2, C_2, C_3, C_3, H]  ->  scaling vector (0, 0, -1, -1, -1, -1, 0, 1)
+FRI region 15: [H, H, C_2, C_2, H, H, H]  ->  scaling vector (0, 0, -1, -1, 0, 0, 0, 1)
+FRI region 16: [H, H, H, H, C_3, C_3, H]  ->  scaling vector (0, 0, 0, 0, -1, -1, 0, 1)
+FRI region 17: [H, H, H, H, H, H, H]  ->  scaling vector (0, 0, 0, 0, 0, 0, 0, 1)
+
+# ==== FrogS_k2.txt ====
+name = 'FrogS_k2'
+    smallness_parameters = ['t1']
+    internal_lines = [['0', [1, 6]], ['0', [1, 5]], ['0', [2, 6]], ['0', [2, 5]], ['0', [3, 6]], ['0', [3, 4]], ['0', [4, 5]]]
+    external_lines = [['p1', 1], ['p2', 2], ['p3', 3], ['p4', 4], ['p5', 5]]
+    li = psd.LoopIntegralFromGraph(
+       internal_lines = internal_lines,
+       external_lines = external_lines,
+       replacement_rules = [
+                              ('p1*p1', 'm1**2'),
+                              ('p2*p2', 'm2**2'),
+                              ('p3*p3', 'm3**2'),
+                              ('p4*p4', 'm4**2'),
+                              ('p5*p5', 'm5**2'),
+                              ('p1*p2', '(s12-m1**2-m2**2)/2'),
+                              ('p1*p3', '(s13-m1**2-m3**2)/2'),
+                              ('p1*p4', '(s14-m1**2-m4**2)/2'),
+                              ('p2*p3', '(s23-m2**2-m3**2)/2'),
+                              ('p2*p4', '(s24-m2**2-m4**2)/2'),
+                              ('p3*p4', '(m5**2 + 2*m1**2 + 2*m2**2 + m3**2 + m4**2 - s12 - s13 - s14 - s23 - s24)/2'),
+                              ('p1*p5', '(m1**2 + m2**2 + m3**2 + m4**2 - s12 - s13 - s14)/2'),
+                              ('p2*p5', '(m1**2 + m2**2 + m3**2 + m4**2 - s12 - s23 - s24)/2'),
+                              ('p3*p5', '(s12 + s14 + s24 - m1**2 - m2**2 - m3**2 - m4**2 - m5**2)/2'),
+                              ('p4*p5', '(s12 + s13 + s23 - m1**2 - m2**2 - m3**2 - m4**2 - m5**2)/2'),
+                              ('m1**2', 't1*m1s'),
+                              ('m2**2', 't1*m2s'),
+                              ('m3**2', '0'),
+                              ('m4**2', '0'),
+                              ('m5**2', '0'),
+    ]
+    )
+
+Region (-2,-1,-2,-1,-2,-1,0,1)
+Region (-2,-1,-1,-1,-1,0,0,1)
+Region (-1,-1,-2,-1,-1,0,0,1)
+Region (-1,-1,-1,-1,0,0,0,1)
+Region (-1,-1,-1,0,-1,0,0,1)
+Region (-1,-1,0,0,0,0,0,1)
+Region (-1,0,-1,-1,-1,0,0,1)
+Region (0,0,-1,-1,0,0,0,1)
+Region (0,0,0,0,0,0,0,1)
+
+# FRI (momentum-space) regions: 9 (runtime 0.0s)
+FRI region  1: [S, C_1, S, C_2, S, C_3, H]  ->  scaling vector (-2, -1, -2, -1, -2, -1, 0, 1)
+FRI region  2: [S, C_1, C_2, C_2, C_2, H, H]  ->  scaling vector (-2, -1, -1, -1, -1, 0, 0, 1)
+FRI region  3: [C_1, C_1, S, C_2, C_1, H, H]  ->  scaling vector (-1, -1, -2, -1, -1, 0, 0, 1)
+FRI region  4: [C_1, C_1, C_2, C_2, H, H, H]  ->  scaling vector (-1, -1, -1, -1, 0, 0, 0, 1)
+FRI region  5: [C_1, C_1, C_1, H, C_1, H, H]  ->  scaling vector (-1, -1, -1, 0, -1, 0, 0, 1)
+FRI region  6: [C_1, C_1, H, H, H, H, H]  ->  scaling vector (-1, -1, 0, 0, 0, 0, 0, 1)
+FRI region  7: [C_2, H, C_2, C_2, C_2, H, H]  ->  scaling vector (-1, 0, -1, -1, -1, 0, 0, 1)
+FRI region  8: [H, H, C_2, C_2, H, H, H]  ->  scaling vector (0, 0, -1, -1, 0, 0, 0, 1)
+FRI region  9: [H, H, H, H, H, H, H]  ->  scaling vector (0, 0, 0, 0, 0, 0, 0, 1)
+
+# ==== FrogS_k3.txt ====
+name = 'FrogS_k3'
+    smallness_parameters = ['t1']
+    internal_lines = [['0', [1, 6]], ['0', [1, 5]], ['0', [2, 6]], ['0', [2, 5]], ['0', [3, 6]], ['0', [3, 4]], ['0', [4, 5]]]
+    external_lines = [['p1', 1], ['p2', 2], ['p3', 3], ['p4', 4], ['p5', 5]]
+    li = psd.LoopIntegralFromGraph(
+       internal_lines = internal_lines,
+       external_lines = external_lines,
+       replacement_rules = [
+                              ('p1*p1', 'm1**2'),
+                              ('p2*p2', 'm2**2'),
+                              ('p3*p3', 'm3**2'),
+                              ('p4*p4', 'm4**2'),
+                              ('p5*p5', 'm5**2'),
+                              ('p1*p2', '(s12-m1**2-m2**2)/2'),
+                              ('p1*p3', '(s13-m1**2-m3**2)/2'),
+                              ('p1*p4', '(s14-m1**2-m4**2)/2'),
+                              ('p2*p3', '(s23-m2**2-m3**2)/2'),
+                              ('p2*p4', '(s24-m2**2-m4**2)/2'),
+                              ('p3*p4', '(m5**2 + 2*m1**2 + 2*m2**2 + m3**2 + m4**2 - s12 - s13 - s14 - s23 - s24)/2'),
+                              ('p1*p5', '(m1**2 + m2**2 + m3**2 + m4**2 - s12 - s13 - s14)/2'),
+                              ('p2*p5', '(m1**2 + m2**2 + m3**2 + m4**2 - s12 - s23 - s24)/2'),
+                              ('p3*p5', '(s12 + s14 + s24 - m1**2 - m2**2 - m3**2 - m4**2 - m5**2)/2'),
+                              ('p4*p5', '(s12 + s13 + s23 - m1**2 - m2**2 - m3**2 - m4**2 - m5**2)/2'),
+                              ('m1**2', 't1*m1s'),
+                              ('m2**2', 't1*t1*m2s'),
+                              ('m3**2', '0'),
+                              ('m4**2', '0'),
+                              ('m5**2', '0'),
+    ]
+    )
+
+Region (-3,-1,-3,-2,-3,-1,0,1)
+Region (-3,-1,-2,-2,-2,0,0,1)
+Region (-2,-1,-3,-2,-2,-1,0,1)
+Region (-2,-1,-2,-1,-2,-1,0,1)
+Region (-2,0,-2,-2,-2,0,0,1)
+Region (-1,-1,-3,-2,-1,0,0,1)
+Region (-1,-1,-2,-2,0,0,0,1)
+Region (-1,-1,-1,0,-1,0,0,1)
+Region (-1,-1,0,0,0,0,0,1)
+Region (0,0,-2,-2,0,0,0,1)
+Region (0,0,0,0,0,0,0,1)
+
+# FRI (momentum-space) regions: 11 (runtime 0.0s)
+FRI region  1: [S^1C_2^1, C_1, S^1C_2^1, C_2^2, S^1C_2^1, C_3, H]  ->  scaling vector (-3, -1, -3, -2, -3, -1, 0, 1)
+FRI region  2: [S^1C_2^1, C_1, C_2^2, C_2^2, C_2^2, H, H]  ->  scaling vector (-3, -1, -2, -2, -2, 0, 0, 1)
+FRI region  3: [S, C_1, S^1C_2^1, C_2^2, S, C_3, H]  ->  scaling vector (-2, -1, -3, -2, -2, -1, 0, 1)
+FRI region  4: [S, C_1, S, C_2, S, C_3, H]  ->  scaling vector (-2, -1, -2, -1, -2, -1, 0, 1)
+FRI region  5: [C_2^2, H, C_2^2, C_2^2, C_2^2, H, H]  ->  scaling vector (-2, 0, -2, -2, -2, 0, 0, 1)
+FRI region  6: [C_1, C_1, S^1C_2^1, C_2^2, C_1, H, H]  ->  scaling vector (-1, -1, -3, -2, -1, 0, 0, 1)
+FRI region  7: [C_1, C_1, C_2^2, C_2^2, H, H, H]  ->  scaling vector (-1, -1, -2, -2, 0, 0, 0, 1)
+FRI region  8: [C_1, C_1, C_1, H, C_1, H, H]  ->  scaling vector (-1, -1, -1, 0, -1, 0, 0, 1)
+FRI region  9: [C_1, C_1, H, H, H, H, H]  ->  scaling vector (-1, -1, 0, 0, 0, 0, 0, 1)
+FRI region 10: [H, H, C_2^2, C_2^2, H, H, H]  ->  scaling vector (0, 0, -2, -2, 0, 0, 0, 1)
+FRI region 11: [H, H, H, H, H, H, H]  ->  scaling vector (0, 0, 0, 0, 0, 0, 0, 1)
+
+# ==== FrogSS_k0.txt ====
+name = 'FrogSS_k0'
+    smallness_parameters = ['t1']
+    internal_lines = [['0', [1, 6]], ['0', [1, 7]], ['0', [2, 6]], ['0', [2, 7]], ['0', [3, 6]], ['0', [5, 7]], ['0', [3, 4]], ['0', [4, 5]]]
+    external_lines = [['p1', 1], ['p2', 2], ['p3', 3], ['p4', 4], ['p5', 5]]
+    li = psd.LoopIntegralFromGraph(
+       internal_lines = internal_lines,
+       external_lines = external_lines,
+       replacement_rules = [
+                              ('p1*p1', 'm1**2'),
+                              ('p2*p2', 'm2**2'),
+                              ('p3*p3', 'm3**2'),
+                              ('p4*p4', 'm4**2'),
+                              ('p5*p5', 'm5**2'),
+                              ('p1*p2', '(s12-m1**2-m2**2)/2'),
+                              ('p1*p3', '(s13-m1**2-m3**2)/2'),
+                              ('p1*p4', '(s14-m1**2-m4**2)/2'),
+                              ('p2*p3', '(s23-m2**2-m3**2)/2'),
+                              ('p2*p4', '(s24-m2**2-m4**2)/2'),
+                              ('p3*p4', '(m5**2 + 2*m1**2 + 2*m2**2 + m3**2 + m4**2 - s12 - s13 - s14 - s23 - s24)/2'),
+                              ('p1*p5', '(m1**2 + m2**2 + m3**2 + m4**2 - s12 - s13 - s14)/2'),
+                              ('p2*p5', '(m1**2 + m2**2 + m3**2 + m4**2 - s12 - s23 - s24)/2'),
+                              ('p3*p5', '(s12 + s14 + s24 - m1**2 - m2**2 - m3**2 - m4**2 - m5**2)/2'),
+                              ('p4*p5', '(s12 + s13 + s23 - m1**2 - m2**2 - m3**2 - m4**2 - m5**2)/2'),
+                              ('m1**2', 't1*m1s'),
+                              ('m2**2', 't1*m2s'),
+                              ('m3**2', 't1*m3s'),
+                              ('m4**2', 't1*m4s'),
+                              ('m5**2', 't1*m5s'),
+    ]
+    )
+
+Region (-2,-1,-2,-1,-2,0,-1,0,1)
+Region (-2,-1,-1,-2,-1,-1,0,0,1)
+Region (-2,-1,-1,-1,-1,0,0,0,1)
+Region (-2,-1,-1,0,-1,0,-2,-1,1)
+Region (-2,-1,-1,0,-1,0,-1,0,1)
+Region (-1,-2,-2,-1,-1,-1,0,0,1)
+Region (-1,-2,-1,-2,0,-2,0,-1,1)
+Region (-1,-2,-1,-1,0,-1,0,0,1)
+Region (-1,-2,0,-1,0,-1,-1,-2,1)
+Region (-1,-2,0,-1,0,-1,0,-1,1)
+Region (-1,-1,-2,-1,-1,0,0,0,1)
+Region (-1,-1,-1,-2,0,-1,0,0,1)
+Region (-1,-1,-1,-1,0,0,0,0,1)
+Region (-1,-1,-1,0,-2,0,-1,0,1)
+Region (-1,-1,-1,0,-1,0,0,0,1)
+Region (-1,-1,0,-1,0,-2,0,-1,1)
+Region (-1,-1,0,-1,0,-1,0,0,1)
+Region (-1,-1,0,0,-1,0,-2,-1,1)
+Region (-1,-1,0,0,-1,0,-1,0,1)
+Region (-1,-1,0,0,0,-1,-1,-2,1)
+Region (-1,-1,0,0,0,-1,0,-1,1)
+Region (-1,-1,0,0,0,0,-1,-1,1)
+Region (-1,-1,0,0,0,0,0,0,1)
+Region (-1,0,-2,-1,-1,0,-2,-1,1)
+Region (-1,0,-2,-1,-1,0,-1,0,1)
+Region (-1,0,-1,-1,-2,0,-1,0,1)
+Region (-1,0,-1,-1,-1,0,0,0,1)
+Region (-1,0,-1,0,-1,0,-2,-1,1)
+Region (-1,0,-1,0,-1,0,-1,0,1)
+Region (0,-1,-1,-2,0,-1,-1,-2,1)
+Region (0,-1,-1,-2,0,-1,0,-1,1)
+Region (0,-1,-1,-1,0,-2,0,-1,1)
+Region (0,-1,-1,-1,0,-1,0,0,1)
+Region (0,-1,0,-1,0,-1,-1,-2,1)
+Region (0,-1,0,-1,0,-1,0,-1,1)
+Region (0,0,-1,-1,-1,0,-2,-1,1)
+Region (0,0,-1,-1,-1,0,-1,0,1)
+Region (0,0,-1,-1,0,-1,-1,-2,1)
+Region (0,0,-1,-1,0,-1,0,-1,1)
+Region (0,0,-1,-1,0,0,-1,-1,1)
+Region (0,0,-1,-1,0,0,0,0,1)
+Region (0,0,0,0,-1,0,-2,-1,1)
+Region (0,0,0,0,-1,0,-1,0,1)
+Region (0,0,0,0,0,-1,-1,-2,1)
+Region (0,0,0,0,0,-1,0,-1,1)
+Region (0,0,0,0,0,0,-1,-1,1)
+Region (0,0,0,0,0,0,0,0,1)
+
+# FRI (momentum-space) regions: 47 (runtime 0.0s)
+FRI region  1: [S, C_1, S, C_2, S, H, C_3, H]  ->  scaling vector (-2, -1, -2, -1, -2, 0, -1, 0, 1)
+FRI region  2: [S, C_1, C_2, S, C_2, C_1, H, H]  ->  scaling vector (-2, -1, -1, -2, -1, -1, 0, 0, 1)
+FRI region  3: [S, C_1, C_2, C_2, C_2, H, H, H]  ->  scaling vector (-2, -1, -1, -1, -1, 0, 0, 0, 1)
+FRI region  4: [S, C_1, C_3, H, C_3, H, S, C_4]  ->  scaling vector (-2, -1, -1, 0, -1, 0, -2, -1, 1)
+FRI region  5: [S, C_1, C_3, H, C_3, H, C_3, H]  ->  scaling vector (-2, -1, -1, 0, -1, 0, -1, 0, 1)
+FRI region  6: [C_1, S, S, C_2, C_1, C_2, H, H]  ->  scaling vector (-1, -2, -2, -1, -1, -1, 0, 0, 1)
+FRI region  7: [C_1, S, C_2, S, H, S, H, C_5]  ->  scaling vector (-1, -2, -1, -2, 0, -2, 0, -1, 1)
+FRI region  8: [C_1, S, C_2, C_2, H, C_2, H, H]  ->  scaling vector (-1, -2, -1, -1, 0, -1, 0, 0, 1)
+FRI region  9: [C_1, S, H, C_5, H, C_5, C_4, S]  ->  scaling vector (-1, -2, 0, -1, 0, -1, -1, -2, 1)
+FRI region 10: [C_1, S, H, C_5, H, C_5, H, C_5]  ->  scaling vector (-1, -2, 0, -1, 0, -1, 0, -1, 1)
+FRI region 11: [C_1, C_1, S, C_2, C_1, H, H, H]  ->  scaling vector (-1, -1, -2, -1, -1, 0, 0, 0, 1)
+FRI region 12: [C_1, C_1, C_2, S, H, C_1, H, H]  ->  scaling vector (-1, -1, -1, -2, 0, -1, 0, 0, 1)
+FRI region 13: [C_1, C_1, C_2, C_2, H, H, H, H]  ->  scaling vector (-1, -1, -1, -1, 0, 0, 0, 0, 1)
+FRI region 14: [C_1, C_1, C_1, H, S, H, C_3, H]  ->  scaling vector (-1, -1, -1, 0, -2, 0, -1, 0, 1)
+FRI region 15: [C_1, C_1, C_1, H, C_1, H, H, H]  ->  scaling vector (-1, -1, -1, 0, -1, 0, 0, 0, 1)
+FRI region 16: [C_1, C_1, H, C_1, H, S, H, C_5]  ->  scaling vector (-1, -1, 0, -1, 0, -2, 0, -1, 1)
+FRI region 17: [C_1, C_1, H, C_1, H, C_1, H, H]  ->  scaling vector (-1, -1, 0, -1, 0, -1, 0, 0, 1)
+FRI region 18: [C_1, C_1, H, H, C_3, H, S, C_4]  ->  scaling vector (-1, -1, 0, 0, -1, 0, -2, -1, 1)
+FRI region 19: [C_1, C_1, H, H, C_3, H, C_3, H]  ->  scaling vector (-1, -1, 0, 0, -1, 0, -1, 0, 1)
+FRI region 20: [C_1, C_1, H, H, H, C_5, C_4, S]  ->  scaling vector (-1, -1, 0, 0, 0, -1, -1, -2, 1)
+FRI region 21: [C_1, C_1, H, H, H, C_5, H, C_5]  ->  scaling vector (-1, -1, 0, 0, 0, -1, 0, -1, 1)
+FRI region 22: [C_1, C_1, H, H, H, H, C_4, C_4]  ->  scaling vector (-1, -1, 0, 0, 0, 0, -1, -1, 1)
+FRI region 23: [C_1, C_1, H, H, H, H, H, H]  ->  scaling vector (-1, -1, 0, 0, 0, 0, 0, 0, 1)
+FRI region 24: [C_3, H, S, C_2, C_3, H, S, C_4]  ->  scaling vector (-1, 0, -2, -1, -1, 0, -2, -1, 1)
+FRI region 25: [C_3, H, S, C_2, C_3, H, C_3, H]  ->  scaling vector (-1, 0, -2, -1, -1, 0, -1, 0, 1)
+FRI region 26: [C_2, H, C_2, C_2, S, H, C_3, H]  ->  scaling vector (-1, 0, -1, -1, -2, 0, -1, 0, 1)
+FRI region 27: [C_2, H, C_2, C_2, C_2, H, H, H]  ->  scaling vector (-1, 0, -1, -1, -1, 0, 0, 0, 1)
+FRI region 28: [C_3, H, C_3, H, C_3, H, S, C_4]  ->  scaling vector (-1, 0, -1, 0, -1, 0, -2, -1, 1)
+FRI region 29: [C_3, H, C_3, H, C_3, H, C_3, H]  ->  scaling vector (-1, 0, -1, 0, -1, 0, -1, 0, 1)
+FRI region 30: [H, C_5, C_2, S, H, C_5, C_4, S]  ->  scaling vector (0, -1, -1, -2, 0, -1, -1, -2, 1)
+FRI region 31: [H, C_5, C_2, S, H, C_5, H, C_5]  ->  scaling vector (0, -1, -1, -2, 0, -1, 0, -1, 1)
+FRI region 32: [H, C_2, C_2, C_2, H, S, H, C_5]  ->  scaling vector (0, -1, -1, -1, 0, -2, 0, -1, 1)
+FRI region 33: [H, C_2, C_2, C_2, H, C_2, H, H]  ->  scaling vector (0, -1, -1, -1, 0, -1, 0, 0, 1)
+FRI region 34: [H, C_5, H, C_5, H, C_5, C_4, S]  ->  scaling vector (0, -1, 0, -1, 0, -1, -1, -2, 1)
+FRI region 35: [H, C_5, H, C_5, H, C_5, H, C_5]  ->  scaling vector (0, -1, 0, -1, 0, -1, 0, -1, 1)
+FRI region 36: [H, H, C_2, C_2, C_3, H, S, C_4]  ->  scaling vector (0, 0, -1, -1, -1, 0, -2, -1, 1)
+FRI region 37: [H, H, C_2, C_2, C_3, H, C_3, H]  ->  scaling vector (0, 0, -1, -1, -1, 0, -1, 0, 1)
+FRI region 38: [H, H, C_2, C_2, H, C_5, C_4, S]  ->  scaling vector (0, 0, -1, -1, 0, -1, -1, -2, 1)
+FRI region 39: [H, H, C_2, C_2, H, C_5, H, C_5]  ->  scaling vector (0, 0, -1, -1, 0, -1, 0, -1, 1)
+FRI region 40: [H, H, C_2, C_2, H, H, C_4, C_4]  ->  scaling vector (0, 0, -1, -1, 0, 0, -1, -1, 1)
+FRI region 41: [H, H, C_2, C_2, H, H, H, H]  ->  scaling vector (0, 0, -1, -1, 0, 0, 0, 0, 1)
+FRI region 42: [H, H, H, H, C_3, H, S, C_4]  ->  scaling vector (0, 0, 0, 0, -1, 0, -2, -1, 1)
+FRI region 43: [H, H, H, H, C_3, H, C_3, H]  ->  scaling vector (0, 0, 0, 0, -1, 0, -1, 0, 1)
+FRI region 44: [H, H, H, H, H, C_5, C_4, S]  ->  scaling vector (0, 0, 0, 0, 0, -1, -1, -2, 1)
+FRI region 45: [H, H, H, H, H, C_5, H, C_5]  ->  scaling vector (0, 0, 0, 0, 0, -1, 0, -1, 1)
+FRI region 46: [H, H, H, H, H, H, C_4, C_4]  ->  scaling vector (0, 0, 0, 0, 0, 0, -1, -1, 1)
+FRI region 47: [H, H, H, H, H, H, H, H]  ->  scaling vector (0, 0, 0, 0, 0, 0, 0, 0, 1)
+
+# ==== FrogSS_k1.txt ====
+name = 'FrogSS_k1'
+    smallness_parameters = ['t1']
+    internal_lines = [['0', [1, 6]], ['0', [1, 7]], ['0', [2, 6]], ['0', [2, 7]], ['0', [3, 6]], ['0', [5, 7]], ['0', [3, 4]], ['0', [4, 5]]]
+    external_lines = [['p1', 1], ['p2', 2], ['p3', 3], ['p4', 4], ['p5', 5]]
+    li = psd.LoopIntegralFromGraph(
+       internal_lines = internal_lines,
+       external_lines = external_lines,
+       replacement_rules = [
+                              ('p1*p1', 'm1**2'),
+                              ('p2*p2', 'm2**2'),
+                              ('p3*p3', 'm3**2'),
+                              ('p4*p4', 'm4**2'),
+                              ('p5*p5', 'm5**2'),
+                              ('p1*p2', '(s12-m1**2-m2**2)/2'),
+                              ('p1*p3', '(s13-m1**2-m3**2)/2'),
+                              ('p1*p4', '(s14-m1**2-m4**2)/2'),
+                              ('p2*p3', '(s23-m2**2-m3**2)/2'),
+                              ('p2*p4', '(s24-m2**2-m4**2)/2'),
+                              ('p3*p4', '(m5**2 + 2*m1**2 + 2*m2**2 + m3**2 + m4**2 - s12 - s13 - s14 - s23 - s24)/2'),
+                              ('p1*p5', '(m1**2 + m2**2 + m3**2 + m4**2 - s12 - s13 - s14)/2'),
+                              ('p2*p5', '(m1**2 + m2**2 + m3**2 + m4**2 - s12 - s23 - s24)/2'),
+                              ('p3*p5', '(s12 + s14 + s24 - m1**2 - m2**2 - m3**2 - m4**2 - m5**2)/2'),
+                              ('p4*p5', '(s12 + s13 + s23 - m1**2 - m2**2 - m3**2 - m4**2 - m5**2)/2'),
+                              ('m1**2', 't1*m1s'),
+                              ('m2**2', 't1*m2s'),
+                              ('m3**2', 't1*m3s'),
+                              ('m4**2', '0'),
+                              ('m5**2', '0'),
+    ]
+    )
+
+Region (-2,-1,-2,-1,-2,0,-1,0,1)
+Region (-2,-1,-1,-2,-1,-1,0,0,1)
+Region (-2,-1,-1,-1,-1,0,0,0,1)
+Region (-2,-1,-1,0,-1,0,-1,0,1)
+Region (-1,-2,-2,-1,-1,-1,0,0,1)
+Region (-1,-2,-1,-2,0,-2,0,-1,1)
+Region (-1,-2,-1,-1,0,-1,0,0,1)
+Region (-1,-1,-2,-1,-1,0,0,0,1)
+Region (-1,-1,-1,-2,0,-1,0,0,1)
+Region (-1,-1,-1,-1,0,0,0,0,1)
+Region (-1,-1,-1,0,-2,0,-1,0,1)
+Region (-1,-1,-1,0,-1,0,0,0,1)
+Region (-1,-1,0,-1,0,-1,0,0,1)
+Region (-1,-1,0,0,-1,0,-1,0,1)
+Region (-1,-1,0,0,0,0,0,0,1)
+Region (-1,0,-2,-1,-1,0,-1,0,1)
+Region (-1,0,-1,-1,-2,0,-1,0,1)
+Region (-1,0,-1,-1,-1,0,0,0,1)
+Region (-1,0,-1,0,-1,0,-1,0,1)
+Region (0,-1,-1,-1,0,-1,0,0,1)
+Region (0,0,-1,-1,-1,0,-1,0,1)
+Region (0,0,-1,-1,0,0,0,0,1)
+Region (0,0,0,0,-1,0,-1,0,1)
+Region (0,0,0,0,0,0,0,0,1)
+
+# FRI (momentum-space) regions: 24 (runtime 0.0s)
+FRI region  1: [S, C_1, S, C_2, S, H, C_3, H]  ->  scaling vector (-2, -1, -2, -1, -2, 0, -1, 0, 1)
+FRI region  2: [S, C_1, C_2, S, C_2, C_1, H, H]  ->  scaling vector (-2, -1, -1, -2, -1, -1, 0, 0, 1)
+FRI region  3: [S, C_1, C_2, C_2, C_2, H, H, H]  ->  scaling vector (-2, -1, -1, -1, -1, 0, 0, 0, 1)
+FRI region  4: [S, C_1, C_3, H, C_3, H, C_3, H]  ->  scaling vector (-2, -1, -1, 0, -1, 0, -1, 0, 1)
+FRI region  5: [C_1, S, S, C_2, C_1, C_2, H, H]  ->  scaling vector (-1, -2, -2, -1, -1, -1, 0, 0, 1)
+FRI region  6: [C_1, S, C_2, S, H, S, H, C_5]  ->  scaling vector (-1, -2, -1, -2, 0, -2, 0, -1, 1)
+FRI region  7: [C_1, S, C_2, C_2, H, C_2, H, H]  ->  scaling vector (-1, -2, -1, -1, 0, -1, 0, 0, 1)
+FRI region  8: [C_1, C_1, S, C_2, C_1, H, H, H]  ->  scaling vector (-1, -1, -2, -1, -1, 0, 0, 0, 1)
+FRI region  9: [C_1, C_1, C_2, S, H, C_1, H, H]  ->  scaling vector (-1, -1, -1, -2, 0, -1, 0, 0, 1)
+FRI region 10: [C_1, C_1, C_2, C_2, H, H, H, H]  ->  scaling vector (-1, -1, -1, -1, 0, 0, 0, 0, 1)
+FRI region 11: [C_1, C_1, C_1, H, S, H, C_3, H]  ->  scaling vector (-1, -1, -1, 0, -2, 0, -1, 0, 1)
+FRI region 12: [C_1, C_1, C_1, H, C_1, H, H, H]  ->  scaling vector (-1, -1, -1, 0, -1, 0, 0, 0, 1)
+FRI region 13: [C_1, C_1, H, C_1, H, C_1, H, H]  ->  scaling vector (-1, -1, 0, -1, 0, -1, 0, 0, 1)
+FRI region 14: [C_1, C_1, H, H, C_3, H, C_3, H]  ->  scaling vector (-1, -1, 0, 0, -1, 0, -1, 0, 1)
+FRI region 15: [C_1, C_1, H, H, H, H, H, H]  ->  scaling vector (-1, -1, 0, 0, 0, 0, 0, 0, 1)
+FRI region 16: [C_3, H, S, C_2, C_3, H, C_3, H]  ->  scaling vector (-1, 0, -2, -1, -1, 0, -1, 0, 1)
+FRI region 17: [C_2, H, C_2, C_2, S, H, C_3, H]  ->  scaling vector (-1, 0, -1, -1, -2, 0, -1, 0, 1)
+FRI region 18: [C_2, H, C_2, C_2, C_2, H, H, H]  ->  scaling vector (-1, 0, -1, -1, -1, 0, 0, 0, 1)
+FRI region 19: [C_3, H, C_3, H, C_3, H, C_3, H]  ->  scaling vector (-1, 0, -1, 0, -1, 0, -1, 0, 1)
+FRI region 20: [H, C_2, C_2, C_2, H, C_2, H, H]  ->  scaling vector (0, -1, -1, -1, 0, -1, 0, 0, 1)
+FRI region 21: [H, H, C_2, C_2, C_3, H, C_3, H]  ->  scaling vector (0, 0, -1, -1, -1, 0, -1, 0, 1)
+FRI region 22: [H, H, C_2, C_2, H, H, H, H]  ->  scaling vector (0, 0, -1, -1, 0, 0, 0, 0, 1)
+FRI region 23: [H, H, H, H, C_3, H, C_3, H]  ->  scaling vector (0, 0, 0, 0, -1, 0, -1, 0, 1)
+FRI region 24: [H, H, H, H, H, H, H, H]  ->  scaling vector (0, 0, 0, 0, 0, 0, 0, 0, 1)
+
+# ==== FrogSS_k2.txt ====
+name = 'FrogSS_k2'
+    smallness_parameters = ['t1']
+    internal_lines = [['0', [1, 6]], ['0', [1, 7]], ['0', [2, 6]], ['0', [2, 7]], ['0', [3, 6]], ['0', [5, 7]], ['0', [3, 4]], ['0', [4, 5]]]
+    external_lines = [['p1', 1], ['p2', 2], ['p3', 3], ['p4', 4], ['p5', 5]]
+    li = psd.LoopIntegralFromGraph(
+       internal_lines = internal_lines,
+       external_lines = external_lines,
+       replacement_rules = [
+                              ('p1*p1', 'm1**2'),
+                              ('p2*p2', 'm2**2'),
+                              ('p3*p3', 'm3**2'),
+                              ('p4*p4', 'm4**2'),
+                              ('p5*p5', 'm5**2'),
+                              ('p1*p2', '(s12-m1**2-m2**2)/2'),
+                              ('p1*p3', '(s13-m1**2-m3**2)/2'),
+                              ('p1*p4', '(s14-m1**2-m4**2)/2'),
+                              ('p2*p3', '(s23-m2**2-m3**2)/2'),
+                              ('p2*p4', '(s24-m2**2-m4**2)/2'),
+                              ('p3*p4', '(m5**2 + 2*m1**2 + 2*m2**2 + m3**2 + m4**2 - s12 - s13 - s14 - s23 - s24)/2'),
+                              ('p1*p5', '(m1**2 + m2**2 + m3**2 + m4**2 - s12 - s13 - s14)/2'),
+                              ('p2*p5', '(m1**2 + m2**2 + m3**2 + m4**2 - s12 - s23 - s24)/2'),
+                              ('p3*p5', '(s12 + s14 + s24 - m1**2 - m2**2 - m3**2 - m4**2 - m5**2)/2'),
+                              ('p4*p5', '(s12 + s13 + s23 - m1**2 - m2**2 - m3**2 - m4**2 - m5**2)/2'),
+                              ('m1**2', 't1*m1s'),
+                              ('m2**2', 't1*m2s'),
+                              ('m3**2', '0'),
+                              ('m4**2', '0'),
+                              ('m5**2', '0'),
+    ]
+    )
+
+Region (-2,-1,-2,-1,-2,0,-1,0,1)
+Region (-2,-1,-1,-2,-1,-1,0,0,1)
+Region (-2,-1,-1,-1,-1,0,0,0,1)
+Region (-1,-2,-2,-1,-1,-1,0,0,1)
+Region (-1,-2,-1,-2,0,-2,0,-1,1)
+Region (-1,-2,-1,-1,0,-1,0,0,1)
+Region (-1,-1,-2,-1,-1,0,0,0,1)
+Region (-1,-1,-1,-2,0,-1,0,0,1)
+Region (-1,-1,-1,-1,0,0,0,0,1)
+Region (-1,-1,-1,0,-1,0,0,0,1)
+Region (-1,-1,0,-1,0,-1,0,0,1)
+Region (-1,-1,0,0,0,0,0,0,1)
+Region (-1,0,-1,-1,-1,0,0,0,1)
+Region (0,-1,-1,-1,0,-1,0,0,1)
+Region (0,0,-1,-1,0,0,0,0,1)
+Region (0,0,0,0,0,0,0,0,1)
+
+# FRI (momentum-space) regions: 16 (runtime 0.0s)
+FRI region  1: [S, C_1, S, C_2, S, H, C_3, H]  ->  scaling vector (-2, -1, -2, -1, -2, 0, -1, 0, 1)
+FRI region  2: [S, C_1, C_2, S, C_2, C_1, H, H]  ->  scaling vector (-2, -1, -1, -2, -1, -1, 0, 0, 1)
+FRI region  3: [S, C_1, C_2, C_2, C_2, H, H, H]  ->  scaling vector (-2, -1, -1, -1, -1, 0, 0, 0, 1)
+FRI region  4: [C_1, S, S, C_2, C_1, C_2, H, H]  ->  scaling vector (-1, -2, -2, -1, -1, -1, 0, 0, 1)
+FRI region  5: [C_1, S, C_2, S, H, S, H, C_5]  ->  scaling vector (-1, -2, -1, -2, 0, -2, 0, -1, 1)
+FRI region  6: [C_1, S, C_2, C_2, H, C_2, H, H]  ->  scaling vector (-1, -2, -1, -1, 0, -1, 0, 0, 1)
+FRI region  7: [C_1, C_1, S, C_2, C_1, H, H, H]  ->  scaling vector (-1, -1, -2, -1, -1, 0, 0, 0, 1)
+FRI region  8: [C_1, C_1, C_2, S, H, C_1, H, H]  ->  scaling vector (-1, -1, -1, -2, 0, -1, 0, 0, 1)
+FRI region  9: [C_1, C_1, C_2, C_2, H, H, H, H]  ->  scaling vector (-1, -1, -1, -1, 0, 0, 0, 0, 1)
+FRI region 10: [C_1, C_1, C_1, H, C_1, H, H, H]  ->  scaling vector (-1, -1, -1, 0, -1, 0, 0, 0, 1)
+FRI region 11: [C_1, C_1, H, C_1, H, C_1, H, H]  ->  scaling vector (-1, -1, 0, -1, 0, -1, 0, 0, 1)
+FRI region 12: [C_1, C_1, H, H, H, H, H, H]  ->  scaling vector (-1, -1, 0, 0, 0, 0, 0, 0, 1)
+FRI region 13: [C_2, H, C_2, C_2, C_2, H, H, H]  ->  scaling vector (-1, 0, -1, -1, -1, 0, 0, 0, 1)
+FRI region 14: [H, C_2, C_2, C_2, H, C_2, H, H]  ->  scaling vector (0, -1, -1, -1, 0, -1, 0, 0, 1)
+FRI region 15: [H, H, C_2, C_2, H, H, H, H]  ->  scaling vector (0, 0, -1, -1, 0, 0, 0, 0, 1)
+FRI region 16: [H, H, H, H, H, H, H, H]  ->  scaling vector (0, 0, 0, 0, 0, 0, 0, 0, 1)
+
+# ==== FrogSS_k3.txt ====
+name = 'FrogSS_k3'
+    smallness_parameters = ['t1']
+    internal_lines = [['0', [1, 6]], ['0', [1, 7]], ['0', [2, 6]], ['0', [2, 7]], ['0', [3, 6]], ['0', [5, 7]], ['0', [3, 4]], ['0', [4, 5]]]
+    external_lines = [['p1', 1], ['p2', 2], ['p3', 3], ['p4', 4], ['p5', 5]]
+    li = psd.LoopIntegralFromGraph(
+       internal_lines = internal_lines,
+       external_lines = external_lines,
+       replacement_rules = [
+                              ('p1*p1', 'm1**2'),
+                              ('p2*p2', 'm2**2'),
+                              ('p3*p3', 'm3**2'),
+                              ('p4*p4', 'm4**2'),
+                              ('p5*p5', 'm5**2'),
+                              ('p1*p2', '(s12-m1**2-m2**2)/2'),
+                              ('p1*p3', '(s13-m1**2-m3**2)/2'),
+                              ('p1*p4', '(s14-m1**2-m4**2)/2'),
+                              ('p2*p3', '(s23-m2**2-m3**2)/2'),
+                              ('p2*p4', '(s24-m2**2-m4**2)/2'),
+                              ('p3*p4', '(m5**2 + 2*m1**2 + 2*m2**2 + m3**2 + m4**2 - s12 - s13 - s14 - s23 - s24)/2'),
+                              ('p1*p5', '(m1**2 + m2**2 + m3**2 + m4**2 - s12 - s13 - s14)/2'),
+                              ('p2*p5', '(m1**2 + m2**2 + m3**2 + m4**2 - s12 - s23 - s24)/2'),
+                              ('p3*p5', '(s12 + s14 + s24 - m1**2 - m2**2 - m3**2 - m4**2 - m5**2)/2'),
+                              ('p4*p5', '(s12 + s13 + s23 - m1**2 - m2**2 - m3**2 - m4**2 - m5**2)/2'),
+                              ('m1**2', 't1*m1s'),
+                              ('m2**2', 't1*t1*m2s'),
+                              ('m3**2', '0'),
+                              ('m4**2', '0'),
+                              ('m5**2', '0'),
+    ]
+    )
+
+Region (-3,-1,-3,-2,-3,0,-1,0,1)
+Region (-3,-1,-2,-3,-2,-1,0,0,1)
+Region (-3,-1,-2,-2,-2,0,0,0,1)
+Region (-2,-1,-3,-2,-2,0,-1,0,1)
+Region (-2,-1,-2,-1,-2,0,-1,0,1)
+Region (-2,0,-2,-2,-2,0,0,0,1)
+Region (-1,-3,-3,-2,-1,-2,0,0,1)
+Region (-1,-3,-2,-3,0,-3,0,-1,1)
+Region (-1,-3,-2,-2,0,-2,0,0,1)
+Region (-1,-2,-2,-3,0,-2,0,-1,1)
+Region (-1,-2,-1,-2,0,-2,0,-1,1)
+Region (-1,-1,-3,-2,-1,0,0,0,1)
+Region (-1,-1,-2,-3,0,-1,0,0,1)
+Region (-1,-1,-2,-2,0,0,0,0,1)
+Region (-1,-1,-1,0,-1,0,0,0,1)
+Region (-1,-1,0,-1,0,-1,0,0,1)
+Region (-1,-1,0,0,0,0,0,0,1)
+Region (0,-2,-2,-2,0,-2,0,0,1)
+Region (0,0,-2,-2,0,0,0,0,1)
+Region (0,0,0,0,0,0,0,0,1)
+
+# FRI (momentum-space) regions: 20 (runtime 0.0s)
+FRI region  1: [S^1C_2^1, C_1, S^1C_2^1, C_2^2, S^1C_2^1, H, C_3, H]  ->  scaling vector (-3, -1, -3, -2, -3, 0, -1, 0, 1)
+FRI region  2: [S^1C_2^1, C_1, C_2^2, S^1C_2^1, C_2^2, C_1, H, H]  ->  scaling vector (-3, -1, -2, -3, -2, -1, 0, 0, 1)
+FRI region  3: [S^1C_2^1, C_1, C_2^2, C_2^2, C_2^2, H, H, H]  ->  scaling vector (-3, -1, -2, -2, -2, 0, 0, 0, 1)
+FRI region  4: [S, C_1, S^1C_2^1, C_2^2, S, H, C_3, H]  ->  scaling vector (-2, -1, -3, -2, -2, 0, -1, 0, 1)
+FRI region  5: [S, C_1, S, C_2, S, H, C_3, H]  ->  scaling vector (-2, -1, -2, -1, -2, 0, -1, 0, 1)
+FRI region  6: [C_2^2, H, C_2^2, C_2^2, C_2^2, H, H, H]  ->  scaling vector (-2, 0, -2, -2, -2, 0, 0, 0, 1)
+FRI region  7: [C_1, S^1C_2^1, S^1C_2^1, C_2^2, C_1, C_2^2, H, H]  ->  scaling vector (-1, -3, -3, -2, -1, -2, 0, 0, 1)
+FRI region  8: [C_1, S^1C_2^1, C_2^2, S^1C_2^1, H, S^1C_2^1, H, C_5]  ->  scaling vector (-1, -3, -2, -3, 0, -3, 0, -1, 1)
+FRI region  9: [C_1, S^1C_2^1, C_2^2, C_2^2, H, C_2^2, H, H]  ->  scaling vector (-1, -3, -2, -2, 0, -2, 0, 0, 1)
+FRI region 10: [C_1, S, C_2^2, S^1C_2^1, H, S, H, C_5]  ->  scaling vector (-1, -2, -2, -3, 0, -2, 0, -1, 1)
+FRI region 11: [C_1, S, C_2, S, H, S, H, C_5]  ->  scaling vector (-1, -2, -1, -2, 0, -2, 0, -1, 1)
+FRI region 12: [C_1, C_1, S^1C_2^1, C_2^2, C_1, H, H, H]  ->  scaling vector (-1, -1, -3, -2, -1, 0, 0, 0, 1)
+FRI region 13: [C_1, C_1, C_2^2, S^1C_2^1, H, C_1, H, H]  ->  scaling vector (-1, -1, -2, -3, 0, -1, 0, 0, 1)
+FRI region 14: [C_1, C_1, C_2^2, C_2^2, H, H, H, H]  ->  scaling vector (-1, -1, -2, -2, 0, 0, 0, 0, 1)
+FRI region 15: [C_1, C_1, C_1, H, C_1, H, H, H]  ->  scaling vector (-1, -1, -1, 0, -1, 0, 0, 0, 1)
+FRI region 16: [C_1, C_1, H, C_1, H, C_1, H, H]  ->  scaling vector (-1, -1, 0, -1, 0, -1, 0, 0, 1)
+FRI region 17: [C_1, C_1, H, H, H, H, H, H]  ->  scaling vector (-1, -1, 0, 0, 0, 0, 0, 0, 1)
+FRI region 18: [H, C_2^2, C_2^2, C_2^2, H, C_2^2, H, H]  ->  scaling vector (0, -2, -2, -2, 0, -2, 0, 0, 1)
+FRI region 19: [H, H, C_2^2, C_2^2, H, H, H, H]  ->  scaling vector (0, 0, -2, -2, 0, 0, 0, 0, 1)
+FRI region 20: [H, H, H, H, H, H, H, H]  ->  scaling vector (0, 0, 0, 0, 0, 0, 0, 0, 1)
+
+# ==== FrogST_k0.txt ====
+name = 'FrogST_k0'
+    smallness_parameters = ['t1']
+    internal_lines = [['0', [1, 6]], ['0', [1, 5]], ['0', [2, 6]], ['0', [2, 7]], ['0', [3, 6]], ['0', [5, 7]], ['0', [3, 4]], ['0', [4, 7]]]
+    external_lines = [['p1', 1], ['p2', 2], ['p3', 3], ['p4', 4], ['p5', 5]]
+    li = psd.LoopIntegralFromGraph(
+       internal_lines = internal_lines,
+       external_lines = external_lines,
+       replacement_rules = [
+                              ('p1*p1', 'm1**2'),
+                              ('p2*p2', 'm2**2'),
+                              ('p3*p3', 'm3**2'),
+                              ('p4*p4', 'm4**2'),
+                              ('p5*p5', 'm5**2'),
+                              ('p1*p2', '(s12-m1**2-m2**2)/2'),
+                              ('p1*p3', '(s13-m1**2-m3**2)/2'),
+                              ('p1*p4', '(s14-m1**2-m4**2)/2'),
+                              ('p2*p3', '(s23-m2**2-m3**2)/2'),
+                              ('p2*p4', '(s24-m2**2-m4**2)/2'),
+                              ('p3*p4', '(m5**2 + 2*m1**2 + 2*m2**2 + m3**2 + m4**2 - s12 - s13 - s14 - s23 - s24)/2'),
+                              ('p1*p5', '(m1**2 + m2**2 + m3**2 + m4**2 - s12 - s13 - s14)/2'),
+                              ('p2*p5', '(m1**2 + m2**2 + m3**2 + m4**2 - s12 - s23 - s24)/2'),
+                              ('p3*p5', '(s12 + s14 + s24 - m1**2 - m2**2 - m3**2 - m4**2 - m5**2)/2'),
+                              ('p4*p5', '(s12 + s13 + s23 - m1**2 - m2**2 - m3**2 - m4**2 - m5**2)/2'),
+                              ('m1**2', 't1*m1s'),
+                              ('m2**2', 't1*m2s'),
+                              ('m3**2', 't1*m3s'),
+                              ('m4**2', 't1*m4s'),
+                              ('m5**2', 't1*m5s'),
+    ]
+    )
+
+Region (-2,-1,-2,-1,-2,0,-1,0,1)
+Region (-2,-1,-1,-1,-1,0,0,0,1)
+Region (-2,-1,-1,0,-1,0,-2,-1,1)
+Region (-2,-1,-1,0,-1,0,-1,0,1)
+Region (-1,-2,-2,-1,-1,-1,0,0,1)
+Region (-1,-2,-1,-2,0,-1,0,-1,1)
+Region (-1,-2,-1,-1,0,-1,0,0,1)
+Region (-1,-2,-1,0,-2,-1,-1,0,1)
+Region (-1,-2,-1,0,-1,-1,0,0,1)
+Region (-1,-2,0,-1,0,-1,-1,-2,1)
+Region (-1,-2,0,-1,0,-1,0,-1,1)
+Region (-1,-2,0,0,-1,-1,-2,-1,1)
+Region (-1,-2,0,0,-1,-1,-1,0,1)
+Region (-1,-2,0,0,0,-1,-1,-1,1)
+Region (-1,-2,0,0,0,-1,0,0,1)
+Region (-1,-1,-2,-1,-1,0,0,0,1)
+Region (-1,-1,-1,-1,0,0,0,0,1)
+Region (-1,-1,-1,0,-2,0,-1,0,1)
+Region (-1,-1,-1,0,-1,0,0,0,1)
+Region (-1,-1,0,0,-1,0,-2,-1,1)
+Region (-1,-1,0,0,-1,0,-1,0,1)
+Region (-1,-1,0,0,0,0,-1,-1,1)
+Region (-1,-1,0,0,0,0,0,0,1)
+Region (-1,0,-2,-1,-1,0,-2,-1,1)
+Region (-1,0,-2,-1,-1,0,-1,0,1)
+Region (-1,0,-1,-1,-2,0,-1,0,1)
+Region (-1,0,-1,-1,-1,0,0,0,1)
+Region (-1,0,-1,0,-1,0,-2,-1,1)
+Region (-1,0,-1,0,-1,0,-1,0,1)
+Region (0,-1,-1,-2,0,-2,-1,-2,1)
+Region (0,-1,-1,-2,0,-1,0,-1,1)
+Region (0,-1,-1,-1,0,-2,0,-1,1)
+Region (0,-1,-1,-1,0,-1,0,0,1)
+Region (0,-1,0,-1,-1,-2,-2,-1,1)
+Region (0,-1,0,-1,0,-2,-1,-1,1)
+Region (0,-1,0,-1,0,-1,-1,-2,1)
+Region (0,-1,0,-1,0,-1,0,-1,1)
+Region (0,-1,0,0,-1,-1,-2,-1,1)
+Region (0,-1,0,0,-1,-1,-1,0,1)
+Region (0,-1,0,0,0,-1,-1,-1,1)
+Region (0,-1,0,0,0,-1,0,0,1)
+Region (0,0,-1,-2,-1,-1,-2,-1,1)
+Region (0,0,-1,-2,0,-1,-1,-1,1)
+Region (0,0,-1,-1,-1,0,-2,-1,1)
+Region (0,0,-1,-1,-1,0,-1,0,1)
+Region (0,0,-1,-1,0,-1,-1,-2,1)
+Region (0,0,-1,-1,0,-1,0,-1,1)
+Region (0,0,-1,-1,0,0,-1,-1,1)
+Region (0,0,-1,-1,0,0,0,0,1)
+Region (0,0,0,-1,-1,-1,-2,-1,1)
+Region (0,0,0,-1,0,-1,-1,-1,1)
+Region (0,0,0,0,-1,0,-2,-1,1)
+Region (0,0,0,0,-1,0,-1,0,1)
+Region (0,0,0,0,0,0,-1,-1,1)
+Region (0,0,0,0,0,0,0,0,1)
+
+# FRI (momentum-space) regions: 55 (runtime 0.0s)
+FRI region  1: [S, C_1, S, C_2, S, H, C_3, H]  ->  scaling vector (-2, -1, -2, -1, -2, 0, -1, 0, 1)
+FRI region  2: [S, C_1, C_2, C_2, C_2, H, H, H]  ->  scaling vector (-2, -1, -1, -1, -1, 0, 0, 0, 1)
+FRI region  3: [S, C_1, C_3, H, C_3, H, S, C_4]  ->  scaling vector (-2, -1, -1, 0, -1, 0, -2, -1, 1)
+FRI region  4: [S, C_1, C_3, H, C_3, H, C_3, H]  ->  scaling vector (-2, -1, -1, 0, -1, 0, -1, 0, 1)
+FRI region  5: [C_1, S, S, C_2, C_1, C_5, H, H]  ->  scaling vector (-1, -2, -2, -1, -1, -1, 0, 0, 1)
+FRI region  6: [C_1, S, C_2, S, H, C_5, H, C_5]  ->  scaling vector (-1, -2, -1, -2, 0, -1, 0, -1, 1)
+FRI region  7: [C_1, S, C_2, C_2, H, C_5, H, H]  ->  scaling vector (-1, -2, -1, -1, 0, -1, 0, 0, 1)
+FRI region  8: [C_1, S, C_1, H, S, C_5, C_3, H]  ->  scaling vector (-1, -2, -1, 0, -2, -1, -1, 0, 1)
+FRI region  9: [C_1, S, C_1, H, C_1, C_5, H, H]  ->  scaling vector (-1, -2, -1, 0, -1, -1, 0, 0, 1)
+FRI region 10: [C_1, S, H, C_5, H, C_5, C_4, S]  ->  scaling vector (-1, -2, 0, -1, 0, -1, -1, -2, 1)
+FRI region 11: [C_1, S, H, C_5, H, C_5, H, C_5]  ->  scaling vector (-1, -2, 0, -1, 0, -1, 0, -1, 1)
+FRI region 12: [C_1, S, H, H, C_3, C_5, S, C_4]  ->  scaling vector (-1, -2, 0, 0, -1, -1, -2, -1, 1)
+FRI region 13: [C_1, S, H, H, C_3, C_5, C_3, H]  ->  scaling vector (-1, -2, 0, 0, -1, -1, -1, 0, 1)
+FRI region 14: [C_1, S, H, H, H, C_5, C_4, C_4]  ->  scaling vector (-1, -2, 0, 0, 0, -1, -1, -1, 1)
+FRI region 15: [C_1, S, H, H, H, C_5, H, H]  ->  scaling vector (-1, -2, 0, 0, 0, -1, 0, 0, 1)
+FRI region 16: [C_1, C_1, S, C_2, C_1, H, H, H]  ->  scaling vector (-1, -1, -2, -1, -1, 0, 0, 0, 1)
+FRI region 17: [C_1, C_1, C_2, C_2, H, H, H, H]  ->  scaling vector (-1, -1, -1, -1, 0, 0, 0, 0, 1)
+FRI region 18: [C_1, C_1, C_1, H, S, H, C_3, H]  ->  scaling vector (-1, -1, -1, 0, -2, 0, -1, 0, 1)
+FRI region 19: [C_1, C_1, C_1, H, C_1, H, H, H]  ->  scaling vector (-1, -1, -1, 0, -1, 0, 0, 0, 1)
+FRI region 20: [C_1, C_1, H, H, C_3, H, S, C_4]  ->  scaling vector (-1, -1, 0, 0, -1, 0, -2, -1, 1)
+FRI region 21: [C_1, C_1, H, H, C_3, H, C_3, H]  ->  scaling vector (-1, -1, 0, 0, -1, 0, -1, 0, 1)
+FRI region 22: [C_1, C_1, H, H, H, H, C_4, C_4]  ->  scaling vector (-1, -1, 0, 0, 0, 0, -1, -1, 1)
+FRI region 23: [C_1, C_1, H, H, H, H, H, H]  ->  scaling vector (-1, -1, 0, 0, 0, 0, 0, 0, 1)
+FRI region 24: [C_3, H, S, C_2, C_3, H, S, C_4]  ->  scaling vector (-1, 0, -2, -1, -1, 0, -2, -1, 1)
+FRI region 25: [C_3, H, S, C_2, C_3, H, C_3, H]  ->  scaling vector (-1, 0, -2, -1, -1, 0, -1, 0, 1)
+FRI region 26: [C_2, H, C_2, C_2, S, H, C_3, H]  ->  scaling vector (-1, 0, -1, -1, -2, 0, -1, 0, 1)
+FRI region 27: [C_2, H, C_2, C_2, C_2, H, H, H]  ->  scaling vector (-1, 0, -1, -1, -1, 0, 0, 0, 1)
+FRI region 28: [C_3, H, C_3, H, C_3, H, S, C_4]  ->  scaling vector (-1, 0, -1, 0, -1, 0, -2, -1, 1)
+FRI region 29: [C_3, H, C_3, H, C_3, H, C_3, H]  ->  scaling vector (-1, 0, -1, 0, -1, 0, -1, 0, 1)
+FRI region 30: [H, C_5, C_2, S, H, S, C_4, S]  ->  scaling vector (0, -1, -1, -2, 0, -2, -1, -2, 1)
+FRI region 31: [H, C_5, C_2, S, H, C_5, H, C_5]  ->  scaling vector (0, -1, -1, -2, 0, -1, 0, -1, 1)
+FRI region 32: [H, C_5, C_2, C_2, H, S, H, C_2]  ->  scaling vector (0, -1, -1, -1, 0, -2, 0, -1, 1)
+FRI region 33: [H, C_5, C_2, C_2, H, C_5, H, H]  ->  scaling vector (0, -1, -1, -1, 0, -1, 0, 0, 1)
+FRI region 34: [H, C_5, H, C_4, C_3, S, S, C_4]  ->  scaling vector (0, -1, 0, -1, -1, -2, -2, -1, 1)
+FRI region 35: [H, C_5, H, C_4, H, S, C_4, C_4]  ->  scaling vector (0, -1, 0, -1, 0, -2, -1, -1, 1)
+FRI region 36: [H, C_5, H, C_5, H, C_5, C_4, S]  ->  scaling vector (0, -1, 0, -1, 0, -1, -1, -2, 1)
+FRI region 37: [H, C_5, H, C_5, H, C_5, H, C_5]  ->  scaling vector (0, -1, 0, -1, 0, -1, 0, -1, 1)
+FRI region 38: [H, C_5, H, H, C_3, C_5, S, C_4]  ->  scaling vector (0, -1, 0, 0, -1, -1, -2, -1, 1)
+FRI region 39: [H, C_5, H, H, C_3, C_5, C_3, H]  ->  scaling vector (0, -1, 0, 0, -1, -1, -1, 0, 1)
+FRI region 40: [H, C_5, H, H, H, C_5, C_4, C_4]  ->  scaling vector (0, -1, 0, 0, 0, -1, -1, -1, 1)
+FRI region 41: [H, C_5, H, H, H, C_5, H, H]  ->  scaling vector (0, -1, 0, 0, 0, -1, 0, 0, 1)
+FRI region 42: [H, H, C_2, S, C_3, C_4, S, C_4]  ->  scaling vector (0, 0, -1, -2, -1, -1, -2, -1, 1)
+FRI region 43: [H, H, C_2, S, H, C_4, C_4, C_4]  ->  scaling vector (0, 0, -1, -2, 0, -1, -1, -1, 1)
+FRI region 44: [H, H, C_2, C_2, C_3, H, S, C_4]  ->  scaling vector (0, 0, -1, -1, -1, 0, -2, -1, 1)
+FRI region 45: [H, H, C_2, C_2, C_3, H, C_3, H]  ->  scaling vector (0, 0, -1, -1, -1, 0, -1, 0, 1)
+FRI region 46: [H, H, C_2, C_2, H, C_2, C_4, S]  ->  scaling vector (0, 0, -1, -1, 0, -1, -1, -2, 1)
+FRI region 47: [H, H, C_2, C_2, H, C_2, H, C_2]  ->  scaling vector (0, 0, -1, -1, 0, -1, 0, -1, 1)
+FRI region 48: [H, H, C_2, C_2, H, H, C_4, C_4]  ->  scaling vector (0, 0, -1, -1, 0, 0, -1, -1, 1)
+FRI region 49: [H, H, C_2, C_2, H, H, H, H]  ->  scaling vector (0, 0, -1, -1, 0, 0, 0, 0, 1)
+FRI region 50: [H, H, H, C_4, C_3, C_4, S, C_4]  ->  scaling vector (0, 0, 0, -1, -1, -1, -2, -1, 1)
+FRI region 51: [H, H, H, C_4, H, C_4, C_4, C_4]  ->  scaling vector (0, 0, 0, -1, 0, -1, -1, -1, 1)
+FRI region 52: [H, H, H, H, C_3, H, S, C_4]  ->  scaling vector (0, 0, 0, 0, -1, 0, -2, -1, 1)
+FRI region 53: [H, H, H, H, C_3, H, C_3, H]  ->  scaling vector (0, 0, 0, 0, -1, 0, -1, 0, 1)
+FRI region 54: [H, H, H, H, H, H, C_4, C_4]  ->  scaling vector (0, 0, 0, 0, 0, 0, -1, -1, 1)
+FRI region 55: [H, H, H, H, H, H, H, H]  ->  scaling vector (0, 0, 0, 0, 0, 0, 0, 0, 1)
+
+# ==== FrogST_k1.txt ====
+name = 'FrogST_k1'
+    smallness_parameters = ['t1']
+    internal_lines = [['0', [1, 6]], ['0', [1, 5]], ['0', [2, 6]], ['0', [2, 7]], ['0', [3, 6]], ['0', [5, 7]], ['0', [3, 4]], ['0', [4, 7]]]
+    external_lines = [['p1', 1], ['p2', 2], ['p3', 3], ['p4', 4], ['p5', 5]]
+    li = psd.LoopIntegralFromGraph(
+       internal_lines = internal_lines,
+       external_lines = external_lines,
+       replacement_rules = [
+                              ('p1*p1', 'm1**2'),
+                              ('p2*p2', 'm2**2'),
+                              ('p3*p3', 'm3**2'),
+                              ('p4*p4', 'm4**2'),
+                              ('p5*p5', 'm5**2'),
+                              ('p1*p2', '(s12-m1**2-m2**2)/2'),
+                              ('p1*p3', '(s13-m1**2-m3**2)/2'),
+                              ('p1*p4', '(s14-m1**2-m4**2)/2'),
+                              ('p2*p3', '(s23-m2**2-m3**2)/2'),
+                              ('p2*p4', '(s24-m2**2-m4**2)/2'),
+                              ('p3*p4', '(m5**2 + 2*m1**2 + 2*m2**2 + m3**2 + m4**2 - s12 - s13 - s14 - s23 - s24)/2'),
+                              ('p1*p5', '(m1**2 + m2**2 + m3**2 + m4**2 - s12 - s13 - s14)/2'),
+                              ('p2*p5', '(m1**2 + m2**2 + m3**2 + m4**2 - s12 - s23 - s24)/2'),
+                              ('p3*p5', '(s12 + s14 + s24 - m1**2 - m2**2 - m3**2 - m4**2 - m5**2)/2'),
+                              ('p4*p5', '(s12 + s13 + s23 - m1**2 - m2**2 - m3**2 - m4**2 - m5**2)/2'),
+                              ('m1**2', 't1*m1s'),
+                              ('m2**2', 't1*m2s'),
+                              ('m3**2', 't1*m3s'),
+                              ('m4**2', '0'),
+                              ('m5**2', '0'),
+    ]
+    )
+
+Region (-2,-1,-2,-1,-2,0,-1,0,1)
+Region (-2,-1,-1,-1,-1,0,0,0,1)
+Region (-2,-1,-1,0,-1,0,-1,0,1)
+Region (-1,-1,-2,-1,-1,0,0,0,1)
+Region (-1,-1,-1,-1,0,0,0,0,1)
+Region (-1,-1,-1,0,-2,0,-1,0,1)
+Region (-1,-1,-1,0,-1,0,0,0,1)
+Region (-1,-1,0,0,-1,0,-1,0,1)
+Region (-1,-1,0,0,0,0,0,0,1)
+Region (-1,0,-2,-1,-1,0,-1,0,1)
+Region (-1,0,-1,-1,-2,0,-1,0,1)
+Region (-1,0,-1,-1,-1,0,0,0,1)
+Region (-1,0,-1,0,-1,0,-1,0,1)
+Region (0,-1,-1,-2,0,-2,-1,-2,1)
+Region (0,0,-1,-1,-1,0,-1,0,1)
+Region (0,0,-1,-1,0,-1,0,-1,1)
+Region (0,0,-1,-1,0,0,0,0,1)
+Region (0,0,0,0,-1,0,-1,0,1)
+Region (0,0,0,0,0,0,0,0,1)
+
+# FRI (momentum-space) regions: 19 (runtime 0.0s)
+FRI region  1: [S, C_1, S, C_2, S, H, C_3, H]  ->  scaling vector (-2, -1, -2, -1, -2, 0, -1, 0, 1)
+FRI region  2: [S, C_1, C_2, C_2, C_2, H, H, H]  ->  scaling vector (-2, -1, -1, -1, -1, 0, 0, 0, 1)
+FRI region  3: [S, C_1, C_3, H, C_3, H, C_3, H]  ->  scaling vector (-2, -1, -1, 0, -1, 0, -1, 0, 1)
+FRI region  4: [C_1, C_1, S, C_2, C_1, H, H, H]  ->  scaling vector (-1, -1, -2, -1, -1, 0, 0, 0, 1)
+FRI region  5: [C_1, C_1, C_2, C_2, H, H, H, H]  ->  scaling vector (-1, -1, -1, -1, 0, 0, 0, 0, 1)
+FRI region  6: [C_1, C_1, C_1, H, S, H, C_3, H]  ->  scaling vector (-1, -1, -1, 0, -2, 0, -1, 0, 1)
+FRI region  7: [C_1, C_1, C_1, H, C_1, H, H, H]  ->  scaling vector (-1, -1, -1, 0, -1, 0, 0, 0, 1)
+FRI region  8: [C_1, C_1, H, H, C_3, H, C_3, H]  ->  scaling vector (-1, -1, 0, 0, -1, 0, -1, 0, 1)
+FRI region  9: [C_1, C_1, H, H, H, H, H, H]  ->  scaling vector (-1, -1, 0, 0, 0, 0, 0, 0, 1)
+FRI region 10: [C_3, H, S, C_2, C_3, H, C_3, H]  ->  scaling vector (-1, 0, -2, -1, -1, 0, -1, 0, 1)
+FRI region 11: [C_2, H, C_2, C_2, S, H, C_3, H]  ->  scaling vector (-1, 0, -1, -1, -2, 0, -1, 0, 1)
+FRI region 12: [C_2, H, C_2, C_2, C_2, H, H, H]  ->  scaling vector (-1, 0, -1, -1, -1, 0, 0, 0, 1)
+FRI region 13: [C_3, H, C_3, H, C_3, H, C_3, H]  ->  scaling vector (-1, 0, -1, 0, -1, 0, -1, 0, 1)
+FRI region 14: [H, C_5, C_2, S, H, S, C_4, S]  ->  scaling vector (0, -1, -1, -2, 0, -2, -1, -2, 1)
+FRI region 15: [H, H, C_2, C_2, C_3, H, C_3, H]  ->  scaling vector (0, 0, -1, -1, -1, 0, -1, 0, 1)
+FRI region 16: [H, H, C_2, C_2, H, C_2, H, C_2]  ->  scaling vector (0, 0, -1, -1, 0, -1, 0, -1, 1)
+FRI region 17: [H, H, C_2, C_2, H, H, H, H]  ->  scaling vector (0, 0, -1, -1, 0, 0, 0, 0, 1)
+FRI region 18: [H, H, H, H, C_3, H, C_3, H]  ->  scaling vector (0, 0, 0, 0, -1, 0, -1, 0, 1)
+FRI region 19: [H, H, H, H, H, H, H, H]  ->  scaling vector (0, 0, 0, 0, 0, 0, 0, 0, 1)
+
+# ==== FrogST_k2.txt ====
+name = 'FrogST_k2'
+    smallness_parameters = ['t1']
+    internal_lines = [['0', [1, 6]], ['0', [1, 5]], ['0', [2, 6]], ['0', [2, 7]], ['0', [3, 6]], ['0', [5, 7]], ['0', [3, 4]], ['0', [4, 7]]]
+    external_lines = [['p1', 1], ['p2', 2], ['p3', 3], ['p4', 4], ['p5', 5]]
+    li = psd.LoopIntegralFromGraph(
+       internal_lines = internal_lines,
+       external_lines = external_lines,
+       replacement_rules = [
+                              ('p1*p1', 'm1**2'),
+                              ('p2*p2', 'm2**2'),
+                              ('p3*p3', 'm3**2'),
+                              ('p4*p4', 'm4**2'),
+                              ('p5*p5', 'm5**2'),
+                              ('p1*p2', '(s12-m1**2-m2**2)/2'),
+                              ('p1*p3', '(s13-m1**2-m3**2)/2'),
+                              ('p1*p4', '(s14-m1**2-m4**2)/2'),
+                              ('p2*p3', '(s23-m2**2-m3**2)/2'),
+                              ('p2*p4', '(s24-m2**2-m4**2)/2'),
+                              ('p3*p4', '(m5**2 + 2*m1**2 + 2*m2**2 + m3**2 + m4**2 - s12 - s13 - s14 - s23 - s24)/2'),
+                              ('p1*p5', '(m1**2 + m2**2 + m3**2 + m4**2 - s12 - s13 - s14)/2'),
+                              ('p2*p5', '(m1**2 + m2**2 + m3**2 + m4**2 - s12 - s23 - s24)/2'),
+                              ('p3*p5', '(s12 + s14 + s24 - m1**2 - m2**2 - m3**2 - m4**2 - m5**2)/2'),
+                              ('p4*p5', '(s12 + s13 + s23 - m1**2 - m2**2 - m3**2 - m4**2 - m5**2)/2'),
+                              ('m1**2', 't1*m1s'),
+                              ('m2**2', 't1*m2s'),
+                              ('m3**2', '0'),
+                              ('m4**2', '0'),
+                              ('m5**2', '0'),
+    ]
+    )
+
+Region (-2,-1,-2,-1,-2,0,-1,0,1)
+Region (-2,-1,-1,-1,-1,0,0,0,1)
+Region (-1,-1,-2,-1,-1,0,0,0,1)
+Region (-1,-1,-1,-1,0,0,0,0,1)
+Region (-1,-1,-1,0,-1,0,0,0,1)
+Region (-1,-1,0,0,0,0,0,0,1)
+Region (-1,0,-1,-1,-1,0,0,0,1)
+Region (0,-1,-1,-2,0,-2,-1,-2,1)
+Region (0,0,-1,-1,0,-1,0,-1,1)
+Region (0,0,-1,-1,0,0,0,0,1)
+Region (0,0,0,0,0,0,0,0,1)
+
+# FRI (momentum-space) regions: 11 (runtime 0.0s)
+FRI region  1: [S, C_1, S, C_2, S, H, C_3, H]  ->  scaling vector (-2, -1, -2, -1, -2, 0, -1, 0, 1)
+FRI region  2: [S, C_1, C_2, C_2, C_2, H, H, H]  ->  scaling vector (-2, -1, -1, -1, -1, 0, 0, 0, 1)
+FRI region  3: [C_1, C_1, S, C_2, C_1, H, H, H]  ->  scaling vector (-1, -1, -2, -1, -1, 0, 0, 0, 1)
+FRI region  4: [C_1, C_1, C_2, C_2, H, H, H, H]  ->  scaling vector (-1, -1, -1, -1, 0, 0, 0, 0, 1)
+FRI region  5: [C_1, C_1, C_1, H, C_1, H, H, H]  ->  scaling vector (-1, -1, -1, 0, -1, 0, 0, 0, 1)
+FRI region  6: [C_1, C_1, H, H, H, H, H, H]  ->  scaling vector (-1, -1, 0, 0, 0, 0, 0, 0, 1)
+FRI region  7: [C_2, H, C_2, C_2, C_2, H, H, H]  ->  scaling vector (-1, 0, -1, -1, -1, 0, 0, 0, 1)
+FRI region  8: [H, C_5, C_2, S, H, S, C_4, S]  ->  scaling vector (0, -1, -1, -2, 0, -2, -1, -2, 1)
+FRI region  9: [H, H, C_2, C_2, H, C_2, H, C_2]  ->  scaling vector (0, 0, -1, -1, 0, -1, 0, -1, 1)
+FRI region 10: [H, H, C_2, C_2, H, H, H, H]  ->  scaling vector (0, 0, -1, -1, 0, 0, 0, 0, 1)
+FRI region 11: [H, H, H, H, H, H, H, H]  ->  scaling vector (0, 0, 0, 0, 0, 0, 0, 0, 1)
+
+# ==== FrogST_k3.txt ====
+name = 'FrogST_k3'
+    smallness_parameters = ['t1']
+    internal_lines = [['0', [1, 6]], ['0', [1, 5]], ['0', [2, 6]], ['0', [2, 7]], ['0', [3, 6]], ['0', [5, 7]], ['0', [3, 4]], ['0', [4, 7]]]
+    external_lines = [['p1', 1], ['p2', 2], ['p3', 3], ['p4', 4], ['p5', 5]]
+    li = psd.LoopIntegralFromGraph(
+       internal_lines = internal_lines,
+       external_lines = external_lines,
+       replacement_rules = [
+                              ('p1*p1', 'm1**2'),
+                              ('p2*p2', 'm2**2'),
+                              ('p3*p3', 'm3**2'),
+                              ('p4*p4', 'm4**2'),
+                              ('p5*p5', 'm5**2'),
+                              ('p1*p2', '(s12-m1**2-m2**2)/2'),
+                              ('p1*p3', '(s13-m1**2-m3**2)/2'),
+                              ('p1*p4', '(s14-m1**2-m4**2)/2'),
+                              ('p2*p3', '(s23-m2**2-m3**2)/2'),
+                              ('p2*p4', '(s24-m2**2-m4**2)/2'),
+                              ('p3*p4', '(m5**2 + 2*m1**2 + 2*m2**2 + m3**2 + m4**2 - s12 - s13 - s14 - s23 - s24)/2'),
+                              ('p1*p5', '(m1**2 + m2**2 + m3**2 + m4**2 - s12 - s13 - s14)/2'),
+                              ('p2*p5', '(m1**2 + m2**2 + m3**2 + m4**2 - s12 - s23 - s24)/2'),
+                              ('p3*p5', '(s12 + s14 + s24 - m1**2 - m2**2 - m3**2 - m4**2 - m5**2)/2'),
+                              ('p4*p5', '(s12 + s13 + s23 - m1**2 - m2**2 - m3**2 - m4**2 - m5**2)/2'),
+                              ('m1**2', 't1*m1s'),
+                              ('m2**2', 't1*t1*m2s'),
+                              ('m3**2', '0'),
+                              ('m4**2', '0'),
+                              ('m5**2', '0'),
+    ]
+    )
+
+Region (-3,-1,-3,-2,-3,0,-1,0,1)
+Region (-3,-1,-2,-2,-2,0,0,0,1)
+Region (-2,-1,-3,-2,-2,0,-1,0,1)
+Region (-2,-1,-2,-1,-2,0,-1,0,1)
+Region (-2,0,-2,-2,-2,0,0,0,1)
+Region (-1,-1,-3,-2,-1,0,0,0,1)
+Region (-1,-1,-2,-2,0,0,0,0,1)
+Region (-1,-1,-1,0,-1,0,0,0,1)
+Region (-1,-1,0,0,0,0,0,0,1)
+Region (0,-2,-2,-4,0,-4,-2,-4,1)
+Region (0,0,-2,-2,0,-2,0,-2,1)
+Region (0,0,-2,-2,0,0,0,0,1)
+Region (0,0,0,0,0,0,0,0,1)
+
+# FRI (momentum-space) regions: 13 (runtime 0.0s)
+FRI region  1: [S^1C_2^1, C_1, S^1C_2^1, C_2^2, S^1C_2^1, H, C_3, H]  ->  scaling vector (-3, -1, -3, -2, -3, 0, -1, 0, 1)
+FRI region  2: [S^1C_2^1, C_1, C_2^2, C_2^2, C_2^2, H, H, H]  ->  scaling vector (-3, -1, -2, -2, -2, 0, 0, 0, 1)
+FRI region  3: [S, C_1, S^1C_2^1, C_2^2, S, H, C_3, H]  ->  scaling vector (-2, -1, -3, -2, -2, 0, -1, 0, 1)
+FRI region  4: [S, C_1, S, C_2, S, H, C_3, H]  ->  scaling vector (-2, -1, -2, -1, -2, 0, -1, 0, 1)
+FRI region  5: [C_2^2, H, C_2^2, C_2^2, C_2^2, H, H, H]  ->  scaling vector (-2, 0, -2, -2, -2, 0, 0, 0, 1)
+FRI region  6: [C_1, C_1, S^1C_2^1, C_2^2, C_1, H, H, H]  ->  scaling vector (-1, -1, -3, -2, -1, 0, 0, 0, 1)
+FRI region  7: [C_1, C_1, C_2^2, C_2^2, H, H, H, H]  ->  scaling vector (-1, -1, -2, -2, 0, 0, 0, 0, 1)
+FRI region  8: [C_1, C_1, C_1, H, C_1, H, H, H]  ->  scaling vector (-1, -1, -1, 0, -1, 0, 0, 0, 1)
+FRI region  9: [C_1, C_1, H, H, H, H, H, H]  ->  scaling vector (-1, -1, 0, 0, 0, 0, 0, 0, 1)
+FRI region 10: [H, C_5^2, C_2^2, S^2, H, S^2, C_4^2, S^2]  ->  scaling vector (0, -2, -2, -4, 0, -4, -2, -4, 1)
+FRI region 11: [H, H, C_2^2, C_2^2, H, C_2^2, H, C_2^2]  ->  scaling vector (0, 0, -2, -2, 0, -2, 0, -2, 1)
+FRI region 12: [H, H, C_2^2, C_2^2, H, H, H, H]  ->  scaling vector (0, 0, -2, -2, 0, 0, 0, 0, 1)
+FRI region 13: [H, H, H, H, H, H, H, H]  ->  scaling vector (0, 0, 0, 0, 0, 0, 0, 0, 1)
+
+# ==== FrogSU_k0.txt ====
+name = 'FrogSU_k0'
+    smallness_parameters = ['t1']
+    internal_lines = [['0', [1, 6]], ['0', [1, 7]], ['0', [2, 6]], ['0', [2, 5]], ['0', [3, 6]], ['0', [5, 7]], ['0', [3, 4]], ['0', [4, 7]]]
+    external_lines = [['p1', 1], ['p2', 2], ['p3', 3], ['p4', 4], ['p5', 5]]
+    li = psd.LoopIntegralFromGraph(
+       internal_lines = internal_lines,
+       external_lines = external_lines,
+       replacement_rules = [
+                              ('p1*p1', 'm1**2'),
+                              ('p2*p2', 'm2**2'),
+                              ('p3*p3', 'm3**2'),
+                              ('p4*p4', 'm4**2'),
+                              ('p5*p5', 'm5**2'),
+                              ('p1*p2', '(s12-m1**2-m2**2)/2'),
+                              ('p1*p3', '(s13-m1**2-m3**2)/2'),
+                              ('p1*p4', '(s14-m1**2-m4**2)/2'),
+                              ('p2*p3', '(s23-m2**2-m3**2)/2'),
+                              ('p2*p4', '(s24-m2**2-m4**2)/2'),
+                              ('p3*p4', '(m5**2 + 2*m1**2 + 2*m2**2 + m3**2 + m4**2 - s12 - s13 - s14 - s23 - s24)/2'),
+                              ('p1*p5', '(m1**2 + m2**2 + m3**2 + m4**2 - s12 - s13 - s14)/2'),
+                              ('p2*p5', '(m1**2 + m2**2 + m3**2 + m4**2 - s12 - s23 - s24)/2'),
+                              ('p3*p5', '(s12 + s14 + s24 - m1**2 - m2**2 - m3**2 - m4**2 - m5**2)/2'),
+                              ('p4*p5', '(s12 + s13 + s23 - m1**2 - m2**2 - m3**2 - m4**2 - m5**2)/2'),
+                              ('m1**2', 't1*m1s'),
+                              ('m2**2', 't1*m2s'),
+                              ('m3**2', 't1*m3s'),
+                              ('m4**2', 't1*m4s'),
+                              ('m5**2', 't1*m5s'),
+    ]
+    )
+
+Region (-2,-1,-2,-1,-2,0,-1,0,1)
+Region (-2,-1,-1,-2,-1,-1,0,0,1)
+Region (-2,-1,-1,-1,-1,0,0,0,1)
+Region (-2,-1,-1,0,-1,0,-2,-1,1)
+Region (-2,-1,-1,0,-1,0,-1,0,1)
+Region (-1,-2,-1,-2,0,-1,0,-1,1)
+Region (-1,-2,0,-1,0,-2,-1,-2,1)
+Region (-1,-2,0,-1,0,-1,0,-1,1)
+Region (-1,-2,0,0,-1,-1,-2,-1,1)
+Region (-1,-2,0,0,0,-1,-1,-1,1)
+Region (-1,-1,-2,-1,-1,0,0,0,1)
+Region (-1,-1,-1,-2,0,-1,0,0,1)
+Region (-1,-1,-1,-1,0,0,0,0,1)
+Region (-1,-1,-1,0,-2,0,-1,0,1)
+Region (-1,-1,-1,0,-1,0,0,0,1)
+Region (-1,-1,0,-1,0,-2,0,-1,1)
+Region (-1,-1,0,-1,0,-1,0,0,1)
+Region (-1,-1,0,0,-1,0,-2,-1,1)
+Region (-1,-1,0,0,-1,0,-1,0,1)
+Region (-1,-1,0,0,0,-1,-1,-2,1)
+Region (-1,-1,0,0,0,-1,0,-1,1)
+Region (-1,-1,0,0,0,0,-1,-1,1)
+Region (-1,-1,0,0,0,0,0,0,1)
+Region (-1,0,-2,-1,-1,0,-2,-1,1)
+Region (-1,0,-2,-1,-1,0,-1,0,1)
+Region (-1,0,-1,-2,-2,-1,-1,0,1)
+Region (-1,0,-1,-2,-1,-1,0,0,1)
+Region (-1,0,-1,-1,-2,0,-1,0,1)
+Region (-1,0,-1,-1,-1,0,0,0,1)
+Region (-1,0,-1,0,-1,0,-2,-1,1)
+Region (-1,0,-1,0,-1,0,-1,0,1)
+Region (0,-1,-1,-2,0,-1,-1,-2,1)
+Region (0,-1,-1,-2,0,-1,0,-1,1)
+Region (0,-1,0,-1,-1,-2,-2,-1,1)
+Region (0,-1,0,-1,0,-2,-1,-1,1)
+Region (0,-1,0,-1,0,-1,-1,-2,1)
+Region (0,-1,0,-1,0,-1,0,-1,1)
+Region (0,-1,0,0,-1,-1,-2,-1,1)
+Region (0,-1,0,0,0,-1,-1,-1,1)
+Region (0,0,-1,-2,-1,-1,-2,-1,1)
+Region (0,0,-1,-2,-1,-1,-1,0,1)
+Region (0,0,-1,-2,0,-1,-1,-1,1)
+Region (0,0,-1,-2,0,-1,0,0,1)
+Region (0,0,-1,-1,-1,0,-2,-1,1)
+Region (0,0,-1,-1,-1,0,-1,0,1)
+Region (0,0,-1,-1,0,0,-1,-1,1)
+Region (0,0,-1,-1,0,0,0,0,1)
+Region (0,0,0,-1,-1,-1,-2,-1,1)
+Region (0,0,0,-1,-1,-1,-1,0,1)
+Region (0,0,0,-1,0,-1,-1,-1,1)
+Region (0,0,0,-1,0,-1,0,0,1)
+Region (0,0,0,0,-1,0,-2,-1,1)
+Region (0,0,0,0,-1,0,-1,0,1)
+Region (0,0,0,0,0,0,-1,-1,1)
+Region (0,0,0,0,0,0,0,0,1)
+
+# FRI (momentum-space) regions: 55 (runtime 0.0s)
+FRI region  1: [S, C_1, S, C_2, S, H, C_3, H]  ->  scaling vector (-2, -1, -2, -1, -2, 0, -1, 0, 1)
+FRI region  2: [S, C_1, C_2, S, C_2, C_5, H, H]  ->  scaling vector (-2, -1, -1, -2, -1, -1, 0, 0, 1)
+FRI region  3: [S, C_1, C_2, C_2, C_2, H, H, H]  ->  scaling vector (-2, -1, -1, -1, -1, 0, 0, 0, 1)
+FRI region  4: [S, C_1, C_3, H, C_3, H, S, C_4]  ->  scaling vector (-2, -1, -1, 0, -1, 0, -2, -1, 1)
+FRI region  5: [S, C_1, C_3, H, C_3, H, C_3, H]  ->  scaling vector (-2, -1, -1, 0, -1, 0, -1, 0, 1)
+FRI region  6: [C_1, S, C_2, S, H, C_5, H, C_5]  ->  scaling vector (-1, -2, -1, -2, 0, -1, 0, -1, 1)
+FRI region  7: [C_1, S, H, C_5, H, S, C_4, S]  ->  scaling vector (-1, -2, 0, -1, 0, -2, -1, -2, 1)
+FRI region  8: [C_1, S, H, C_5, H, C_5, H, C_5]  ->  scaling vector (-1, -2, 0, -1, 0, -1, 0, -1, 1)
+FRI region  9: [C_1, S, H, H, C_3, C_4, S, C_4]  ->  scaling vector (-1, -2, 0, 0, -1, -1, -2, -1, 1)
+FRI region 10: [C_1, S, H, H, H, C_4, C_4, C_4]  ->  scaling vector (-1, -2, 0, 0, 0, -1, -1, -1, 1)
+FRI region 11: [C_1, C_1, S, C_2, C_1, H, H, H]  ->  scaling vector (-1, -1, -2, -1, -1, 0, 0, 0, 1)
+FRI region 12: [C_1, C_1, C_2, S, H, C_5, H, H]  ->  scaling vector (-1, -1, -1, -2, 0, -1, 0, 0, 1)
+FRI region 13: [C_1, C_1, C_2, C_2, H, H, H, H]  ->  scaling vector (-1, -1, -1, -1, 0, 0, 0, 0, 1)
+FRI region 14: [C_1, C_1, C_1, H, S, H, C_3, H]  ->  scaling vector (-1, -1, -1, 0, -2, 0, -1, 0, 1)
+FRI region 15: [C_1, C_1, C_1, H, C_1, H, H, H]  ->  scaling vector (-1, -1, -1, 0, -1, 0, 0, 0, 1)
+FRI region 16: [C_1, C_1, H, C_5, H, S, H, C_1]  ->  scaling vector (-1, -1, 0, -1, 0, -2, 0, -1, 1)
+FRI region 17: [C_1, C_1, H, C_5, H, C_5, H, H]  ->  scaling vector (-1, -1, 0, -1, 0, -1, 0, 0, 1)
+FRI region 18: [C_1, C_1, H, H, C_3, H, S, C_4]  ->  scaling vector (-1, -1, 0, 0, -1, 0, -2, -1, 1)
+FRI region 19: [C_1, C_1, H, H, C_3, H, C_3, H]  ->  scaling vector (-1, -1, 0, 0, -1, 0, -1, 0, 1)
+FRI region 20: [C_1, C_1, H, H, H, C_1, C_4, S]  ->  scaling vector (-1, -1, 0, 0, 0, -1, -1, -2, 1)
+FRI region 21: [C_1, C_1, H, H, H, C_1, H, C_1]  ->  scaling vector (-1, -1, 0, 0, 0, -1, 0, -1, 1)
+FRI region 22: [C_1, C_1, H, H, H, H, C_4, C_4]  ->  scaling vector (-1, -1, 0, 0, 0, 0, -1, -1, 1)
+FRI region 23: [C_1, C_1, H, H, H, H, H, H]  ->  scaling vector (-1, -1, 0, 0, 0, 0, 0, 0, 1)
+FRI region 24: [C_3, H, S, C_2, C_3, H, S, C_4]  ->  scaling vector (-1, 0, -2, -1, -1, 0, -2, -1, 1)
+FRI region 25: [C_3, H, S, C_2, C_3, H, C_3, H]  ->  scaling vector (-1, 0, -2, -1, -1, 0, -1, 0, 1)
+FRI region 26: [C_2, H, C_2, S, S, C_5, C_3, H]  ->  scaling vector (-1, 0, -1, -2, -2, -1, -1, 0, 1)
+FRI region 27: [C_2, H, C_2, S, C_2, C_5, H, H]  ->  scaling vector (-1, 0, -1, -2, -1, -1, 0, 0, 1)
+FRI region 28: [C_2, H, C_2, C_2, S, H, C_3, H]  ->  scaling vector (-1, 0, -1, -1, -2, 0, -1, 0, 1)
+FRI region 29: [C_2, H, C_2, C_2, C_2, H, H, H]  ->  scaling vector (-1, 0, -1, -1, -1, 0, 0, 0, 1)
+FRI region 30: [C_3, H, C_3, H, C_3, H, S, C_4]  ->  scaling vector (-1, 0, -1, 0, -1, 0, -2, -1, 1)
+FRI region 31: [C_3, H, C_3, H, C_3, H, C_3, H]  ->  scaling vector (-1, 0, -1, 0, -1, 0, -1, 0, 1)
+FRI region 32: [H, C_5, C_2, S, H, C_5, C_4, S]  ->  scaling vector (0, -1, -1, -2, 0, -1, -1, -2, 1)
+FRI region 33: [H, C_5, C_2, S, H, C_5, H, C_5]  ->  scaling vector (0, -1, -1, -2, 0, -1, 0, -1, 1)
+FRI region 34: [H, C_4, H, C_5, C_3, S, S, C_4]  ->  scaling vector (0, -1, 0, -1, -1, -2, -2, -1, 1)
+FRI region 35: [H, C_4, H, C_5, H, S, C_4, C_4]  ->  scaling vector (0, -1, 0, -1, 0, -2, -1, -1, 1)
+FRI region 36: [H, C_5, H, C_5, H, C_5, C_4, S]  ->  scaling vector (0, -1, 0, -1, 0, -1, -1, -2, 1)
+FRI region 37: [H, C_5, H, C_5, H, C_5, H, C_5]  ->  scaling vector (0, -1, 0, -1, 0, -1, 0, -1, 1)
+FRI region 38: [H, C_4, H, H, C_3, C_4, S, C_4]  ->  scaling vector (0, -1, 0, 0, -1, -1, -2, -1, 1)
+FRI region 39: [H, C_4, H, H, H, C_4, C_4, C_4]  ->  scaling vector (0, -1, 0, 0, 0, -1, -1, -1, 1)
+FRI region 40: [H, H, C_2, S, C_3, C_5, S, C_4]  ->  scaling vector (0, 0, -1, -2, -1, -1, -2, -1, 1)
+FRI region 41: [H, H, C_2, S, C_3, C_5, C_3, H]  ->  scaling vector (0, 0, -1, -2, -1, -1, -1, 0, 1)
+FRI region 42: [H, H, C_2, S, H, C_5, C_4, C_4]  ->  scaling vector (0, 0, -1, -2, 0, -1, -1, -1, 1)
+FRI region 43: [H, H, C_2, S, H, C_5, H, H]  ->  scaling vector (0, 0, -1, -2, 0, -1, 0, 0, 1)
+FRI region 44: [H, H, C_2, C_2, C_3, H, S, C_4]  ->  scaling vector (0, 0, -1, -1, -1, 0, -2, -1, 1)
+FRI region 45: [H, H, C_2, C_2, C_3, H, C_3, H]  ->  scaling vector (0, 0, -1, -1, -1, 0, -1, 0, 1)
+FRI region 46: [H, H, C_2, C_2, H, H, C_4, C_4]  ->  scaling vector (0, 0, -1, -1, 0, 0, -1, -1, 1)
+FRI region 47: [H, H, C_2, C_2, H, H, H, H]  ->  scaling vector (0, 0, -1, -1, 0, 0, 0, 0, 1)
+FRI region 48: [H, H, H, C_5, C_3, C_5, S, C_4]  ->  scaling vector (0, 0, 0, -1, -1, -1, -2, -1, 1)
+FRI region 49: [H, H, H, C_5, C_3, C_5, C_3, H]  ->  scaling vector (0, 0, 0, -1, -1, -1, -1, 0, 1)
+FRI region 50: [H, H, H, C_5, H, C_5, C_4, C_4]  ->  scaling vector (0, 0, 0, -1, 0, -1, -1, -1, 1)
+FRI region 51: [H, H, H, C_5, H, C_5, H, H]  ->  scaling vector (0, 0, 0, -1, 0, -1, 0, 0, 1)
+FRI region 52: [H, H, H, H, C_3, H, S, C_4]  ->  scaling vector (0, 0, 0, 0, -1, 0, -2, -1, 1)
+FRI region 53: [H, H, H, H, C_3, H, C_3, H]  ->  scaling vector (0, 0, 0, 0, -1, 0, -1, 0, 1)
+FRI region 54: [H, H, H, H, H, H, C_4, C_4]  ->  scaling vector (0, 0, 0, 0, 0, 0, -1, -1, 1)
+FRI region 55: [H, H, H, H, H, H, H, H]  ->  scaling vector (0, 0, 0, 0, 0, 0, 0, 0, 1)
+
+# ==== FrogSU_k1.txt ====
+name = 'FrogSU_k1'
+    smallness_parameters = ['t1']
+    internal_lines = [['0', [1, 6]], ['0', [1, 7]], ['0', [2, 6]], ['0', [2, 5]], ['0', [3, 6]], ['0', [5, 7]], ['0', [3, 4]], ['0', [4, 7]]]
+    external_lines = [['p1', 1], ['p2', 2], ['p3', 3], ['p4', 4], ['p5', 5]]
+    li = psd.LoopIntegralFromGraph(
+       internal_lines = internal_lines,
+       external_lines = external_lines,
+       replacement_rules = [
+                              ('p1*p1', 'm1**2'),
+                              ('p2*p2', 'm2**2'),
+                              ('p3*p3', 'm3**2'),
+                              ('p4*p4', 'm4**2'),
+                              ('p5*p5', 'm5**2'),
+                              ('p1*p2', '(s12-m1**2-m2**2)/2'),
+                              ('p1*p3', '(s13-m1**2-m3**2)/2'),
+                              ('p1*p4', '(s14-m1**2-m4**2)/2'),
+                              ('p2*p3', '(s23-m2**2-m3**2)/2'),
+                              ('p2*p4', '(s24-m2**2-m4**2)/2'),
+                              ('p3*p4', '(m5**2 + 2*m1**2 + 2*m2**2 + m3**2 + m4**2 - s12 - s13 - s14 - s23 - s24)/2'),
+                              ('p1*p5', '(m1**2 + m2**2 + m3**2 + m4**2 - s12 - s13 - s14)/2'),
+                              ('p2*p5', '(m1**2 + m2**2 + m3**2 + m4**2 - s12 - s23 - s24)/2'),
+                              ('p3*p5', '(s12 + s14 + s24 - m1**2 - m2**2 - m3**2 - m4**2 - m5**2)/2'),
+                              ('p4*p5', '(s12 + s13 + s23 - m1**2 - m2**2 - m3**2 - m4**2 - m5**2)/2'),
+                              ('m1**2', 't1*m1s'),
+                              ('m2**2', 't1*m2s'),
+                              ('m3**2', 't1*m3s'),
+                              ('m4**2', '0'),
+                              ('m5**2', '0'),
+    ]
+    )
+
+Region (-2,-1,-2,-1,-2,0,-1,0,1)
+Region (-2,-1,-1,-1,-1,0,0,0,1)
+Region (-2,-1,-1,0,-1,0,-1,0,1)
+Region (-1,-2,0,-1,0,-2,-1,-2,1)
+Region (-1,-1,-2,-1,-1,0,0,0,1)
+Region (-1,-1,-1,-1,0,0,0,0,1)
+Region (-1,-1,-1,0,-2,0,-1,0,1)
+Region (-1,-1,-1,0,-1,0,0,0,1)
+Region (-1,-1,0,0,-1,0,-1,0,1)
+Region (-1,-1,0,0,0,-1,0,-1,1)
+Region (-1,-1,0,0,0,0,0,0,1)
+Region (-1,0,-2,-1,-1,0,-1,0,1)
+Region (-1,0,-1,-1,-2,0,-1,0,1)
+Region (-1,0,-1,-1,-1,0,0,0,1)
+Region (-1,0,-1,0,-1,0,-1,0,1)
+Region (0,0,-1,-1,-1,0,-1,0,1)
+Region (0,0,-1,-1,0,0,0,0,1)
+Region (0,0,0,0,-1,0,-1,0,1)
+Region (0,0,0,0,0,0,0,0,1)
+
+# FRI (momentum-space) regions: 19 (runtime 0.0s)
+FRI region  1: [S, C_1, S, C_2, S, H, C_3, H]  ->  scaling vector (-2, -1, -2, -1, -2, 0, -1, 0, 1)
+FRI region  2: [S, C_1, C_2, C_2, C_2, H, H, H]  ->  scaling vector (-2, -1, -1, -1, -1, 0, 0, 0, 1)
+FRI region  3: [S, C_1, C_3, H, C_3, H, C_3, H]  ->  scaling vector (-2, -1, -1, 0, -1, 0, -1, 0, 1)
+FRI region  4: [C_1, S, H, C_5, H, S, C_4, S]  ->  scaling vector (-1, -2, 0, -1, 0, -2, -1, -2, 1)
+FRI region  5: [C_1, C_1, S, C_2, C_1, H, H, H]  ->  scaling vector (-1, -1, -2, -1, -1, 0, 0, 0, 1)
+FRI region  6: [C_1, C_1, C_2, C_2, H, H, H, H]  ->  scaling vector (-1, -1, -1, -1, 0, 0, 0, 0, 1)
+FRI region  7: [C_1, C_1, C_1, H, S, H, C_3, H]  ->  scaling vector (-1, -1, -1, 0, -2, 0, -1, 0, 1)
+FRI region  8: [C_1, C_1, C_1, H, C_1, H, H, H]  ->  scaling vector (-1, -1, -1, 0, -1, 0, 0, 0, 1)
+FRI region  9: [C_1, C_1, H, H, C_3, H, C_3, H]  ->  scaling vector (-1, -1, 0, 0, -1, 0, -1, 0, 1)
+FRI region 10: [C_1, C_1, H, H, H, C_1, H, C_1]  ->  scaling vector (-1, -1, 0, 0, 0, -1, 0, -1, 1)
+FRI region 11: [C_1, C_1, H, H, H, H, H, H]  ->  scaling vector (-1, -1, 0, 0, 0, 0, 0, 0, 1)
+FRI region 12: [C_3, H, S, C_2, C_3, H, C_3, H]  ->  scaling vector (-1, 0, -2, -1, -1, 0, -1, 0, 1)
+FRI region 13: [C_2, H, C_2, C_2, S, H, C_3, H]  ->  scaling vector (-1, 0, -1, -1, -2, 0, -1, 0, 1)
+FRI region 14: [C_2, H, C_2, C_2, C_2, H, H, H]  ->  scaling vector (-1, 0, -1, -1, -1, 0, 0, 0, 1)
+FRI region 15: [C_3, H, C_3, H, C_3, H, C_3, H]  ->  scaling vector (-1, 0, -1, 0, -1, 0, -1, 0, 1)
+FRI region 16: [H, H, C_2, C_2, C_3, H, C_3, H]  ->  scaling vector (0, 0, -1, -1, -1, 0, -1, 0, 1)
+FRI region 17: [H, H, C_2, C_2, H, H, H, H]  ->  scaling vector (0, 0, -1, -1, 0, 0, 0, 0, 1)
+FRI region 18: [H, H, H, H, C_3, H, C_3, H]  ->  scaling vector (0, 0, 0, 0, -1, 0, -1, 0, 1)
+FRI region 19: [H, H, H, H, H, H, H, H]  ->  scaling vector (0, 0, 0, 0, 0, 0, 0, 0, 1)
+
+# ==== FrogSU_k2.txt ====
+name = 'FrogSU_k2'
+    smallness_parameters = ['t1']
+    internal_lines = [['0', [1, 6]], ['0', [1, 7]], ['0', [2, 6]], ['0', [2, 5]], ['0', [3, 6]], ['0', [5, 7]], ['0', [3, 4]], ['0', [4, 7]]]
+    external_lines = [['p1', 1], ['p2', 2], ['p3', 3], ['p4', 4], ['p5', 5]]
+    li = psd.LoopIntegralFromGraph(
+       internal_lines = internal_lines,
+       external_lines = external_lines,
+       replacement_rules = [
+                              ('p1*p1', 'm1**2'),
+                              ('p2*p2', 'm2**2'),
+                              ('p3*p3', 'm3**2'),
+                              ('p4*p4', 'm4**2'),
+                              ('p5*p5', 'm5**2'),
+                              ('p1*p2', '(s12-m1**2-m2**2)/2'),
+                              ('p1*p3', '(s13-m1**2-m3**2)/2'),
+                              ('p1*p4', '(s14-m1**2-m4**2)/2'),
+                              ('p2*p3', '(s23-m2**2-m3**2)/2'),
+                              ('p2*p4', '(s24-m2**2-m4**2)/2'),
+                              ('p3*p4', '(m5**2 + 2*m1**2 + 2*m2**2 + m3**2 + m4**2 - s12 - s13 - s14 - s23 - s24)/2'),
+                              ('p1*p5', '(m1**2 + m2**2 + m3**2 + m4**2 - s12 - s13 - s14)/2'),
+                              ('p2*p5', '(m1**2 + m2**2 + m3**2 + m4**2 - s12 - s23 - s24)/2'),
+                              ('p3*p5', '(s12 + s14 + s24 - m1**2 - m2**2 - m3**2 - m4**2 - m5**2)/2'),
+                              ('p4*p5', '(s12 + s13 + s23 - m1**2 - m2**2 - m3**2 - m4**2 - m5**2)/2'),
+                              ('m1**2', 't1*m1s'),
+                              ('m2**2', 't1*m2s'),
+                              ('m3**2', '0'),
+                              ('m4**2', '0'),
+                              ('m5**2', '0'),
+    ]
+    )
+
+Region (-2,-1,-2,-1,-2,0,-1,0,1)
+Region (-2,-1,-1,-1,-1,0,0,0,1)
+Region (-1,-2,0,-1,0,-2,-1,-2,1)
+Region (-1,-1,-2,-1,-1,0,0,0,1)
+Region (-1,-1,-1,-1,0,0,0,0,1)
+Region (-1,-1,-1,0,-1,0,0,0,1)
+Region (-1,-1,0,0,0,-1,0,-1,1)
+Region (-1,-1,0,0,0,0,0,0,1)
+Region (-1,0,-1,-1,-1,0,0,0,1)
+Region (0,0,-1,-1,0,0,0,0,1)
+Region (0,0,0,0,0,0,0,0,1)
+
+# FRI (momentum-space) regions: 11 (runtime 0.0s)
+FRI region  1: [S, C_1, S, C_2, S, H, C_3, H]  ->  scaling vector (-2, -1, -2, -1, -2, 0, -1, 0, 1)
+FRI region  2: [S, C_1, C_2, C_2, C_2, H, H, H]  ->  scaling vector (-2, -1, -1, -1, -1, 0, 0, 0, 1)
+FRI region  3: [C_1, S, H, C_5, H, S, C_4, S]  ->  scaling vector (-1, -2, 0, -1, 0, -2, -1, -2, 1)
+FRI region  4: [C_1, C_1, S, C_2, C_1, H, H, H]  ->  scaling vector (-1, -1, -2, -1, -1, 0, 0, 0, 1)
+FRI region  5: [C_1, C_1, C_2, C_2, H, H, H, H]  ->  scaling vector (-1, -1, -1, -1, 0, 0, 0, 0, 1)
+FRI region  6: [C_1, C_1, C_1, H, C_1, H, H, H]  ->  scaling vector (-1, -1, -1, 0, -1, 0, 0, 0, 1)
+FRI region  7: [C_1, C_1, H, H, H, C_1, H, C_1]  ->  scaling vector (-1, -1, 0, 0, 0, -1, 0, -1, 1)
+FRI region  8: [C_1, C_1, H, H, H, H, H, H]  ->  scaling vector (-1, -1, 0, 0, 0, 0, 0, 0, 1)
+FRI region  9: [C_2, H, C_2, C_2, C_2, H, H, H]  ->  scaling vector (-1, 0, -1, -1, -1, 0, 0, 0, 1)
+FRI region 10: [H, H, C_2, C_2, H, H, H, H]  ->  scaling vector (0, 0, -1, -1, 0, 0, 0, 0, 1)
+FRI region 11: [H, H, H, H, H, H, H, H]  ->  scaling vector (0, 0, 0, 0, 0, 0, 0, 0, 1)
+
+# ==== FrogSU_k3.txt ====
+name = 'FrogSU_k3'
+    smallness_parameters = ['t1']
+    internal_lines = [['0', [1, 6]], ['0', [1, 7]], ['0', [2, 6]], ['0', [2, 5]], ['0', [3, 6]], ['0', [5, 7]], ['0', [3, 4]], ['0', [4, 7]]]
+    external_lines = [['p1', 1], ['p2', 2], ['p3', 3], ['p4', 4], ['p5', 5]]
+    li = psd.LoopIntegralFromGraph(
+       internal_lines = internal_lines,
+       external_lines = external_lines,
+       replacement_rules = [
+                              ('p1*p1', 'm1**2'),
+                              ('p2*p2', 'm2**2'),
+                              ('p3*p3', 'm3**2'),
+                              ('p4*p4', 'm4**2'),
+                              ('p5*p5', 'm5**2'),
+                              ('p1*p2', '(s12-m1**2-m2**2)/2'),
+                              ('p1*p3', '(s13-m1**2-m3**2)/2'),
+                              ('p1*p4', '(s14-m1**2-m4**2)/2'),
+                              ('p2*p3', '(s23-m2**2-m3**2)/2'),
+                              ('p2*p4', '(s24-m2**2-m4**2)/2'),
+                              ('p3*p4', '(m5**2 + 2*m1**2 + 2*m2**2 + m3**2 + m4**2 - s12 - s13 - s14 - s23 - s24)/2'),
+                              ('p1*p5', '(m1**2 + m2**2 + m3**2 + m4**2 - s12 - s13 - s14)/2'),
+                              ('p2*p5', '(m1**2 + m2**2 + m3**2 + m4**2 - s12 - s23 - s24)/2'),
+                              ('p3*p5', '(s12 + s14 + s24 - m1**2 - m2**2 - m3**2 - m4**2 - m5**2)/2'),
+                              ('p4*p5', '(s12 + s13 + s23 - m1**2 - m2**2 - m3**2 - m4**2 - m5**2)/2'),
+                              ('m1**2', 't1*m1s'),
+                              ('m2**2', 't1*t1*m2s'),
+                              ('m3**2', '0'),
+                              ('m4**2', '0'),
+                              ('m5**2', '0'),
+    ]
+    )
+
+Region (-3,-1,-3,-2,-3,0,-1,0,1)
+Region (-3,-1,-2,-2,-2,0,0,0,1)
+Region (-2,-1,-3,-2,-2,0,-1,0,1)
+Region (-2,-1,-2,-1,-2,0,-1,0,1)
+Region (-2,0,-2,-2,-2,0,0,0,1)
+Region (-1,-2,0,-1,0,-2,-1,-2,1)
+Region (-1,-1,-3,-2,-1,0,0,0,1)
+Region (-1,-1,-2,-2,0,0,0,0,1)
+Region (-1,-1,-1,0,-1,0,0,0,1)
+Region (-1,-1,0,0,0,-1,0,-1,1)
+Region (-1,-1,0,0,0,0,0,0,1)
+Region (0,0,-2,-2,0,0,0,0,1)
+Region (0,0,0,0,0,0,0,0,1)
+
+# FRI (momentum-space) regions: 13 (runtime 0.0s)
+FRI region  1: [S^1C_2^1, C_1, S^1C_2^1, C_2^2, S^1C_2^1, H, C_3, H]  ->  scaling vector (-3, -1, -3, -2, -3, 0, -1, 0, 1)
+FRI region  2: [S^1C_2^1, C_1, C_2^2, C_2^2, C_2^2, H, H, H]  ->  scaling vector (-3, -1, -2, -2, -2, 0, 0, 0, 1)
+FRI region  3: [S, C_1, S^1C_2^1, C_2^2, S, H, C_3, H]  ->  scaling vector (-2, -1, -3, -2, -2, 0, -1, 0, 1)
+FRI region  4: [S, C_1, S, C_2, S, H, C_3, H]  ->  scaling vector (-2, -1, -2, -1, -2, 0, -1, 0, 1)
+FRI region  5: [C_2^2, H, C_2^2, C_2^2, C_2^2, H, H, H]  ->  scaling vector (-2, 0, -2, -2, -2, 0, 0, 0, 1)
+FRI region  6: [C_1, S, H, C_5, H, S, C_4, S]  ->  scaling vector (-1, -2, 0, -1, 0, -2, -1, -2, 1)
+FRI region  7: [C_1, C_1, S^1C_2^1, C_2^2, C_1, H, H, H]  ->  scaling vector (-1, -1, -3, -2, -1, 0, 0, 0, 1)
+FRI region  8: [C_1, C_1, C_2^2, C_2^2, H, H, H, H]  ->  scaling vector (-1, -1, -2, -2, 0, 0, 0, 0, 1)
+FRI region  9: [C_1, C_1, C_1, H, C_1, H, H, H]  ->  scaling vector (-1, -1, -1, 0, -1, 0, 0, 0, 1)
+FRI region 10: [C_1, C_1, H, H, H, C_1, H, C_1]  ->  scaling vector (-1, -1, 0, 0, 0, -1, 0, -1, 1)
+FRI region 11: [C_1, C_1, H, H, H, H, H, H]  ->  scaling vector (-1, -1, 0, 0, 0, 0, 0, 0, 1)
+FRI region 12: [H, H, C_2^2, C_2^2, H, H, H, H]  ->  scaling vector (0, 0, -2, -2, 0, 0, 0, 0, 1)
+FRI region 13: [H, H, H, H, H, H, H, H]  ->  scaling vector (0, 0, 0, 0, 0, 0, 0, 0, 1)
+
+# ==== FrogT_k0.txt ====
+name = 'FrogT_k0'
+    smallness_parameters = ['t1']
+    internal_lines = [['0', [1, 6]], ['0', [1, 5]], ['0', [2, 3]], ['0', [2, 5]], ['0', [3, 6]], ['0', [6, 4]], ['0', [4, 5]]]
+    external_lines = [['p1', 1], ['p2', 2], ['p3', 3], ['p4', 4], ['p5', 5]]
+    li = psd.LoopIntegralFromGraph(
+       internal_lines = internal_lines,
+       external_lines = external_lines,
+       replacement_rules = [
+                              ('p1*p1', 'm1**2'),
+                              ('p2*p2', 'm2**2'),
+                              ('p3*p3', 'm3**2'),
+                              ('p4*p4', 'm4**2'),
+                              ('p5*p5', 'm5**2'),
+                              ('p1*p2', '(s12-m1**2-m2**2)/2'),
+                              ('p1*p3', '(s13-m1**2-m3**2)/2'),
+                              ('p1*p4', '(s14-m1**2-m4**2)/2'),
+                              ('p2*p3', '(s23-m2**2-m3**2)/2'),
+                              ('p2*p4', '(s24-m2**2-m4**2)/2'),
+                              ('p3*p4', '(m5**2 + 2*m1**2 + 2*m2**2 + m3**2 + m4**2 - s12 - s13 - s14 - s23 - s24)/2'),
+                              ('p1*p5', '(m1**2 + m2**2 + m3**2 + m4**2 - s12 - s13 - s14)/2'),
+                              ('p2*p5', '(m1**2 + m2**2 + m3**2 + m4**2 - s12 - s23 - s24)/2'),
+                              ('p3*p5', '(s12 + s14 + s24 - m1**2 - m2**2 - m3**2 - m4**2 - m5**2)/2'),
+                              ('p4*p5', '(s12 + s13 + s23 - m1**2 - m2**2 - m3**2 - m4**2 - m5**2)/2'),
+                              ('m1**2', 't1*m1s'),
+                              ('m2**2', 't1*m2s'),
+                              ('m3**2', 't1*m3s'),
+                              ('m4**2', 't1*m4s'),
+                              ('m5**2', 't1*m5s'),
+    ]
+    )
+
+Region (-2,-1,-2,-1,-1,-1,0,1)
+Region (-2,-1,-1,0,-2,-2,-1,1)
+Region (-2,-1,-1,0,-1,-1,0,1)
+Region (-2,-1,0,0,-1,-1,-1,1)
+Region (-1,-2,-1,-2,0,0,-1,1)
+Region (-1,-2,0,-1,0,-1,-2,1)
+Region (-1,-2,0,-1,0,0,-1,1)
+Region (-1,-1,-2,-1,-1,0,0,1)
+Region (-1,-1,-1,-1,0,0,0,1)
+Region (-1,-1,-1,0,-2,-1,0,1)
+Region (-1,-1,-1,0,-1,0,0,1)
+Region (-1,-1,0,0,-1,-2,-1,1)
+Region (-1,-1,0,0,-1,-1,0,1)
+Region (-1,-1,0,0,0,-1,-1,1)
+Region (-1,-1,0,0,0,0,0,1)
+Region (-1,0,-2,-1,-1,-2,-1,1)
+Region (-1,0,-2,-1,-1,-1,0,1)
+Region (-1,0,-1,0,-2,-1,-1,1)
+Region (-1,0,-1,0,-1,-2,-1,1)
+Region (-1,0,-1,0,-1,-1,0,1)
+Region (-1,0,0,0,-1,-1,-1,1)
+Region (0,-1,-1,-2,0,-1,-2,1)
+Region (0,-1,-1,-2,0,0,-1,1)
+Region (0,-1,0,-1,0,-1,-2,1)
+Region (0,-1,0,-1,0,0,-1,1)
+Region (0,0,-2,-1,-1,-1,-1,1)
+Region (0,0,-2,-1,-1,0,0,1)
+Region (0,0,-1,-1,0,-1,-1,1)
+Region (0,0,-1,-1,0,0,0,1)
+Region (0,0,-1,0,-1,-1,-1,1)
+Region (0,0,-1,0,-1,0,0,1)
+Region (0,0,0,0,0,-1,-1,1)
+Region (0,0,0,0,0,0,0,1)
+
+# FRI (momentum-space) regions: 33 (runtime 0.0s)
+FRI region  1: [S, C_1, S, C_2, C_3, C_3, H]  ->  scaling vector (-2, -1, -2, -1, -1, -1, 0, 1)
+FRI region  2: [S, C_1, C_3, H, S, S, C_4]  ->  scaling vector (-2, -1, -1, 0, -2, -2, -1, 1)
+FRI region  3: [S, C_1, C_3, H, C_3, C_3, H]  ->  scaling vector (-2, -1, -1, 0, -1, -1, 0, 1)
+FRI region  4: [S, C_1, H, H, C_4, C_4, C_4]  ->  scaling vector (-2, -1, 0, 0, -1, -1, -1, 1)
+FRI region  5: [C_1, S, C_2, S, H, H, C_5]  ->  scaling vector (-1, -2, -1, -2, 0, 0, -1, 1)
+FRI region  6: [C_1, S, H, C_5, H, C_4, S]  ->  scaling vector (-1, -2, 0, -1, 0, -1, -2, 1)
+FRI region  7: [C_1, S, H, C_5, H, H, C_5]  ->  scaling vector (-1, -2, 0, -1, 0, 0, -1, 1)
+FRI region  8: [C_1, C_1, S, C_2, C_3, H, H]  ->  scaling vector (-1, -1, -2, -1, -1, 0, 0, 1)
+FRI region  9: [C_1, C_1, C_2, C_2, H, H, H]  ->  scaling vector (-1, -1, -1, -1, 0, 0, 0, 1)
+FRI region 10: [C_1, C_1, C_3, H, S, C_1, H]  ->  scaling vector (-1, -1, -1, 0, -2, -1, 0, 1)
+FRI region 11: [C_1, C_1, C_3, H, C_3, H, H]  ->  scaling vector (-1, -1, -1, 0, -1, 0, 0, 1)
+FRI region 12: [C_1, C_1, H, H, C_1, S, C_4]  ->  scaling vector (-1, -1, 0, 0, -1, -2, -1, 1)
+FRI region 13: [C_1, C_1, H, H, C_1, C_1, H]  ->  scaling vector (-1, -1, 0, 0, -1, -1, 0, 1)
+FRI region 14: [C_1, C_1, H, H, H, C_4, C_4]  ->  scaling vector (-1, -1, 0, 0, 0, -1, -1, 1)
+FRI region 15: [C_1, C_1, H, H, H, H, H]  ->  scaling vector (-1, -1, 0, 0, 0, 0, 0, 1)
+FRI region 16: [C_3, H, S, C_2, C_3, S, C_4]  ->  scaling vector (-1, 0, -2, -1, -1, -2, -1, 1)
+FRI region 17: [C_3, H, S, C_2, C_3, C_3, H]  ->  scaling vector (-1, 0, -2, -1, -1, -1, 0, 1)
+FRI region 18: [C_4, H, C_3, H, S, C_4, C_4]  ->  scaling vector (-1, 0, -1, 0, -2, -1, -1, 1)
+FRI region 19: [C_3, H, C_3, H, C_3, S, C_4]  ->  scaling vector (-1, 0, -1, 0, -1, -2, -1, 1)
+FRI region 20: [C_3, H, C_3, H, C_3, C_3, H]  ->  scaling vector (-1, 0, -1, 0, -1, -1, 0, 1)
+FRI region 21: [C_4, H, H, H, C_4, C_4, C_4]  ->  scaling vector (-1, 0, 0, 0, -1, -1, -1, 1)
+FRI region 22: [H, C_5, C_2, S, H, C_4, S]  ->  scaling vector (0, -1, -1, -2, 0, -1, -2, 1)
+FRI region 23: [H, C_5, C_2, S, H, H, C_5]  ->  scaling vector (0, -1, -1, -2, 0, 0, -1, 1)
+FRI region 24: [H, C_5, H, C_5, H, C_4, S]  ->  scaling vector (0, -1, 0, -1, 0, -1, -2, 1)
+FRI region 25: [H, C_5, H, C_5, H, H, C_5]  ->  scaling vector (0, -1, 0, -1, 0, 0, -1, 1)
+FRI region 26: [H, H, S, C_2, C_3, C_4, C_4]  ->  scaling vector (0, 0, -2, -1, -1, -1, -1, 1)
+FRI region 27: [H, H, S, C_2, C_3, H, H]  ->  scaling vector (0, 0, -2, -1, -1, 0, 0, 1)
+FRI region 28: [H, H, C_2, C_2, H, C_4, C_4]  ->  scaling vector (0, 0, -1, -1, 0, -1, -1, 1)
+FRI region 29: [H, H, C_2, C_2, H, H, H]  ->  scaling vector (0, 0, -1, -1, 0, 0, 0, 1)
+FRI region 30: [H, H, C_3, H, C_3, C_4, C_4]  ->  scaling vector (0, 0, -1, 0, -1, -1, -1, 1)
+FRI region 31: [H, H, C_3, H, C_3, H, H]  ->  scaling vector (0, 0, -1, 0, -1, 0, 0, 1)
+FRI region 32: [H, H, H, H, H, C_4, C_4]  ->  scaling vector (0, 0, 0, 0, 0, -1, -1, 1)
+FRI region 33: [H, H, H, H, H, H, H]  ->  scaling vector (0, 0, 0, 0, 0, 0, 0, 1)
+
+# ==== FrogT_k1.txt ====
+name = 'FrogT_k1'
+    smallness_parameters = ['t1']
+    internal_lines = [['0', [1, 6]], ['0', [1, 5]], ['0', [2, 3]], ['0', [2, 5]], ['0', [3, 6]], ['0', [6, 4]], ['0', [4, 5]]]
+    external_lines = [['p1', 1], ['p2', 2], ['p3', 3], ['p4', 4], ['p5', 5]]
+    li = psd.LoopIntegralFromGraph(
+       internal_lines = internal_lines,
+       external_lines = external_lines,
+       replacement_rules = [
+                              ('p1*p1', 'm1**2'),
+                              ('p2*p2', 'm2**2'),
+                              ('p3*p3', 'm3**2'),
+                              ('p4*p4', 'm4**2'),
+                              ('p5*p5', 'm5**2'),
+                              ('p1*p2', '(s12-m1**2-m2**2)/2'),
+                              ('p1*p3', '(s13-m1**2-m3**2)/2'),
+                              ('p1*p4', '(s14-m1**2-m4**2)/2'),
+                              ('p2*p3', '(s23-m2**2-m3**2)/2'),
+                              ('p2*p4', '(s24-m2**2-m4**2)/2'),
+                              ('p3*p4', '(m5**2 + 2*m1**2 + 2*m2**2 + m3**2 + m4**2 - s12 - s13 - s14 - s23 - s24)/2'),
+                              ('p1*p5', '(m1**2 + m2**2 + m3**2 + m4**2 - s12 - s13 - s14)/2'),
+                              ('p2*p5', '(m1**2 + m2**2 + m3**2 + m4**2 - s12 - s23 - s24)/2'),
+                              ('p3*p5', '(s12 + s14 + s24 - m1**2 - m2**2 - m3**2 - m4**2 - m5**2)/2'),
+                              ('p4*p5', '(s12 + s13 + s23 - m1**2 - m2**2 - m3**2 - m4**2 - m5**2)/2'),
+                              ('m1**2', 't1*m1s'),
+                              ('m2**2', 't1*m2s'),
+                              ('m3**2', 't1*m3s'),
+                              ('m4**2', '0'),
+                              ('m5**2', '0'),
+    ]
+    )
+
+Region (-2,-1,-2,-1,-1,-1,0,1)
+Region (-2,-1,-1,0,-2,-2,-1,1)
+Region (-2,-1,-1,0,-1,-1,0,1)
+Region (-1,-1,-2,-1,-1,0,0,1)
+Region (-1,-1,-1,-1,0,0,0,1)
+Region (-1,-1,-1,0,-2,-1,0,1)
+Region (-1,-1,-1,0,-1,0,0,1)
+Region (-1,-1,0,0,-1,-1,0,1)
+Region (-1,-1,0,0,0,0,0,1)
+Region (-1,0,-2,-1,-1,-1,0,1)
+Region (-1,0,-1,0,-1,-1,0,1)
+Region (0,0,-2,-1,-1,0,0,1)
+Region (0,0,-1,-1,0,0,0,1)
+Region (0,0,-1,0,-1,0,0,1)
+Region (0,0,0,0,0,0,0,1)
+
+# FRI (momentum-space) regions: 15 (runtime 0.0s)
+FRI region  1: [S, C_1, S, C_2, C_3, C_3, H]  ->  scaling vector (-2, -1, -2, -1, -1, -1, 0, 1)
+FRI region  2: [S, C_1, C_3, H, S, S, C_4]  ->  scaling vector (-2, -1, -1, 0, -2, -2, -1, 1)
+FRI region  3: [S, C_1, C_3, H, C_3, C_3, H]  ->  scaling vector (-2, -1, -1, 0, -1, -1, 0, 1)
+FRI region  4: [C_1, C_1, S, C_2, C_3, H, H]  ->  scaling vector (-1, -1, -2, -1, -1, 0, 0, 1)
+FRI region  5: [C_1, C_1, C_2, C_2, H, H, H]  ->  scaling vector (-1, -1, -1, -1, 0, 0, 0, 1)
+FRI region  6: [C_1, C_1, C_3, H, S, C_1, H]  ->  scaling vector (-1, -1, -1, 0, -2, -1, 0, 1)
+FRI region  7: [C_1, C_1, C_3, H, C_3, H, H]  ->  scaling vector (-1, -1, -1, 0, -1, 0, 0, 1)
+FRI region  8: [C_1, C_1, H, H, C_1, C_1, H]  ->  scaling vector (-1, -1, 0, 0, -1, -1, 0, 1)
+FRI region  9: [C_1, C_1, H, H, H, H, H]  ->  scaling vector (-1, -1, 0, 0, 0, 0, 0, 1)
+FRI region 10: [C_3, H, S, C_2, C_3, C_3, H]  ->  scaling vector (-1, 0, -2, -1, -1, -1, 0, 1)
+FRI region 11: [C_3, H, C_3, H, C_3, C_3, H]  ->  scaling vector (-1, 0, -1, 0, -1, -1, 0, 1)
+FRI region 12: [H, H, S, C_2, C_3, H, H]  ->  scaling vector (0, 0, -2, -1, -1, 0, 0, 1)
+FRI region 13: [H, H, C_2, C_2, H, H, H]  ->  scaling vector (0, 0, -1, -1, 0, 0, 0, 1)
+FRI region 14: [H, H, C_3, H, C_3, H, H]  ->  scaling vector (0, 0, -1, 0, -1, 0, 0, 1)
+FRI region 15: [H, H, H, H, H, H, H]  ->  scaling vector (0, 0, 0, 0, 0, 0, 0, 1)
+
+# ==== FrogT_k2.txt ====
+name = 'FrogT_k2'
+    smallness_parameters = ['t1']
+    internal_lines = [['0', [1, 6]], ['0', [1, 5]], ['0', [2, 3]], ['0', [2, 5]], ['0', [3, 6]], ['0', [6, 4]], ['0', [4, 5]]]
+    external_lines = [['p1', 1], ['p2', 2], ['p3', 3], ['p4', 4], ['p5', 5]]
+    li = psd.LoopIntegralFromGraph(
+       internal_lines = internal_lines,
+       external_lines = external_lines,
+       replacement_rules = [
+                              ('p1*p1', 'm1**2'),
+                              ('p2*p2', 'm2**2'),
+                              ('p3*p3', 'm3**2'),
+                              ('p4*p4', 'm4**2'),
+                              ('p5*p5', 'm5**2'),
+                              ('p1*p2', '(s12-m1**2-m2**2)/2'),
+                              ('p1*p3', '(s13-m1**2-m3**2)/2'),
+                              ('p1*p4', '(s14-m1**2-m4**2)/2'),
+                              ('p2*p3', '(s23-m2**2-m3**2)/2'),
+                              ('p2*p4', '(s24-m2**2-m4**2)/2'),
+                              ('p3*p4', '(m5**2 + 2*m1**2 + 2*m2**2 + m3**2 + m4**2 - s12 - s13 - s14 - s23 - s24)/2'),
+                              ('p1*p5', '(m1**2 + m2**2 + m3**2 + m4**2 - s12 - s13 - s14)/2'),
+                              ('p2*p5', '(m1**2 + m2**2 + m3**2 + m4**2 - s12 - s23 - s24)/2'),
+                              ('p3*p5', '(s12 + s14 + s24 - m1**2 - m2**2 - m3**2 - m4**2 - m5**2)/2'),
+                              ('p4*p5', '(s12 + s13 + s23 - m1**2 - m2**2 - m3**2 - m4**2 - m5**2)/2'),
+                              ('m1**2', 't1*m1s'),
+                              ('m2**2', 't1*m2s'),
+                              ('m3**2', '0'),
+                              ('m4**2', '0'),
+                              ('m5**2', '0'),
+    ]
+    )
+
+Region (-2,-1,-1,0,-2,-2,-1,1)
+Region (-1,-1,-1,-1,0,0,0,1)
+Region (-1,-1,0,0,-1,-1,0,1)
+Region (-1,-1,0,0,0,0,0,1)
+Region (0,0,-1,-1,0,0,0,1)
+Region (0,0,0,0,0,0,0,1)
+
+# FRI (momentum-space) regions: 6 (runtime 0.0s)
+FRI region  1: [S, C_1, C_3, H, S, S, C_4]  ->  scaling vector (-2, -1, -1, 0, -2, -2, -1, 1)
+FRI region  2: [C_1, C_1, C_2, C_2, H, H, H]  ->  scaling vector (-1, -1, -1, -1, 0, 0, 0, 1)
+FRI region  3: [C_1, C_1, H, H, C_1, C_1, H]  ->  scaling vector (-1, -1, 0, 0, -1, -1, 0, 1)
+FRI region  4: [C_1, C_1, H, H, H, H, H]  ->  scaling vector (-1, -1, 0, 0, 0, 0, 0, 1)
+FRI region  5: [H, H, C_2, C_2, H, H, H]  ->  scaling vector (0, 0, -1, -1, 0, 0, 0, 1)
+FRI region  6: [H, H, H, H, H, H, H]  ->  scaling vector (0, 0, 0, 0, 0, 0, 0, 1)
+
+# ==== FrogT_k3.txt ====
+name = 'FrogT_k3'
+    smallness_parameters = ['t1']
+    internal_lines = [['0', [1, 6]], ['0', [1, 5]], ['0', [2, 3]], ['0', [2, 5]], ['0', [3, 6]], ['0', [6, 4]], ['0', [4, 5]]]
+    external_lines = [['p1', 1], ['p2', 2], ['p3', 3], ['p4', 4], ['p5', 5]]
+    li = psd.LoopIntegralFromGraph(
+       internal_lines = internal_lines,
+       external_lines = external_lines,
+       replacement_rules = [
+                              ('p1*p1', 'm1**2'),
+                              ('p2*p2', 'm2**2'),
+                              ('p3*p3', 'm3**2'),
+                              ('p4*p4', 'm4**2'),
+                              ('p5*p5', 'm5**2'),
+                              ('p1*p2', '(s12-m1**2-m2**2)/2'),
+                              ('p1*p3', '(s13-m1**2-m3**2)/2'),
+                              ('p1*p4', '(s14-m1**2-m4**2)/2'),
+                              ('p2*p3', '(s23-m2**2-m3**2)/2'),
+                              ('p2*p4', '(s24-m2**2-m4**2)/2'),
+                              ('p3*p4', '(m5**2 + 2*m1**2 + 2*m2**2 + m3**2 + m4**2 - s12 - s13 - s14 - s23 - s24)/2'),
+                              ('p1*p5', '(m1**2 + m2**2 + m3**2 + m4**2 - s12 - s13 - s14)/2'),
+                              ('p2*p5', '(m1**2 + m2**2 + m3**2 + m4**2 - s12 - s23 - s24)/2'),
+                              ('p3*p5', '(s12 + s14 + s24 - m1**2 - m2**2 - m3**2 - m4**2 - m5**2)/2'),
+                              ('p4*p5', '(s12 + s13 + s23 - m1**2 - m2**2 - m3**2 - m4**2 - m5**2)/2'),
+                              ('m1**2', 't1*m1s'),
+                              ('m2**2', 't1*t1*m2s'),
+                              ('m3**2', '0'),
+                              ('m4**2', '0'),
+                              ('m5**2', '0'),
+    ]
+    )
+
+Region (-2,-1,-1,0,-2,-2,-1,1)
+Region (-1,-1,-2,-2,0,0,0,1)
+Region (-1,-1,0,0,-1,-1,0,1)
+Region (-1,-1,0,0,0,0,0,1)
+Region (0,0,-2,-2,0,0,0,1)
+Region (0,0,0,0,0,0,0,1)
+
+# FRI (momentum-space) regions: 6 (runtime 0.0s)
+FRI region  1: [S, C_1, C_3, H, S, S, C_4]  ->  scaling vector (-2, -1, -1, 0, -2, -2, -1, 1)
+FRI region  2: [C_1, C_1, C_2^2, C_2^2, H, H, H]  ->  scaling vector (-1, -1, -2, -2, 0, 0, 0, 1)
+FRI region  3: [C_1, C_1, H, H, C_1, C_1, H]  ->  scaling vector (-1, -1, 0, 0, -1, -1, 0, 1)
+FRI region  4: [C_1, C_1, H, H, H, H, H]  ->  scaling vector (-1, -1, 0, 0, 0, 0, 0, 1)
+FRI region  5: [H, H, C_2^2, C_2^2, H, H, H]  ->  scaling vector (0, 0, -2, -2, 0, 0, 0, 1)
+FRI region  6: [H, H, H, H, H, H, H]  ->  scaling vector (0, 0, 0, 0, 0, 0, 0, 1)
+
+# ==== FrogTT_k0.txt ====
+name = 'FrogTT_k0'
+    smallness_parameters = ['t1']
+    internal_lines = [['0', [1, 6]], ['0', [1, 5]], ['0', [2, 3]], ['0', [2, 7]], ['0', [3, 6]], ['0', [5, 7]], ['0', [4, 6]], ['0', [4, 7]]]
+    external_lines = [['p1', 1], ['p2', 2], ['p3', 3], ['p4', 4], ['p5', 5]]
+    li = psd.LoopIntegralFromGraph(
+       internal_lines = internal_lines,
+       external_lines = external_lines,
+       replacement_rules = [
+                              ('p1*p1', 'm1**2'),
+                              ('p2*p2', 'm2**2'),
+                              ('p3*p3', 'm3**2'),
+                              ('p4*p4', 'm4**2'),
+                              ('p5*p5', 'm5**2'),
+                              ('p1*p2', '(s12-m1**2-m2**2)/2'),
+                              ('p1*p3', '(s13-m1**2-m3**2)/2'),
+                              ('p1*p4', '(s14-m1**2-m4**2)/2'),
+                              ('p2*p3', '(s23-m2**2-m3**2)/2'),
+                              ('p2*p4', '(s24-m2**2-m4**2)/2'),
+                              ('p3*p4', '(m5**2 + 2*m1**2 + 2*m2**2 + m3**2 + m4**2 - s12 - s13 - s14 - s23 - s24)/2'),
+                              ('p1*p5', '(m1**2 + m2**2 + m3**2 + m4**2 - s12 - s13 - s14)/2'),
+                              ('p2*p5', '(m1**2 + m2**2 + m3**2 + m4**2 - s12 - s23 - s24)/2'),
+                              ('p3*p5', '(s12 + s14 + s24 - m1**2 - m2**2 - m3**2 - m4**2 - m5**2)/2'),
+                              ('p4*p5', '(s12 + s13 + s23 - m1**2 - m2**2 - m3**2 - m4**2 - m5**2)/2'),
+                              ('m1**2', 't1*m1s'),
+                              ('m2**2', 't1*m2s'),
+                              ('m3**2', 't1*m3s'),
+                              ('m4**2', 't1*m4s'),
+                              ('m5**2', 't1*m5s'),
+    ]
+    )
+
+Region (-2,-1,-2,-1,-1,0,-1,0,1)
+Region (-2,-1,-1,0,-2,0,-2,-1,1)
+Region (-2,-1,-1,0,-1,0,-1,0,1)
+Region (-2,-1,0,0,-1,0,-1,-1,1)
+Region (-1,-2,-2,-1,-1,-1,0,0,1)
+Region (-1,-2,-1,-2,0,-1,0,-1,1)
+Region (-1,-2,-1,-1,0,-1,0,0,1)
+Region (-1,-2,-1,0,-2,-1,-1,0,1)
+Region (-1,-2,-1,0,-1,-1,0,0,1)
+Region (-1,-2,0,-1,0,-1,-1,-2,1)
+Region (-1,-2,0,-1,0,-1,0,-1,1)
+Region (-1,-2,0,0,-1,-1,-2,-1,1)
+Region (-1,-2,0,0,-1,-1,-1,0,1)
+Region (-1,-2,0,0,0,-1,-1,-1,1)
+Region (-1,-2,0,0,0,-1,0,0,1)
+Region (-1,-1,-2,-1,-1,0,0,0,1)
+Region (-1,-1,-1,-1,0,0,0,0,1)
+Region (-1,-1,-1,0,-2,0,-1,0,1)
+Region (-1,-1,-1,0,-1,0,0,0,1)
+Region (-1,-1,0,0,-1,0,-2,-1,1)
+Region (-1,-1,0,0,-1,0,-1,0,1)
+Region (-1,-1,0,0,0,0,-1,-1,1)
+Region (-1,-1,0,0,0,0,0,0,1)
+Region (-1,0,-2,-1,-1,0,-2,-1,1)
+Region (-1,0,-2,-1,-1,0,-1,0,1)
+Region (-1,0,-1,0,-2,0,-1,-1,1)
+Region (-1,0,-1,0,-1,0,-2,-1,1)
+Region (-1,0,-1,0,-1,0,-1,0,1)
+Region (-1,0,0,0,-1,0,-1,-1,1)
+Region (0,-1,-2,-1,-1,-2,0,-1,1)
+Region (0,-1,-2,-1,-1,-1,0,0,1)
+Region (0,-1,-1,-2,0,-2,-1,-2,1)
+Region (0,-1,-1,-2,0,-1,0,-1,1)
+Region (0,-1,-1,-1,0,-2,0,-1,1)
+Region (0,-1,-1,-1,0,-1,0,0,1)
+Region (0,-1,-1,0,-1,-1,0,0,1)
+Region (0,-1,0,-1,0,-2,-1,-1,1)
+Region (0,-1,0,-1,0,-1,-1,-2,1)
+Region (0,-1,0,-1,0,-1,0,-1,1)
+Region (0,-1,0,0,0,-1,-1,-1,1)
+Region (0,-1,0,0,0,-1,0,0,1)
+Region (0,0,-2,-1,-1,-1,-1,-2,1)
+Region (0,0,-2,-1,-1,-1,0,-1,1)
+Region (0,0,-2,-1,-1,0,-1,-1,1)
+Region (0,0,-2,-1,-1,0,0,0,1)
+Region (0,0,-1,-2,0,-1,-1,-1,1)
+Region (0,0,-1,-1,0,-1,-1,-2,1)
+Region (0,0,-1,-1,0,-1,0,-1,1)
+Region (0,0,-1,-1,0,0,-1,-1,1)
+Region (0,0,-1,-1,0,0,0,0,1)
+Region (0,0,-1,0,-1,0,-1,-1,1)
+Region (0,0,-1,0,-1,0,0,0,1)
+Region (0,0,0,-1,0,-1,-1,-1,1)
+Region (0,0,0,0,0,0,-1,-1,1)
+Region (0,0,0,0,0,0,0,0,1)
+
+# FRI (momentum-space) regions: 55 (runtime 0.0s)
+FRI region  1: [S, C_1, S, C_2, C_3, H, C_3, H]  ->  scaling vector (-2, -1, -2, -1, -1, 0, -1, 0, 1)
+FRI region  2: [S, C_1, C_3, H, S, H, S, C_4]  ->  scaling vector (-2, -1, -1, 0, -2, 0, -2, -1, 1)
+FRI region  3: [S, C_1, C_3, H, C_3, H, C_3, H]  ->  scaling vector (-2, -1, -1, 0, -1, 0, -1, 0, 1)
+FRI region  4: [S, C_1, H, H, C_4, H, C_4, C_4]  ->  scaling vector (-2, -1, 0, 0, -1, 0, -1, -1, 1)
+FRI region  5: [C_1, S, S, C_2, C_3, C_5, H, H]  ->  scaling vector (-1, -2, -2, -1, -1, -1, 0, 0, 1)
+FRI region  6: [C_1, S, C_2, S, H, C_5, H, C_5]  ->  scaling vector (-1, -2, -1, -2, 0, -1, 0, -1, 1)
+FRI region  7: [C_1, S, C_2, C_2, H, C_5, H, H]  ->  scaling vector (-1, -2, -1, -1, 0, -1, 0, 0, 1)
+FRI region  8: [C_1, S, C_3, H, S, C_5, C_1, H]  ->  scaling vector (-1, -2, -1, 0, -2, -1, -1, 0, 1)
+FRI region  9: [C_1, S, C_3, H, C_3, C_5, H, H]  ->  scaling vector (-1, -2, -1, 0, -1, -1, 0, 0, 1)
+FRI region 10: [C_1, S, H, C_5, H, C_5, C_4, S]  ->  scaling vector (-1, -2, 0, -1, 0, -1, -1, -2, 1)
+FRI region 11: [C_1, S, H, C_5, H, C_5, H, C_5]  ->  scaling vector (-1, -2, 0, -1, 0, -1, 0, -1, 1)
+FRI region 12: [C_1, S, H, H, C_1, C_5, S, C_4]  ->  scaling vector (-1, -2, 0, 0, -1, -1, -2, -1, 1)
+FRI region 13: [C_1, S, H, H, C_1, C_5, C_1, H]  ->  scaling vector (-1, -2, 0, 0, -1, -1, -1, 0, 1)
+FRI region 14: [C_1, S, H, H, H, C_5, C_4, C_4]  ->  scaling vector (-1, -2, 0, 0, 0, -1, -1, -1, 1)
+FRI region 15: [C_1, S, H, H, H, C_5, H, H]  ->  scaling vector (-1, -2, 0, 0, 0, -1, 0, 0, 1)
+FRI region 16: [C_1, C_1, S, C_2, C_3, H, H, H]  ->  scaling vector (-1, -1, -2, -1, -1, 0, 0, 0, 1)
+FRI region 17: [C_1, C_1, C_2, C_2, H, H, H, H]  ->  scaling vector (-1, -1, -1, -1, 0, 0, 0, 0, 1)
+FRI region 18: [C_1, C_1, C_3, H, S, H, C_1, H]  ->  scaling vector (-1, -1, -1, 0, -2, 0, -1, 0, 1)
+FRI region 19: [C_1, C_1, C_3, H, C_3, H, H, H]  ->  scaling vector (-1, -1, -1, 0, -1, 0, 0, 0, 1)
+FRI region 20: [C_1, C_1, H, H, C_1, H, S, C_4]  ->  scaling vector (-1, -1, 0, 0, -1, 0, -2, -1, 1)
+FRI region 21: [C_1, C_1, H, H, C_1, H, C_1, H]  ->  scaling vector (-1, -1, 0, 0, -1, 0, -1, 0, 1)
+FRI region 22: [C_1, C_1, H, H, H, H, C_4, C_4]  ->  scaling vector (-1, -1, 0, 0, 0, 0, -1, -1, 1)
+FRI region 23: [C_1, C_1, H, H, H, H, H, H]  ->  scaling vector (-1, -1, 0, 0, 0, 0, 0, 0, 1)
+FRI region 24: [C_3, H, S, C_2, C_3, H, S, C_4]  ->  scaling vector (-1, 0, -2, -1, -1, 0, -2, -1, 1)
+FRI region 25: [C_3, H, S, C_2, C_3, H, C_3, H]  ->  scaling vector (-1, 0, -2, -1, -1, 0, -1, 0, 1)
+FRI region 26: [C_4, H, C_3, H, S, H, C_4, C_4]  ->  scaling vector (-1, 0, -1, 0, -2, 0, -1, -1, 1)
+FRI region 27: [C_3, H, C_3, H, C_3, H, S, C_4]  ->  scaling vector (-1, 0, -1, 0, -1, 0, -2, -1, 1)
+FRI region 28: [C_3, H, C_3, H, C_3, H, C_3, H]  ->  scaling vector (-1, 0, -1, 0, -1, 0, -1, 0, 1)
+FRI region 29: [C_4, H, H, H, C_4, H, C_4, C_4]  ->  scaling vector (-1, 0, 0, 0, -1, 0, -1, -1, 1)
+FRI region 30: [H, C_5, S, C_2, C_3, S, H, C_2]  ->  scaling vector (0, -1, -2, -1, -1, -2, 0, -1, 1)
+FRI region 31: [H, C_5, S, C_2, C_3, C_5, H, H]  ->  scaling vector (0, -1, -2, -1, -1, -1, 0, 0, 1)
+FRI region 32: [H, C_5, C_2, S, H, S, C_4, S]  ->  scaling vector (0, -1, -1, -2, 0, -2, -1, -2, 1)
+FRI region 33: [H, C_5, C_2, S, H, C_5, H, C_5]  ->  scaling vector (0, -1, -1, -2, 0, -1, 0, -1, 1)
+FRI region 34: [H, C_5, C_2, C_2, H, S, H, C_2]  ->  scaling vector (0, -1, -1, -1, 0, -2, 0, -1, 1)
+FRI region 35: [H, C_5, C_2, C_2, H, C_5, H, H]  ->  scaling vector (0, -1, -1, -1, 0, -1, 0, 0, 1)
+FRI region 36: [H, C_5, C_3, H, C_3, C_5, H, H]  ->  scaling vector (0, -1, -1, 0, -1, -1, 0, 0, 1)
+FRI region 37: [H, C_5, H, C_4, H, S, C_4, C_4]  ->  scaling vector (0, -1, 0, -1, 0, -2, -1, -1, 1)
+FRI region 38: [H, C_5, H, C_5, H, C_5, C_4, S]  ->  scaling vector (0, -1, 0, -1, 0, -1, -1, -2, 1)
+FRI region 39: [H, C_5, H, C_5, H, C_5, H, C_5]  ->  scaling vector (0, -1, 0, -1, 0, -1, 0, -1, 1)
+FRI region 40: [H, C_5, H, H, H, C_5, C_4, C_4]  ->  scaling vector (0, -1, 0, 0, 0, -1, -1, -1, 1)
+FRI region 41: [H, C_5, H, H, H, C_5, H, H]  ->  scaling vector (0, -1, 0, 0, 0, -1, 0, 0, 1)
+FRI region 42: [H, H, S, C_2, C_3, C_2, C_4, S]  ->  scaling vector (0, 0, -2, -1, -1, -1, -1, -2, 1)
+FRI region 43: [H, H, S, C_2, C_3, C_2, H, C_2]  ->  scaling vector (0, 0, -2, -1, -1, -1, 0, -1, 1)
+FRI region 44: [H, H, S, C_2, C_3, H, C_4, C_4]  ->  scaling vector (0, 0, -2, -1, -1, 0, -1, -1, 1)
+FRI region 45: [H, H, S, C_2, C_3, H, H, H]  ->  scaling vector (0, 0, -2, -1, -1, 0, 0, 0, 1)
+FRI region 46: [H, H, C_2, S, H, C_4, C_4, C_4]  ->  scaling vector (0, 0, -1, -2, 0, -1, -1, -1, 1)
+FRI region 47: [H, H, C_2, C_2, H, C_2, C_4, S]  ->  scaling vector (0, 0, -1, -1, 0, -1, -1, -2, 1)
+FRI region 48: [H, H, C_2, C_2, H, C_2, H, C_2]  ->  scaling vector (0, 0, -1, -1, 0, -1, 0, -1, 1)
+FRI region 49: [H, H, C_2, C_2, H, H, C_4, C_4]  ->  scaling vector (0, 0, -1, -1, 0, 0, -1, -1, 1)
+FRI region 50: [H, H, C_2, C_2, H, H, H, H]  ->  scaling vector (0, 0, -1, -1, 0, 0, 0, 0, 1)
+FRI region 51: [H, H, C_3, H, C_3, H, C_4, C_4]  ->  scaling vector (0, 0, -1, 0, -1, 0, -1, -1, 1)
+FRI region 52: [H, H, C_3, H, C_3, H, H, H]  ->  scaling vector (0, 0, -1, 0, -1, 0, 0, 0, 1)
+FRI region 53: [H, H, H, C_4, H, C_4, C_4, C_4]  ->  scaling vector (0, 0, 0, -1, 0, -1, -1, -1, 1)
+FRI region 54: [H, H, H, H, H, H, C_4, C_4]  ->  scaling vector (0, 0, 0, 0, 0, 0, -1, -1, 1)
+FRI region 55: [H, H, H, H, H, H, H, H]  ->  scaling vector (0, 0, 0, 0, 0, 0, 0, 0, 1)
+
+# ==== FrogTT_k1.txt ====
+name = 'FrogTT_k1'
+    smallness_parameters = ['t1']
+    internal_lines = [['0', [1, 6]], ['0', [1, 5]], ['0', [2, 3]], ['0', [2, 7]], ['0', [3, 6]], ['0', [5, 7]], ['0', [4, 6]], ['0', [4, 7]]]
+    external_lines = [['p1', 1], ['p2', 2], ['p3', 3], ['p4', 4], ['p5', 5]]
+    li = psd.LoopIntegralFromGraph(
+       internal_lines = internal_lines,
+       external_lines = external_lines,
+       replacement_rules = [
+                              ('p1*p1', 'm1**2'),
+                              ('p2*p2', 'm2**2'),
+                              ('p3*p3', 'm3**2'),
+                              ('p4*p4', 'm4**2'),
+                              ('p5*p5', 'm5**2'),
+                              ('p1*p2', '(s12-m1**2-m2**2)/2'),
+                              ('p1*p3', '(s13-m1**2-m3**2)/2'),
+                              ('p1*p4', '(s14-m1**2-m4**2)/2'),
+                              ('p2*p3', '(s23-m2**2-m3**2)/2'),
+                              ('p2*p4', '(s24-m2**2-m4**2)/2'),
+                              ('p3*p4', '(m5**2 + 2*m1**2 + 2*m2**2 + m3**2 + m4**2 - s12 - s13 - s14 - s23 - s24)/2'),
+                              ('p1*p5', '(m1**2 + m2**2 + m3**2 + m4**2 - s12 - s13 - s14)/2'),
+                              ('p2*p5', '(m1**2 + m2**2 + m3**2 + m4**2 - s12 - s23 - s24)/2'),
+                              ('p3*p5', '(s12 + s14 + s24 - m1**2 - m2**2 - m3**2 - m4**2 - m5**2)/2'),
+                              ('p4*p5', '(s12 + s13 + s23 - m1**2 - m2**2 - m3**2 - m4**2 - m5**2)/2'),
+                              ('m1**2', 't1*m1s'),
+                              ('m2**2', 't1*m2s'),
+                              ('m3**2', 't1*m3s'),
+                              ('m4**2', '0'),
+                              ('m5**2', '0'),
+    ]
+    )
+
+Region (-2,-1,-2,-1,-1,0,-1,0,1)
+Region (-2,-1,-1,0,-2,0,-2,-1,1)
+Region (-2,-1,-1,0,-1,0,-1,0,1)
+Region (-1,-1,-2,-1,-1,0,0,0,1)
+Region (-1,-1,-1,-1,0,0,0,0,1)
+Region (-1,-1,-1,0,-2,0,-1,0,1)
+Region (-1,-1,-1,0,-1,0,0,0,1)
+Region (-1,-1,0,0,-1,0,-1,0,1)
+Region (-1,-1,0,0,0,0,0,0,1)
+Region (-1,0,-2,-1,-1,0,-1,0,1)
+Region (-1,0,-1,0,-1,0,-1,0,1)
+Region (0,-1,-1,-2,0,-2,-1,-2,1)
+Region (0,0,-2,-1,-1,-1,0,-1,1)
+Region (0,0,-2,-1,-1,0,0,0,1)
+Region (0,0,-1,-1,0,-1,0,-1,1)
+Region (0,0,-1,-1,0,0,0,0,1)
+Region (0,0,-1,0,-1,0,0,0,1)
+Region (0,0,0,0,0,0,0,0,1)
+
+# FRI (momentum-space) regions: 18 (runtime 0.0s)
+FRI region  1: [S, C_1, S, C_2, C_3, H, C_3, H]  ->  scaling vector (-2, -1, -2, -1, -1, 0, -1, 0, 1)
+FRI region  2: [S, C_1, C_3, H, S, H, S, C_4]  ->  scaling vector (-2, -1, -1, 0, -2, 0, -2, -1, 1)
+FRI region  3: [S, C_1, C_3, H, C_3, H, C_3, H]  ->  scaling vector (-2, -1, -1, 0, -1, 0, -1, 0, 1)
+FRI region  4: [C_1, C_1, S, C_2, C_3, H, H, H]  ->  scaling vector (-1, -1, -2, -1, -1, 0, 0, 0, 1)
+FRI region  5: [C_1, C_1, C_2, C_2, H, H, H, H]  ->  scaling vector (-1, -1, -1, -1, 0, 0, 0, 0, 1)
+FRI region  6: [C_1, C_1, C_3, H, S, H, C_1, H]  ->  scaling vector (-1, -1, -1, 0, -2, 0, -1, 0, 1)
+FRI region  7: [C_1, C_1, C_3, H, C_3, H, H, H]  ->  scaling vector (-1, -1, -1, 0, -1, 0, 0, 0, 1)
+FRI region  8: [C_1, C_1, H, H, C_1, H, C_1, H]  ->  scaling vector (-1, -1, 0, 0, -1, 0, -1, 0, 1)
+FRI region  9: [C_1, C_1, H, H, H, H, H, H]  ->  scaling vector (-1, -1, 0, 0, 0, 0, 0, 0, 1)
+FRI region 10: [C_3, H, S, C_2, C_3, H, C_3, H]  ->  scaling vector (-1, 0, -2, -1, -1, 0, -1, 0, 1)
+FRI region 11: [C_3, H, C_3, H, C_3, H, C_3, H]  ->  scaling vector (-1, 0, -1, 0, -1, 0, -1, 0, 1)
+FRI region 12: [H, C_5, C_2, S, H, S, C_4, S]  ->  scaling vector (0, -1, -1, -2, 0, -2, -1, -2, 1)
+FRI region 13: [H, H, S, C_2, C_3, C_2, H, C_2]  ->  scaling vector (0, 0, -2, -1, -1, -1, 0, -1, 1)
+FRI region 14: [H, H, S, C_2, C_3, H, H, H]  ->  scaling vector (0, 0, -2, -1, -1, 0, 0, 0, 1)
+FRI region 15: [H, H, C_2, C_2, H, C_2, H, C_2]  ->  scaling vector (0, 0, -1, -1, 0, -1, 0, -1, 1)
+FRI region 16: [H, H, C_2, C_2, H, H, H, H]  ->  scaling vector (0, 0, -1, -1, 0, 0, 0, 0, 1)
+FRI region 17: [H, H, C_3, H, C_3, H, H, H]  ->  scaling vector (0, 0, -1, 0, -1, 0, 0, 0, 1)
+FRI region 18: [H, H, H, H, H, H, H, H]  ->  scaling vector (0, 0, 0, 0, 0, 0, 0, 0, 1)
+
+# ==== FrogTT_k2.txt ====
+name = 'FrogTT_k2'
+    smallness_parameters = ['t1']
+    internal_lines = [['0', [1, 6]], ['0', [1, 5]], ['0', [2, 3]], ['0', [2, 7]], ['0', [3, 6]], ['0', [5, 7]], ['0', [4, 6]], ['0', [4, 7]]]
+    external_lines = [['p1', 1], ['p2', 2], ['p3', 3], ['p4', 4], ['p5', 5]]
+    li = psd.LoopIntegralFromGraph(
+       internal_lines = internal_lines,
+       external_lines = external_lines,
+       replacement_rules = [
+                              ('p1*p1', 'm1**2'),
+                              ('p2*p2', 'm2**2'),
+                              ('p3*p3', 'm3**2'),
+                              ('p4*p4', 'm4**2'),
+                              ('p5*p5', 'm5**2'),
+                              ('p1*p2', '(s12-m1**2-m2**2)/2'),
+                              ('p1*p3', '(s13-m1**2-m3**2)/2'),
+                              ('p1*p4', '(s14-m1**2-m4**2)/2'),
+                              ('p2*p3', '(s23-m2**2-m3**2)/2'),
+                              ('p2*p4', '(s24-m2**2-m4**2)/2'),
+                              ('p3*p4', '(m5**2 + 2*m1**2 + 2*m2**2 + m3**2 + m4**2 - s12 - s13 - s14 - s23 - s24)/2'),
+                              ('p1*p5', '(m1**2 + m2**2 + m3**2 + m4**2 - s12 - s13 - s14)/2'),
+                              ('p2*p5', '(m1**2 + m2**2 + m3**2 + m4**2 - s12 - s23 - s24)/2'),
+                              ('p3*p5', '(s12 + s14 + s24 - m1**2 - m2**2 - m3**2 - m4**2 - m5**2)/2'),
+                              ('p4*p5', '(s12 + s13 + s23 - m1**2 - m2**2 - m3**2 - m4**2 - m5**2)/2'),
+                              ('m1**2', 't1*m1s'),
+                              ('m2**2', 't1*m2s'),
+                              ('m3**2', '0'),
+                              ('m4**2', '0'),
+                              ('m5**2', '0'),
+    ]
+    )
+
+Region (-2,-1,-1,0,-2,0,-2,-1,1)
+Region (-1,-1,-1,-1,0,0,0,0,1)
+Region (-1,-1,0,0,-1,0,-1,0,1)
+Region (-1,-1,0,0,0,0,0,0,1)
+Region (0,-1,-1,-2,0,-2,-1,-2,1)
+Region (0,0,-1,-1,0,-1,0,-1,1)
+Region (0,0,-1,-1,0,0,0,0,1)
+Region (0,0,0,0,0,0,0,0,1)
+
+# FRI (momentum-space) regions: 8 (runtime 0.0s)
+FRI region  1: [S, C_1, C_3, H, S, H, S, C_4]  ->  scaling vector (-2, -1, -1, 0, -2, 0, -2, -1, 1)
+FRI region  2: [C_1, C_1, C_2, C_2, H, H, H, H]  ->  scaling vector (-1, -1, -1, -1, 0, 0, 0, 0, 1)
+FRI region  3: [C_1, C_1, H, H, C_1, H, C_1, H]  ->  scaling vector (-1, -1, 0, 0, -1, 0, -1, 0, 1)
+FRI region  4: [C_1, C_1, H, H, H, H, H, H]  ->  scaling vector (-1, -1, 0, 0, 0, 0, 0, 0, 1)
+FRI region  5: [H, C_5, C_2, S, H, S, C_4, S]  ->  scaling vector (0, -1, -1, -2, 0, -2, -1, -2, 1)
+FRI region  6: [H, H, C_2, C_2, H, C_2, H, C_2]  ->  scaling vector (0, 0, -1, -1, 0, -1, 0, -1, 1)
+FRI region  7: [H, H, C_2, C_2, H, H, H, H]  ->  scaling vector (0, 0, -1, -1, 0, 0, 0, 0, 1)
+FRI region  8: [H, H, H, H, H, H, H, H]  ->  scaling vector (0, 0, 0, 0, 0, 0, 0, 0, 1)
+
+# ==== FrogTT_k3.txt ====
+name = 'FrogTT_k3'
+    smallness_parameters = ['t1']
+    internal_lines = [['0', [1, 6]], ['0', [1, 5]], ['0', [2, 3]], ['0', [2, 7]], ['0', [3, 6]], ['0', [5, 7]], ['0', [4, 6]], ['0', [4, 7]]]
+    external_lines = [['p1', 1], ['p2', 2], ['p3', 3], ['p4', 4], ['p5', 5]]
+    li = psd.LoopIntegralFromGraph(
+       internal_lines = internal_lines,
+       external_lines = external_lines,
+       replacement_rules = [
+                              ('p1*p1', 'm1**2'),
+                              ('p2*p2', 'm2**2'),
+                              ('p3*p3', 'm3**2'),
+                              ('p4*p4', 'm4**2'),
+                              ('p5*p5', 'm5**2'),
+                              ('p1*p2', '(s12-m1**2-m2**2)/2'),
+                              ('p1*p3', '(s13-m1**2-m3**2)/2'),
+                              ('p1*p4', '(s14-m1**2-m4**2)/2'),
+                              ('p2*p3', '(s23-m2**2-m3**2)/2'),
+                              ('p2*p4', '(s24-m2**2-m4**2)/2'),
+                              ('p3*p4', '(m5**2 + 2*m1**2 + 2*m2**2 + m3**2 + m4**2 - s12 - s13 - s14 - s23 - s24)/2'),
+                              ('p1*p5', '(m1**2 + m2**2 + m3**2 + m4**2 - s12 - s13 - s14)/2'),
+                              ('p2*p5', '(m1**2 + m2**2 + m3**2 + m4**2 - s12 - s23 - s24)/2'),
+                              ('p3*p5', '(s12 + s14 + s24 - m1**2 - m2**2 - m3**2 - m4**2 - m5**2)/2'),
+                              ('p4*p5', '(s12 + s13 + s23 - m1**2 - m2**2 - m3**2 - m4**2 - m5**2)/2'),
+                              ('m1**2', 't1*m1s'),
+                              ('m2**2', 't1*t1*m2s'),
+                              ('m3**2', '0'),
+                              ('m4**2', '0'),
+                              ('m5**2', '0'),
+    ]
+    )
+
+Region (-2,-1,-1,0,-2,0,-2,-1,1)
+Region (-1,-1,-2,-2,0,0,0,0,1)
+Region (-1,-1,0,0,-1,0,-1,0,1)
+Region (-1,-1,0,0,0,0,0,0,1)
+Region (0,-2,-2,-4,0,-4,-2,-4,1)
+Region (0,0,-2,-2,0,-2,0,-2,1)
+Region (0,0,-2,-2,0,0,0,0,1)
+Region (0,0,0,0,0,0,0,0,1)
+
+# FRI (momentum-space) regions: 8 (runtime 0.0s)
+FRI region  1: [S, C_1, C_3, H, S, H, S, C_4]  ->  scaling vector (-2, -1, -1, 0, -2, 0, -2, -1, 1)
+FRI region  2: [C_1, C_1, C_2^2, C_2^2, H, H, H, H]  ->  scaling vector (-1, -1, -2, -2, 0, 0, 0, 0, 1)
+FRI region  3: [C_1, C_1, H, H, C_1, H, C_1, H]  ->  scaling vector (-1, -1, 0, 0, -1, 0, -1, 0, 1)
+FRI region  4: [C_1, C_1, H, H, H, H, H, H]  ->  scaling vector (-1, -1, 0, 0, 0, 0, 0, 0, 1)
+FRI region  5: [H, C_5^2, C_2^2, S^2, H, S^2, C_4^2, S^2]  ->  scaling vector (0, -2, -2, -4, 0, -4, -2, -4, 1)
+FRI region  6: [H, H, C_2^2, C_2^2, H, C_2^2, H, C_2^2]  ->  scaling vector (0, 0, -2, -2, 0, -2, 0, -2, 1)
+FRI region  7: [H, H, C_2^2, C_2^2, H, H, H, H]  ->  scaling vector (0, 0, -2, -2, 0, 0, 0, 0, 1)
+FRI region  8: [H, H, H, H, H, H, H, H]  ->  scaling vector (0, 0, 0, 0, 0, 0, 0, 0, 1)
+
+# ==== FrogTU_k0.txt ====
+name = 'FrogTU_k0'
+    smallness_parameters = ['t1']
+    internal_lines = [['0', [1, 6]], ['0', [1, 7]], ['0', [2, 3]], ['0', [2, 5]], ['0', [3, 6]], ['0', [5, 7]], ['0', [4, 6]], ['0', [4, 7]]]
+    external_lines = [['p1', 1], ['p2', 2], ['p3', 3], ['p4', 4], ['p5', 5]]
+    li = psd.LoopIntegralFromGraph(
+       internal_lines = internal_lines,
+       external_lines = external_lines,
+       replacement_rules = [
+                              ('p1*p1', 'm1**2'),
+                              ('p2*p2', 'm2**2'),
+                              ('p3*p3', 'm3**2'),
+                              ('p4*p4', 'm4**2'),
+                              ('p5*p5', 'm5**2'),
+                              ('p1*p2', '(s12-m1**2-m2**2)/2'),
+                              ('p1*p3', '(s13-m1**2-m3**2)/2'),
+                              ('p1*p4', '(s14-m1**2-m4**2)/2'),
+                              ('p2*p3', '(s23-m2**2-m3**2)/2'),
+                              ('p2*p4', '(s24-m2**2-m4**2)/2'),
+                              ('p3*p4', '(m5**2 + 2*m1**2 + 2*m2**2 + m3**2 + m4**2 - s12 - s13 - s14 - s23 - s24)/2'),
+                              ('p1*p5', '(m1**2 + m2**2 + m3**2 + m4**2 - s12 - s13 - s14)/2'),
+                              ('p2*p5', '(m1**2 + m2**2 + m3**2 + m4**2 - s12 - s23 - s24)/2'),
+                              ('p3*p5', '(s12 + s14 + s24 - m1**2 - m2**2 - m3**2 - m4**2 - m5**2)/2'),
+                              ('p4*p5', '(s12 + s13 + s23 - m1**2 - m2**2 - m3**2 - m4**2 - m5**2)/2'),
+                              ('m1**2', 't1*m1s'),
+                              ('m2**2', 't1*m2s'),
+                              ('m3**2', 't1*m3s'),
+                              ('m4**2', 't1*m4s'),
+                              ('m5**2', 't1*m5s'),
+    ]
+    )
+
+Region (-2,-1,-2,-1,-1,0,-1,0,1)
+Region (-2,-1,-1,0,-2,0,-2,-1,1)
+Region (-2,-1,-1,0,-1,0,-1,0,1)
+Region (-2,-1,0,0,-1,-1,-1,-2,1)
+Region (-2,-1,0,0,-1,0,-1,-1,1)
+Region (-1,-2,-1,-2,0,-1,0,-1,1)
+Region (-1,-2,0,-1,0,-2,-1,-2,1)
+Region (-1,-2,0,-1,0,-1,0,-1,1)
+Region (-1,-2,0,0,-1,-1,-2,-1,1)
+Region (-1,-2,0,0,0,-1,-1,-1,1)
+Region (-1,-1,-2,-1,-1,0,0,0,1)
+Region (-1,-1,-1,-2,0,-1,0,0,1)
+Region (-1,-1,-1,-1,0,0,0,0,1)
+Region (-1,-1,-1,0,-2,0,-1,0,1)
+Region (-1,-1,-1,0,-1,0,0,0,1)
+Region (-1,-1,0,-1,0,-2,0,-1,1)
+Region (-1,-1,0,-1,0,-1,0,0,1)
+Region (-1,-1,0,0,-1,0,-2,-1,1)
+Region (-1,-1,0,0,-1,0,-1,0,1)
+Region (-1,-1,0,0,0,-1,-1,-2,1)
+Region (-1,-1,0,0,0,-1,0,-1,1)
+Region (-1,-1,0,0,0,0,-1,-1,1)
+Region (-1,-1,0,0,0,0,0,0,1)
+Region (-1,0,-2,-1,-1,0,-2,-1,1)
+Region (-1,0,-2,-1,-1,0,-1,0,1)
+Region (-1,0,-1,0,-2,0,-1,-1,1)
+Region (-1,0,-1,0,-1,0,-2,-1,1)
+Region (-1,0,-1,0,-1,0,-1,0,1)
+Region (-1,0,0,0,-1,0,-1,-1,1)
+Region (0,-1,-1,-2,0,-1,-1,-2,1)
+Region (0,-1,-1,-2,0,-1,0,-1,1)
+Region (0,-1,0,-1,0,-2,-1,-1,1)
+Region (0,-1,0,-1,0,-1,-1,-2,1)
+Region (0,-1,0,-1,0,-1,0,-1,1)
+Region (0,-1,0,0,0,-1,-1,-1,1)
+Region (0,0,-2,-1,-1,0,-1,-1,1)
+Region (0,0,-2,-1,-1,0,0,0,1)
+Region (0,0,-1,-2,0,-1,-1,-1,1)
+Region (0,0,-1,-2,0,-1,0,0,1)
+Region (0,0,-1,-1,0,0,-1,-1,1)
+Region (0,0,-1,-1,0,0,0,0,1)
+Region (0,0,-1,0,-1,0,-1,-1,1)
+Region (0,0,-1,0,-1,0,0,0,1)
+Region (0,0,0,-1,0,-1,-1,-1,1)
+Region (0,0,0,-1,0,-1,0,0,1)
+Region (0,0,0,0,0,0,-1,-1,1)
+Region (0,0,0,0,0,0,0,0,1)
+
+# FRI (momentum-space) regions: 47 (runtime 0.0s)
+FRI region  1: [S, C_1, S, C_2, C_3, H, C_3, H]  ->  scaling vector (-2, -1, -2, -1, -1, 0, -1, 0, 1)
+FRI region  2: [S, C_1, C_3, H, S, H, S, C_4]  ->  scaling vector (-2, -1, -1, 0, -2, 0, -2, -1, 1)
+FRI region  3: [S, C_1, C_3, H, C_3, H, C_3, H]  ->  scaling vector (-2, -1, -1, 0, -1, 0, -1, 0, 1)
+FRI region  4: [S, C_1, H, H, C_4, C_1, C_4, S]  ->  scaling vector (-2, -1, 0, 0, -1, -1, -1, -2, 1)
+FRI region  5: [S, C_1, H, H, C_4, H, C_4, C_4]  ->  scaling vector (-2, -1, 0, 0, -1, 0, -1, -1, 1)
+FRI region  6: [C_1, S, C_2, S, H, C_5, H, C_5]  ->  scaling vector (-1, -2, -1, -2, 0, -1, 0, -1, 1)
+FRI region  7: [C_1, S, H, C_5, H, S, C_4, S]  ->  scaling vector (-1, -2, 0, -1, 0, -2, -1, -2, 1)
+FRI region  8: [C_1, S, H, C_5, H, C_5, H, C_5]  ->  scaling vector (-1, -2, 0, -1, 0, -1, 0, -1, 1)
+FRI region  9: [C_1, S, H, H, C_1, C_4, S, C_4]  ->  scaling vector (-1, -2, 0, 0, -1, -1, -2, -1, 1)
+FRI region 10: [C_1, S, H, H, H, C_4, C_4, C_4]  ->  scaling vector (-1, -2, 0, 0, 0, -1, -1, -1, 1)
+FRI region 11: [C_1, C_1, S, C_2, C_3, H, H, H]  ->  scaling vector (-1, -1, -2, -1, -1, 0, 0, 0, 1)
+FRI region 12: [C_1, C_1, C_2, S, H, C_5, H, H]  ->  scaling vector (-1, -1, -1, -2, 0, -1, 0, 0, 1)
+FRI region 13: [C_1, C_1, C_2, C_2, H, H, H, H]  ->  scaling vector (-1, -1, -1, -1, 0, 0, 0, 0, 1)
+FRI region 14: [C_1, C_1, C_3, H, S, H, C_1, H]  ->  scaling vector (-1, -1, -1, 0, -2, 0, -1, 0, 1)
+FRI region 15: [C_1, C_1, C_3, H, C_3, H, H, H]  ->  scaling vector (-1, -1, -1, 0, -1, 0, 0, 0, 1)
+FRI region 16: [C_1, C_1, H, C_5, H, S, H, C_1]  ->  scaling vector (-1, -1, 0, -1, 0, -2, 0, -1, 1)
+FRI region 17: [C_1, C_1, H, C_5, H, C_5, H, H]  ->  scaling vector (-1, -1, 0, -1, 0, -1, 0, 0, 1)
+FRI region 18: [C_1, C_1, H, H, C_1, H, S, C_4]  ->  scaling vector (-1, -1, 0, 0, -1, 0, -2, -1, 1)
+FRI region 19: [C_1, C_1, H, H, C_1, H, C_1, H]  ->  scaling vector (-1, -1, 0, 0, -1, 0, -1, 0, 1)
+FRI region 20: [C_1, C_1, H, H, H, C_1, C_4, S]  ->  scaling vector (-1, -1, 0, 0, 0, -1, -1, -2, 1)
+FRI region 21: [C_1, C_1, H, H, H, C_1, H, C_1]  ->  scaling vector (-1, -1, 0, 0, 0, -1, 0, -1, 1)
+FRI region 22: [C_1, C_1, H, H, H, H, C_4, C_4]  ->  scaling vector (-1, -1, 0, 0, 0, 0, -1, -1, 1)
+FRI region 23: [C_1, C_1, H, H, H, H, H, H]  ->  scaling vector (-1, -1, 0, 0, 0, 0, 0, 0, 1)
+FRI region 24: [C_3, H, S, C_2, C_3, H, S, C_4]  ->  scaling vector (-1, 0, -2, -1, -1, 0, -2, -1, 1)
+FRI region 25: [C_3, H, S, C_2, C_3, H, C_3, H]  ->  scaling vector (-1, 0, -2, -1, -1, 0, -1, 0, 1)
+FRI region 26: [C_4, H, C_3, H, S, H, C_4, C_4]  ->  scaling vector (-1, 0, -1, 0, -2, 0, -1, -1, 1)
+FRI region 27: [C_3, H, C_3, H, C_3, H, S, C_4]  ->  scaling vector (-1, 0, -1, 0, -1, 0, -2, -1, 1)
+FRI region 28: [C_3, H, C_3, H, C_3, H, C_3, H]  ->  scaling vector (-1, 0, -1, 0, -1, 0, -1, 0, 1)
+FRI region 29: [C_4, H, H, H, C_4, H, C_4, C_4]  ->  scaling vector (-1, 0, 0, 0, -1, 0, -1, -1, 1)
+FRI region 30: [H, C_5, C_2, S, H, C_5, C_4, S]  ->  scaling vector (0, -1, -1, -2, 0, -1, -1, -2, 1)
+FRI region 31: [H, C_5, C_2, S, H, C_5, H, C_5]  ->  scaling vector (0, -1, -1, -2, 0, -1, 0, -1, 1)
+FRI region 32: [H, C_4, H, C_5, H, S, C_4, C_4]  ->  scaling vector (0, -1, 0, -1, 0, -2, -1, -1, 1)
+FRI region 33: [H, C_5, H, C_5, H, C_5, C_4, S]  ->  scaling vector (0, -1, 0, -1, 0, -1, -1, -2, 1)
+FRI region 34: [H, C_5, H, C_5, H, C_5, H, C_5]  ->  scaling vector (0, -1, 0, -1, 0, -1, 0, -1, 1)
+FRI region 35: [H, C_4, H, H, H, C_4, C_4, C_4]  ->  scaling vector (0, -1, 0, 0, 0, -1, -1, -1, 1)
+FRI region 36: [H, H, S, C_2, C_3, H, C_4, C_4]  ->  scaling vector (0, 0, -2, -1, -1, 0, -1, -1, 1)
+FRI region 37: [H, H, S, C_2, C_3, H, H, H]  ->  scaling vector (0, 0, -2, -1, -1, 0, 0, 0, 1)
+FRI region 38: [H, H, C_2, S, H, C_5, C_4, C_4]  ->  scaling vector (0, 0, -1, -2, 0, -1, -1, -1, 1)
+FRI region 39: [H, H, C_2, S, H, C_5, H, H]  ->  scaling vector (0, 0, -1, -2, 0, -1, 0, 0, 1)
+FRI region 40: [H, H, C_2, C_2, H, H, C_4, C_4]  ->  scaling vector (0, 0, -1, -1, 0, 0, -1, -1, 1)
+FRI region 41: [H, H, C_2, C_2, H, H, H, H]  ->  scaling vector (0, 0, -1, -1, 0, 0, 0, 0, 1)
+FRI region 42: [H, H, C_3, H, C_3, H, C_4, C_4]  ->  scaling vector (0, 0, -1, 0, -1, 0, -1, -1, 1)
+FRI region 43: [H, H, C_3, H, C_3, H, H, H]  ->  scaling vector (0, 0, -1, 0, -1, 0, 0, 0, 1)
+FRI region 44: [H, H, H, C_5, H, C_5, C_4, C_4]  ->  scaling vector (0, 0, 0, -1, 0, -1, -1, -1, 1)
+FRI region 45: [H, H, H, C_5, H, C_5, H, H]  ->  scaling vector (0, 0, 0, -1, 0, -1, 0, 0, 1)
+FRI region 46: [H, H, H, H, H, H, C_4, C_4]  ->  scaling vector (0, 0, 0, 0, 0, 0, -1, -1, 1)
+FRI region 47: [H, H, H, H, H, H, H, H]  ->  scaling vector (0, 0, 0, 0, 0, 0, 0, 0, 1)
+
+# ==== FrogTU_k1.txt ====
+name = 'FrogTU_k1'
+    smallness_parameters = ['t1']
+    internal_lines = [['0', [1, 6]], ['0', [1, 7]], ['0', [2, 3]], ['0', [2, 5]], ['0', [3, 6]], ['0', [5, 7]], ['0', [4, 6]], ['0', [4, 7]]]
+    external_lines = [['p1', 1], ['p2', 2], ['p3', 3], ['p4', 4], ['p5', 5]]
+    li = psd.LoopIntegralFromGraph(
+       internal_lines = internal_lines,
+       external_lines = external_lines,
+       replacement_rules = [
+                              ('p1*p1', 'm1**2'),
+                              ('p2*p2', 'm2**2'),
+                              ('p3*p3', 'm3**2'),
+                              ('p4*p4', 'm4**2'),
+                              ('p5*p5', 'm5**2'),
+                              ('p1*p2', '(s12-m1**2-m2**2)/2'),
+                              ('p1*p3', '(s13-m1**2-m3**2)/2'),
+                              ('p1*p4', '(s14-m1**2-m4**2)/2'),
+                              ('p2*p3', '(s23-m2**2-m3**2)/2'),
+                              ('p2*p4', '(s24-m2**2-m4**2)/2'),
+                              ('p3*p4', '(m5**2 + 2*m1**2 + 2*m2**2 + m3**2 + m4**2 - s12 - s13 - s14 - s23 - s24)/2'),
+                              ('p1*p5', '(m1**2 + m2**2 + m3**2 + m4**2 - s12 - s13 - s14)/2'),
+                              ('p2*p5', '(m1**2 + m2**2 + m3**2 + m4**2 - s12 - s23 - s24)/2'),
+                              ('p3*p5', '(s12 + s14 + s24 - m1**2 - m2**2 - m3**2 - m4**2 - m5**2)/2'),
+                              ('p4*p5', '(s12 + s13 + s23 - m1**2 - m2**2 - m3**2 - m4**2 - m5**2)/2'),
+                              ('m1**2', 't1*m1s'),
+                              ('m2**2', 't1*m2s'),
+                              ('m3**2', 't1*m3s'),
+                              ('m4**2', '0'),
+                              ('m5**2', '0'),
+    ]
+    )
+
+Region (-2,-1,-2,-1,-1,0,-1,0,1)
+Region (-2,-1,-1,0,-2,0,-2,-1,1)
+Region (-2,-1,-1,0,-1,0,-1,0,1)
+Region (-1,-2,0,-1,0,-2,-1,-2,1)
+Region (-1,-1,-2,-1,-1,0,0,0,1)
+Region (-1,-1,-1,-1,0,0,0,0,1)
+Region (-1,-1,-1,0,-2,0,-1,0,1)
+Region (-1,-1,-1,0,-1,0,0,0,1)
+Region (-1,-1,0,0,-1,0,-1,0,1)
+Region (-1,-1,0,0,0,-1,0,-1,1)
+Region (-1,-1,0,0,0,0,0,0,1)
+Region (-1,0,-2,-1,-1,0,-1,0,1)
+Region (-1,0,-1,0,-1,0,-1,0,1)
+Region (0,0,-2,-1,-1,0,0,0,1)
+Region (0,0,-1,-1,0,0,0,0,1)
+Region (0,0,-1,0,-1,0,0,0,1)
+Region (0,0,0,0,0,0,0,0,1)
+
+# FRI (momentum-space) regions: 17 (runtime 0.0s)
+FRI region  1: [S, C_1, S, C_2, C_3, H, C_3, H]  ->  scaling vector (-2, -1, -2, -1, -1, 0, -1, 0, 1)
+FRI region  2: [S, C_1, C_3, H, S, H, S, C_4]  ->  scaling vector (-2, -1, -1, 0, -2, 0, -2, -1, 1)
+FRI region  3: [S, C_1, C_3, H, C_3, H, C_3, H]  ->  scaling vector (-2, -1, -1, 0, -1, 0, -1, 0, 1)
+FRI region  4: [C_1, S, H, C_5, H, S, C_4, S]  ->  scaling vector (-1, -2, 0, -1, 0, -2, -1, -2, 1)
+FRI region  5: [C_1, C_1, S, C_2, C_3, H, H, H]  ->  scaling vector (-1, -1, -2, -1, -1, 0, 0, 0, 1)
+FRI region  6: [C_1, C_1, C_2, C_2, H, H, H, H]  ->  scaling vector (-1, -1, -1, -1, 0, 0, 0, 0, 1)
+FRI region  7: [C_1, C_1, C_3, H, S, H, C_1, H]  ->  scaling vector (-1, -1, -1, 0, -2, 0, -1, 0, 1)
+FRI region  8: [C_1, C_1, C_3, H, C_3, H, H, H]  ->  scaling vector (-1, -1, -1, 0, -1, 0, 0, 0, 1)
+FRI region  9: [C_1, C_1, H, H, C_1, H, C_1, H]  ->  scaling vector (-1, -1, 0, 0, -1, 0, -1, 0, 1)
+FRI region 10: [C_1, C_1, H, H, H, C_1, H, C_1]  ->  scaling vector (-1, -1, 0, 0, 0, -1, 0, -1, 1)
+FRI region 11: [C_1, C_1, H, H, H, H, H, H]  ->  scaling vector (-1, -1, 0, 0, 0, 0, 0, 0, 1)
+FRI region 12: [C_3, H, S, C_2, C_3, H, C_3, H]  ->  scaling vector (-1, 0, -2, -1, -1, 0, -1, 0, 1)
+FRI region 13: [C_3, H, C_3, H, C_3, H, C_3, H]  ->  scaling vector (-1, 0, -1, 0, -1, 0, -1, 0, 1)
+FRI region 14: [H, H, S, C_2, C_3, H, H, H]  ->  scaling vector (0, 0, -2, -1, -1, 0, 0, 0, 1)
+FRI region 15: [H, H, C_2, C_2, H, H, H, H]  ->  scaling vector (0, 0, -1, -1, 0, 0, 0, 0, 1)
+FRI region 16: [H, H, C_3, H, C_3, H, H, H]  ->  scaling vector (0, 0, -1, 0, -1, 0, 0, 0, 1)
+FRI region 17: [H, H, H, H, H, H, H, H]  ->  scaling vector (0, 0, 0, 0, 0, 0, 0, 0, 1)
+
+# ==== FrogTU_k2.txt ====
+name = 'FrogTU_k2'
+    smallness_parameters = ['t1']
+    internal_lines = [['0', [1, 6]], ['0', [1, 7]], ['0', [2, 3]], ['0', [2, 5]], ['0', [3, 6]], ['0', [5, 7]], ['0', [4, 6]], ['0', [4, 7]]]
+    external_lines = [['p1', 1], ['p2', 2], ['p3', 3], ['p4', 4], ['p5', 5]]
+    li = psd.LoopIntegralFromGraph(
+       internal_lines = internal_lines,
+       external_lines = external_lines,
+       replacement_rules = [
+                              ('p1*p1', 'm1**2'),
+                              ('p2*p2', 'm2**2'),
+                              ('p3*p3', 'm3**2'),
+                              ('p4*p4', 'm4**2'),
+                              ('p5*p5', 'm5**2'),
+                              ('p1*p2', '(s12-m1**2-m2**2)/2'),
+                              ('p1*p3', '(s13-m1**2-m3**2)/2'),
+                              ('p1*p4', '(s14-m1**2-m4**2)/2'),
+                              ('p2*p3', '(s23-m2**2-m3**2)/2'),
+                              ('p2*p4', '(s24-m2**2-m4**2)/2'),
+                              ('p3*p4', '(m5**2 + 2*m1**2 + 2*m2**2 + m3**2 + m4**2 - s12 - s13 - s14 - s23 - s24)/2'),
+                              ('p1*p5', '(m1**2 + m2**2 + m3**2 + m4**2 - s12 - s13 - s14)/2'),
+                              ('p2*p5', '(m1**2 + m2**2 + m3**2 + m4**2 - s12 - s23 - s24)/2'),
+                              ('p3*p5', '(s12 + s14 + s24 - m1**2 - m2**2 - m3**2 - m4**2 - m5**2)/2'),
+                              ('p4*p5', '(s12 + s13 + s23 - m1**2 - m2**2 - m3**2 - m4**2 - m5**2)/2'),
+                              ('m1**2', 't1*m1s'),
+                              ('m2**2', 't1*m2s'),
+                              ('m3**2', '0'),
+                              ('m4**2', '0'),
+                              ('m5**2', '0'),
+    ]
+    )
+
+Region (-2,-1,-1,0,-2,0,-2,-1,1)
+Region (-1,-2,0,-1,0,-2,-1,-2,1)
+Region (-1,-1,-1,-1,0,0,0,0,1)
+Region (-1,-1,0,0,-1,0,-1,0,1)
+Region (-1,-1,0,0,0,-1,0,-1,1)
+Region (-1,-1,0,0,0,0,0,0,1)
+Region (0,0,-1,-1,0,0,0,0,1)
+Region (0,0,0,0,0,0,0,0,1)
+
+# FRI (momentum-space) regions: 8 (runtime 0.0s)
+FRI region  1: [S, C_1, C_3, H, S, H, S, C_4]  ->  scaling vector (-2, -1, -1, 0, -2, 0, -2, -1, 1)
+FRI region  2: [C_1, S, H, C_5, H, S, C_4, S]  ->  scaling vector (-1, -2, 0, -1, 0, -2, -1, -2, 1)
+FRI region  3: [C_1, C_1, C_2, C_2, H, H, H, H]  ->  scaling vector (-1, -1, -1, -1, 0, 0, 0, 0, 1)
+FRI region  4: [C_1, C_1, H, H, C_1, H, C_1, H]  ->  scaling vector (-1, -1, 0, 0, -1, 0, -1, 0, 1)
+FRI region  5: [C_1, C_1, H, H, H, C_1, H, C_1]  ->  scaling vector (-1, -1, 0, 0, 0, -1, 0, -1, 1)
+FRI region  6: [C_1, C_1, H, H, H, H, H, H]  ->  scaling vector (-1, -1, 0, 0, 0, 0, 0, 0, 1)
+FRI region  7: [H, H, C_2, C_2, H, H, H, H]  ->  scaling vector (0, 0, -1, -1, 0, 0, 0, 0, 1)
+FRI region  8: [H, H, H, H, H, H, H, H]  ->  scaling vector (0, 0, 0, 0, 0, 0, 0, 0, 1)
+
+# ==== FrogTU_k3.txt ====
+name = 'FrogTU_k3'
+    smallness_parameters = ['t1']
+    internal_lines = [['0', [1, 6]], ['0', [1, 7]], ['0', [2, 3]], ['0', [2, 5]], ['0', [3, 6]], ['0', [5, 7]], ['0', [4, 6]], ['0', [4, 7]]]
+    external_lines = [['p1', 1], ['p2', 2], ['p3', 3], ['p4', 4], ['p5', 5]]
+    li = psd.LoopIntegralFromGraph(
+       internal_lines = internal_lines,
+       external_lines = external_lines,
+       replacement_rules = [
+                              ('p1*p1', 'm1**2'),
+                              ('p2*p2', 'm2**2'),
+                              ('p3*p3', 'm3**2'),
+                              ('p4*p4', 'm4**2'),
+                              ('p5*p5', 'm5**2'),
+                              ('p1*p2', '(s12-m1**2-m2**2)/2'),
+                              ('p1*p3', '(s13-m1**2-m3**2)/2'),
+                              ('p1*p4', '(s14-m1**2-m4**2)/2'),
+                              ('p2*p3', '(s23-m2**2-m3**2)/2'),
+                              ('p2*p4', '(s24-m2**2-m4**2)/2'),
+                              ('p3*p4', '(m5**2 + 2*m1**2 + 2*m2**2 + m3**2 + m4**2 - s12 - s13 - s14 - s23 - s24)/2'),
+                              ('p1*p5', '(m1**2 + m2**2 + m3**2 + m4**2 - s12 - s13 - s14)/2'),
+                              ('p2*p5', '(m1**2 + m2**2 + m3**2 + m4**2 - s12 - s23 - s24)/2'),
+                              ('p3*p5', '(s12 + s14 + s24 - m1**2 - m2**2 - m3**2 - m4**2 - m5**2)/2'),
+                              ('p4*p5', '(s12 + s13 + s23 - m1**2 - m2**2 - m3**2 - m4**2 - m5**2)/2'),
+                              ('m1**2', 't1*m1s'),
+                              ('m2**2', 't1*t1*m2s'),
+                              ('m3**2', '0'),
+                              ('m4**2', '0'),
+                              ('m5**2', '0'),
+    ]
+    )
+
+Region (-2,-1,-1,0,-2,0,-2,-1,1)
+Region (-1,-2,0,-1,0,-2,-1,-2,1)
+Region (-1,-1,-2,-2,0,0,0,0,1)
+Region (-1,-1,0,0,-1,0,-1,0,1)
+Region (-1,-1,0,0,0,-1,0,-1,1)
+Region (-1,-1,0,0,0,0,0,0,1)
+Region (0,0,-2,-2,0,0,0,0,1)
+Region (0,0,0,0,0,0,0,0,1)
+
+# FRI (momentum-space) regions: 8 (runtime 0.0s)
+FRI region  1: [S, C_1, C_3, H, S, H, S, C_4]  ->  scaling vector (-2, -1, -1, 0, -2, 0, -2, -1, 1)
+FRI region  2: [C_1, S, H, C_5, H, S, C_4, S]  ->  scaling vector (-1, -2, 0, -1, 0, -2, -1, -2, 1)
+FRI region  3: [C_1, C_1, C_2^2, C_2^2, H, H, H, H]  ->  scaling vector (-1, -1, -2, -2, 0, 0, 0, 0, 1)
+FRI region  4: [C_1, C_1, H, H, C_1, H, C_1, H]  ->  scaling vector (-1, -1, 0, 0, -1, 0, -1, 0, 1)
+FRI region  5: [C_1, C_1, H, H, H, C_1, H, C_1]  ->  scaling vector (-1, -1, 0, 0, 0, -1, 0, -1, 1)
+FRI region  6: [C_1, C_1, H, H, H, H, H, H]  ->  scaling vector (-1, -1, 0, 0, 0, 0, 0, 0, 1)
+FRI region  7: [H, H, C_2^2, C_2^2, H, H, H, H]  ->  scaling vector (0, 0, -2, -2, 0, 0, 0, 0, 1)
+FRI region  8: [H, H, H, H, H, H, H, H]  ->  scaling vector (0, 0, 0, 0, 0, 0, 0, 0, 1)
+
+# ==== FrogU_k0.txt ====
+name = 'FrogU_k0'
+    smallness_parameters = ['t1']
+    internal_lines = [['0', [1, 3]], ['0', [1, 5]], ['0', [2, 6]], ['0', [2, 5]], ['0', [3, 6]], ['0', [6, 4]], ['0', [4, 5]]]
+    external_lines = [['p1', 1], ['p2', 2], ['p3', 3], ['p4', 4], ['p5', 5]]
+    li = psd.LoopIntegralFromGraph(
+       internal_lines = internal_lines,
+       external_lines = external_lines,
+       replacement_rules = [
+                              ('p1*p1', 'm1**2'),
+                              ('p2*p2', 'm2**2'),
+                              ('p3*p3', 'm3**2'),
+                              ('p4*p4', 'm4**2'),
+                              ('p5*p5', 'm5**2'),
+                              ('p1*p2', '(s12-m1**2-m2**2)/2'),
+                              ('p1*p3', '(s13-m1**2-m3**2)/2'),
+                              ('p1*p4', '(s14-m1**2-m4**2)/2'),
+                              ('p2*p3', '(s23-m2**2-m3**2)/2'),
+                              ('p2*p4', '(s24-m2**2-m4**2)/2'),
+                              ('p3*p4', '(m5**2 + 2*m1**2 + 2*m2**2 + m3**2 + m4**2 - s12 - s13 - s14 - s23 - s24)/2'),
+                              ('p1*p5', '(m1**2 + m2**2 + m3**2 + m4**2 - s12 - s13 - s14)/2'),
+                              ('p2*p5', '(m1**2 + m2**2 + m3**2 + m4**2 - s12 - s23 - s24)/2'),
+                              ('p3*p5', '(s12 + s14 + s24 - m1**2 - m2**2 - m3**2 - m4**2 - m5**2)/2'),
+                              ('p4*p5', '(s12 + s13 + s23 - m1**2 - m2**2 - m3**2 - m4**2 - m5**2)/2'),
+                              ('m1**2', 't1*m1s'),
+                              ('m2**2', 't1*m2s'),
+                              ('m3**2', 't1*m3s'),
+                              ('m4**2', 't1*m4s'),
+                              ('m5**2', 't1*m5s'),
+    ]
+    )
+
+Region (-2,-1,-2,-1,-1,-1,0,1)
+Region (-2,-1,-1,-1,-1,0,0,1)
+Region (-2,-1,-1,0,-1,-2,-1,1)
+Region (-2,-1,-1,0,-1,-1,0,1)
+Region (-2,-1,0,0,-1,-1,-1,1)
+Region (-2,-1,0,0,-1,0,0,1)
+Region (-1,-2,-1,-2,0,0,-1,1)
+Region (-1,-2,0,-1,0,-1,-2,1)
+Region (-1,-2,0,-1,0,0,-1,1)
+Region (-1,-1,-1,-1,0,0,0,1)
+Region (-1,-1,0,0,0,-1,-1,1)
+Region (-1,-1,0,0,0,0,0,1)
+Region (-1,0,-2,-1,-2,-2,-1,1)
+Region (-1,0,-2,-1,-1,-1,0,1)
+Region (-1,0,-1,-1,-2,-1,0,1)
+Region (-1,0,-1,-1,-1,0,0,1)
+Region (-1,0,-1,0,-2,-1,-1,1)
+Region (-1,0,-1,0,-1,-2,-1,1)
+Region (-1,0,-1,0,-1,-1,0,1)
+Region (-1,0,0,0,-1,-1,-1,1)
+Region (-1,0,0,0,-1,0,0,1)
+Region (0,-1,-1,-2,0,-1,-2,1)
+Region (0,-1,-1,-2,0,0,-1,1)
+Region (0,-1,0,-1,0,-1,-2,1)
+Region (0,-1,0,-1,0,0,-1,1)
+Region (0,0,-2,-1,-1,-1,-1,1)
+Region (0,0,-1,-1,-1,-2,-1,1)
+Region (0,0,-1,-1,-1,-1,0,1)
+Region (0,0,-1,-1,0,-1,-1,1)
+Region (0,0,-1,-1,0,0,0,1)
+Region (0,0,-1,0,-1,-1,-1,1)
+Region (0,0,0,0,0,-1,-1,1)
+Region (0,0,0,0,0,0,0,1)
+
+# FRI (momentum-space) regions: 33 (runtime 0.0s)
+FRI region  1: [S, C_1, S, C_2, C_3, C_3, H]  ->  scaling vector (-2, -1, -2, -1, -1, -1, 0, 1)
+FRI region  2: [S, C_1, C_2, C_2, C_3, H, H]  ->  scaling vector (-2, -1, -1, -1, -1, 0, 0, 1)
+FRI region  3: [S, C_1, C_3, H, C_3, S, C_4]  ->  scaling vector (-2, -1, -1, 0, -1, -2, -1, 1)
+FRI region  4: [S, C_1, C_3, H, C_3, C_3, H]  ->  scaling vector (-2, -1, -1, 0, -1, -1, 0, 1)
+FRI region  5: [S, C_1, H, H, C_3, C_4, C_4]  ->  scaling vector (-2, -1, 0, 0, -1, -1, -1, 1)
+FRI region  6: [S, C_1, H, H, C_3, H, H]  ->  scaling vector (-2, -1, 0, 0, -1, 0, 0, 1)
+FRI region  7: [C_1, S, C_2, S, H, H, C_5]  ->  scaling vector (-1, -2, -1, -2, 0, 0, -1, 1)
+FRI region  8: [C_1, S, H, C_5, H, C_4, S]  ->  scaling vector (-1, -2, 0, -1, 0, -1, -2, 1)
+FRI region  9: [C_1, S, H, C_5, H, H, C_5]  ->  scaling vector (-1, -2, 0, -1, 0, 0, -1, 1)
+FRI region 10: [C_1, C_1, C_2, C_2, H, H, H]  ->  scaling vector (-1, -1, -1, -1, 0, 0, 0, 1)
+FRI region 11: [C_1, C_1, H, H, H, C_4, C_4]  ->  scaling vector (-1, -1, 0, 0, 0, -1, -1, 1)
+FRI region 12: [C_1, C_1, H, H, H, H, H]  ->  scaling vector (-1, -1, 0, 0, 0, 0, 0, 1)
+FRI region 13: [C_3, H, S, C_2, S, S, C_4]  ->  scaling vector (-1, 0, -2, -1, -2, -2, -1, 1)
+FRI region 14: [C_3, H, S, C_2, C_3, C_3, H]  ->  scaling vector (-1, 0, -2, -1, -1, -1, 0, 1)
+FRI region 15: [C_3, H, C_2, C_2, S, C_2, H]  ->  scaling vector (-1, 0, -1, -1, -2, -1, 0, 1)
+FRI region 16: [C_3, H, C_2, C_2, C_3, H, H]  ->  scaling vector (-1, 0, -1, -1, -1, 0, 0, 1)
+FRI region 17: [C_3, H, C_4, H, S, C_4, C_4]  ->  scaling vector (-1, 0, -1, 0, -2, -1, -1, 1)
+FRI region 18: [C_3, H, C_3, H, C_3, S, C_4]  ->  scaling vector (-1, 0, -1, 0, -1, -2, -1, 1)
+FRI region 19: [C_3, H, C_3, H, C_3, C_3, H]  ->  scaling vector (-1, 0, -1, 0, -1, -1, 0, 1)
+FRI region 20: [C_3, H, H, H, C_3, C_4, C_4]  ->  scaling vector (-1, 0, 0, 0, -1, -1, -1, 1)
+FRI region 21: [C_3, H, H, H, C_3, H, H]  ->  scaling vector (-1, 0, 0, 0, -1, 0, 0, 1)
+FRI region 22: [H, C_5, C_2, S, H, C_4, S]  ->  scaling vector (0, -1, -1, -2, 0, -1, -2, 1)
+FRI region 23: [H, C_5, C_2, S, H, H, C_5]  ->  scaling vector (0, -1, -1, -2, 0, 0, -1, 1)
+FRI region 24: [H, C_5, H, C_5, H, C_4, S]  ->  scaling vector (0, -1, 0, -1, 0, -1, -2, 1)
+FRI region 25: [H, C_5, H, C_5, H, H, C_5]  ->  scaling vector (0, -1, 0, -1, 0, 0, -1, 1)
+FRI region 26: [H, H, S, C_2, C_4, C_4, C_4]  ->  scaling vector (0, 0, -2, -1, -1, -1, -1, 1)
+FRI region 27: [H, H, C_2, C_2, C_2, S, C_4]  ->  scaling vector (0, 0, -1, -1, -1, -2, -1, 1)
+FRI region 28: [H, H, C_2, C_2, C_2, C_2, H]  ->  scaling vector (0, 0, -1, -1, -1, -1, 0, 1)
+FRI region 29: [H, H, C_2, C_2, H, C_4, C_4]  ->  scaling vector (0, 0, -1, -1, 0, -1, -1, 1)
+FRI region 30: [H, H, C_2, C_2, H, H, H]  ->  scaling vector (0, 0, -1, -1, 0, 0, 0, 1)
+FRI region 31: [H, H, C_4, H, C_4, C_4, C_4]  ->  scaling vector (0, 0, -1, 0, -1, -1, -1, 1)
+FRI region 32: [H, H, H, H, H, C_4, C_4]  ->  scaling vector (0, 0, 0, 0, 0, -1, -1, 1)
+FRI region 33: [H, H, H, H, H, H, H]  ->  scaling vector (0, 0, 0, 0, 0, 0, 0, 1)
+
+# ==== FrogU_k1.txt ====
+name = 'FrogU_k1'
+    smallness_parameters = ['t1']
+    internal_lines = [['0', [1, 3]], ['0', [1, 5]], ['0', [2, 6]], ['0', [2, 5]], ['0', [3, 6]], ['0', [6, 4]], ['0', [4, 5]]]
+    external_lines = [['p1', 1], ['p2', 2], ['p3', 3], ['p4', 4], ['p5', 5]]
+    li = psd.LoopIntegralFromGraph(
+       internal_lines = internal_lines,
+       external_lines = external_lines,
+       replacement_rules = [
+                              ('p1*p1', 'm1**2'),
+                              ('p2*p2', 'm2**2'),
+                              ('p3*p3', 'm3**2'),
+                              ('p4*p4', 'm4**2'),
+                              ('p5*p5', 'm5**2'),
+                              ('p1*p2', '(s12-m1**2-m2**2)/2'),
+                              ('p1*p3', '(s13-m1**2-m3**2)/2'),
+                              ('p1*p4', '(s14-m1**2-m4**2)/2'),
+                              ('p2*p3', '(s23-m2**2-m3**2)/2'),
+                              ('p2*p4', '(s24-m2**2-m4**2)/2'),
+                              ('p3*p4', '(m5**2 + 2*m1**2 + 2*m2**2 + m3**2 + m4**2 - s12 - s13 - s14 - s23 - s24)/2'),
+                              ('p1*p5', '(m1**2 + m2**2 + m3**2 + m4**2 - s12 - s13 - s14)/2'),
+                              ('p2*p5', '(m1**2 + m2**2 + m3**2 + m4**2 - s12 - s23 - s24)/2'),
+                              ('p3*p5', '(s12 + s14 + s24 - m1**2 - m2**2 - m3**2 - m4**2 - m5**2)/2'),
+                              ('p4*p5', '(s12 + s13 + s23 - m1**2 - m2**2 - m3**2 - m4**2 - m5**2)/2'),
+                              ('m1**2', 't1*m1s'),
+                              ('m2**2', 't1*m2s'),
+                              ('m3**2', 't1*m3s'),
+                              ('m4**2', '0'),
+                              ('m5**2', '0'),
+    ]
+    )
+
+Region (-2,-1,-2,-1,-1,-1,0,1)
+Region (-2,-1,-1,-1,-1,0,0,1)
+Region (-2,-1,-1,0,-1,-1,0,1)
+Region (-2,-1,0,0,-1,0,0,1)
+Region (-1,-1,-1,-1,0,0,0,1)
+Region (-1,-1,0,0,0,0,0,1)
+Region (-1,0,-2,-1,-2,-2,-1,1)
+Region (-1,0,-2,-1,-1,-1,0,1)
+Region (-1,0,-1,-1,-2,-1,0,1)
+Region (-1,0,-1,-1,-1,0,0,1)
+Region (-1,0,-1,0,-1,-1,0,1)
+Region (-1,0,0,0,-1,0,0,1)
+Region (0,0,-1,-1,-1,-1,0,1)
+Region (0,0,-1,-1,0,0,0,1)
+Region (0,0,0,0,0,0,0,1)
+
+# FRI (momentum-space) regions: 15 (runtime 0.0s)
+FRI region  1: [S, C_1, S, C_2, C_3, C_3, H]  ->  scaling vector (-2, -1, -2, -1, -1, -1, 0, 1)
+FRI region  2: [S, C_1, C_2, C_2, C_3, H, H]  ->  scaling vector (-2, -1, -1, -1, -1, 0, 0, 1)
+FRI region  3: [S, C_1, C_3, H, C_3, C_3, H]  ->  scaling vector (-2, -1, -1, 0, -1, -1, 0, 1)
+FRI region  4: [S, C_1, H, H, C_3, H, H]  ->  scaling vector (-2, -1, 0, 0, -1, 0, 0, 1)
+FRI region  5: [C_1, C_1, C_2, C_2, H, H, H]  ->  scaling vector (-1, -1, -1, -1, 0, 0, 0, 1)
+FRI region  6: [C_1, C_1, H, H, H, H, H]  ->  scaling vector (-1, -1, 0, 0, 0, 0, 0, 1)
+FRI region  7: [C_3, H, S, C_2, S, S, C_4]  ->  scaling vector (-1, 0, -2, -1, -2, -2, -1, 1)
+FRI region  8: [C_3, H, S, C_2, C_3, C_3, H]  ->  scaling vector (-1, 0, -2, -1, -1, -1, 0, 1)
+FRI region  9: [C_3, H, C_2, C_2, S, C_2, H]  ->  scaling vector (-1, 0, -1, -1, -2, -1, 0, 1)
+FRI region 10: [C_3, H, C_2, C_2, C_3, H, H]  ->  scaling vector (-1, 0, -1, -1, -1, 0, 0, 1)
+FRI region 11: [C_3, H, C_3, H, C_3, C_3, H]  ->  scaling vector (-1, 0, -1, 0, -1, -1, 0, 1)
+FRI region 12: [C_3, H, H, H, C_3, H, H]  ->  scaling vector (-1, 0, 0, 0, -1, 0, 0, 1)
+FRI region 13: [H, H, C_2, C_2, C_2, C_2, H]  ->  scaling vector (0, 0, -1, -1, -1, -1, 0, 1)
+FRI region 14: [H, H, C_2, C_2, H, H, H]  ->  scaling vector (0, 0, -1, -1, 0, 0, 0, 1)
+FRI region 15: [H, H, H, H, H, H, H]  ->  scaling vector (0, 0, 0, 0, 0, 0, 0, 1)
+
+# ==== FrogU_k2.txt ====
+name = 'FrogU_k2'
+    smallness_parameters = ['t1']
+    internal_lines = [['0', [1, 3]], ['0', [1, 5]], ['0', [2, 6]], ['0', [2, 5]], ['0', [3, 6]], ['0', [6, 4]], ['0', [4, 5]]]
+    external_lines = [['p1', 1], ['p2', 2], ['p3', 3], ['p4', 4], ['p5', 5]]
+    li = psd.LoopIntegralFromGraph(
+       internal_lines = internal_lines,
+       external_lines = external_lines,
+       replacement_rules = [
+                              ('p1*p1', 'm1**2'),
+                              ('p2*p2', 'm2**2'),
+                              ('p3*p3', 'm3**2'),
+                              ('p4*p4', 'm4**2'),
+                              ('p5*p5', 'm5**2'),
+                              ('p1*p2', '(s12-m1**2-m2**2)/2'),
+                              ('p1*p3', '(s13-m1**2-m3**2)/2'),
+                              ('p1*p4', '(s14-m1**2-m4**2)/2'),
+                              ('p2*p3', '(s23-m2**2-m3**2)/2'),
+                              ('p2*p4', '(s24-m2**2-m4**2)/2'),
+                              ('p3*p4', '(m5**2 + 2*m1**2 + 2*m2**2 + m3**2 + m4**2 - s12 - s13 - s14 - s23 - s24)/2'),
+                              ('p1*p5', '(m1**2 + m2**2 + m3**2 + m4**2 - s12 - s13 - s14)/2'),
+                              ('p2*p5', '(m1**2 + m2**2 + m3**2 + m4**2 - s12 - s23 - s24)/2'),
+                              ('p3*p5', '(s12 + s14 + s24 - m1**2 - m2**2 - m3**2 - m4**2 - m5**2)/2'),
+                              ('p4*p5', '(s12 + s13 + s23 - m1**2 - m2**2 - m3**2 - m4**2 - m5**2)/2'),
+                              ('m1**2', 't1*m1s'),
+                              ('m2**2', 't1*m2s'),
+                              ('m3**2', '0'),
+                              ('m4**2', '0'),
+                              ('m5**2', '0'),
+    ]
+    )
+
+Region (-1,-1,-1,-1,0,0,0,1)
+Region (-1,-1,0,0,0,0,0,1)
+Region (-1,0,-2,-1,-2,-2,-1,1)
+Region (0,0,-1,-1,-1,-1,0,1)
+Region (0,0,-1,-1,0,0,0,1)
+Region (0,0,0,0,0,0,0,1)
+
+# FRI (momentum-space) regions: 6 (runtime 0.0s)
+FRI region  1: [C_1, C_1, C_2, C_2, H, H, H]  ->  scaling vector (-1, -1, -1, -1, 0, 0, 0, 1)
+FRI region  2: [C_1, C_1, H, H, H, H, H]  ->  scaling vector (-1, -1, 0, 0, 0, 0, 0, 1)
+FRI region  3: [C_3, H, S, C_2, S, S, C_4]  ->  scaling vector (-1, 0, -2, -1, -2, -2, -1, 1)
+FRI region  4: [H, H, C_2, C_2, C_2, C_2, H]  ->  scaling vector (0, 0, -1, -1, -1, -1, 0, 1)
+FRI region  5: [H, H, C_2, C_2, H, H, H]  ->  scaling vector (0, 0, -1, -1, 0, 0, 0, 1)
+FRI region  6: [H, H, H, H, H, H, H]  ->  scaling vector (0, 0, 0, 0, 0, 0, 0, 1)
+
+# ==== FrogU_k3.txt ====
+name = 'FrogU_k3'
+    smallness_parameters = ['t1']
+    internal_lines = [['0', [1, 3]], ['0', [1, 5]], ['0', [2, 6]], ['0', [2, 5]], ['0', [3, 6]], ['0', [6, 4]], ['0', [4, 5]]]
+    external_lines = [['p1', 1], ['p2', 2], ['p3', 3], ['p4', 4], ['p5', 5]]
+    li = psd.LoopIntegralFromGraph(
+       internal_lines = internal_lines,
+       external_lines = external_lines,
+       replacement_rules = [
+                              ('p1*p1', 'm1**2'),
+                              ('p2*p2', 'm2**2'),
+                              ('p3*p3', 'm3**2'),
+                              ('p4*p4', 'm4**2'),
+                              ('p5*p5', 'm5**2'),
+                              ('p1*p2', '(s12-m1**2-m2**2)/2'),
+                              ('p1*p3', '(s13-m1**2-m3**2)/2'),
+                              ('p1*p4', '(s14-m1**2-m4**2)/2'),
+                              ('p2*p3', '(s23-m2**2-m3**2)/2'),
+                              ('p2*p4', '(s24-m2**2-m4**2)/2'),
+                              ('p3*p4', '(m5**2 + 2*m1**2 + 2*m2**2 + m3**2 + m4**2 - s12 - s13 - s14 - s23 - s24)/2'),
+                              ('p1*p5', '(m1**2 + m2**2 + m3**2 + m4**2 - s12 - s13 - s14)/2'),
+                              ('p2*p5', '(m1**2 + m2**2 + m3**2 + m4**2 - s12 - s23 - s24)/2'),
+                              ('p3*p5', '(s12 + s14 + s24 - m1**2 - m2**2 - m3**2 - m4**2 - m5**2)/2'),
+                              ('p4*p5', '(s12 + s13 + s23 - m1**2 - m2**2 - m3**2 - m4**2 - m5**2)/2'),
+                              ('m1**2', 't1*m1s'),
+                              ('m2**2', 't1*t1*m2s'),
+                              ('m3**2', '0'),
+                              ('m4**2', '0'),
+                              ('m5**2', '0'),
+    ]
+    )
+
+Region (-2,0,-4,-2,-4,-4,-2,1)
+Region (-1,-1,-2,-2,0,0,0,1)
+Region (-1,-1,0,0,0,0,0,1)
+Region (0,0,-2,-2,-2,-2,0,1)
+Region (0,0,-2,-2,0,0,0,1)
+Region (0,0,0,0,0,0,0,1)
+
+# FRI (momentum-space) regions: 6 (runtime 0.0s)
+FRI region  1: [C_3^2, H, S^2, C_2^2, S^2, S^2, C_4^2]  ->  scaling vector (-2, 0, -4, -2, -4, -4, -2, 1)
+FRI region  2: [C_1, C_1, C_2^2, C_2^2, H, H, H]  ->  scaling vector (-1, -1, -2, -2, 0, 0, 0, 1)
+FRI region  3: [C_1, C_1, H, H, H, H, H]  ->  scaling vector (-1, -1, 0, 0, 0, 0, 0, 1)
+FRI region  4: [H, H, C_2^2, C_2^2, C_2^2, C_2^2, H]  ->  scaling vector (0, 0, -2, -2, -2, -2, 0, 1)
+FRI region  5: [H, H, C_2^2, C_2^2, H, H, H]  ->  scaling vector (0, 0, -2, -2, 0, 0, 0, 1)
+FRI region  6: [H, H, H, H, H, H, H]  ->  scaling vector (0, 0, 0, 0, 0, 0, 0, 1)
+
+# ==== FrogUU_k0.txt ====
+name = 'FrogUU_k0'
+    smallness_parameters = ['t1']
+    internal_lines = [['0', [1, 3]], ['0', [1, 7]], ['0', [2, 6]], ['0', [2, 5]], ['0', [3, 6]], ['0', [5, 7]], ['0', [4, 6]], ['0', [4, 7]]]
+    external_lines = [['p1', 1], ['p2', 2], ['p3', 3], ['p4', 4], ['p5', 5]]
+    li = psd.LoopIntegralFromGraph(
+       internal_lines = internal_lines,
+       external_lines = external_lines,
+       replacement_rules = [
+                              ('p1*p1', 'm1**2'),
+                              ('p2*p2', 'm2**2'),
+                              ('p3*p3', 'm3**2'),
+                              ('p4*p4', 'm4**2'),
+                              ('p5*p5', 'm5**2'),
+                              ('p1*p2', '(s12-m1**2-m2**2)/2'),
+                              ('p1*p3', '(s13-m1**2-m3**2)/2'),
+                              ('p1*p4', '(s14-m1**2-m4**2)/2'),
+                              ('p2*p3', '(s23-m2**2-m3**2)/2'),
+                              ('p2*p4', '(s24-m2**2-m4**2)/2'),
+                              ('p3*p4', '(m5**2 + 2*m1**2 + 2*m2**2 + m3**2 + m4**2 - s12 - s13 - s14 - s23 - s24)/2'),
+                              ('p1*p5', '(m1**2 + m2**2 + m3**2 + m4**2 - s12 - s13 - s14)/2'),
+                              ('p2*p5', '(m1**2 + m2**2 + m3**2 + m4**2 - s12 - s23 - s24)/2'),
+                              ('p3*p5', '(s12 + s14 + s24 - m1**2 - m2**2 - m3**2 - m4**2 - m5**2)/2'),
+                              ('p4*p5', '(s12 + s13 + s23 - m1**2 - m2**2 - m3**2 - m4**2 - m5**2)/2'),
+                              ('m1**2', 't1*m1s'),
+                              ('m2**2', 't1*m2s'),
+                              ('m3**2', 't1*m3s'),
+                              ('m4**2', 't1*m4s'),
+                              ('m5**2', 't1*m5s'),
+    ]
+    )
+
+Region (-2,-1,-2,-1,-1,0,-1,0,1)
+Region (-2,-1,-1,-2,-1,-1,0,0,1)
+Region (-2,-1,-1,-1,-1,0,0,0,1)
+Region (-2,-1,-1,0,-1,0,-2,-1,1)
+Region (-2,-1,-1,0,-1,0,-1,0,1)
+Region (-2,-1,0,-1,-1,-2,0,-1,1)
+Region (-2,-1,0,-1,-1,-1,0,0,1)
+Region (-2,-1,0,0,-1,-1,-1,-2,1)
+Region (-2,-1,0,0,-1,-1,0,-1,1)
+Region (-2,-1,0,0,-1,0,-1,-1,1)
+Region (-2,-1,0,0,-1,0,0,0,1)
+Region (-1,-2,-1,-2,0,-1,0,-1,1)
+Region (-1,-2,0,-1,0,-2,-1,-2,1)
+Region (-1,-2,0,-1,0,-1,0,-1,1)
+Region (-1,-2,0,0,0,-1,-1,-1,1)
+Region (-1,-1,-1,-2,0,-1,0,0,1)
+Region (-1,-1,-1,-1,0,0,0,0,1)
+Region (-1,-1,0,-1,0,-2,0,-1,1)
+Region (-1,-1,0,-1,0,-1,0,0,1)
+Region (-1,-1,0,0,0,-1,-1,-2,1)
+Region (-1,-1,0,0,0,-1,0,-1,1)
+Region (-1,-1,0,0,0,0,-1,-1,1)
+Region (-1,-1,0,0,0,0,0,0,1)
+Region (-1,0,-2,-1,-2,0,-2,-1,1)
+Region (-1,0,-2,-1,-1,0,-1,0,1)
+Region (-1,0,-1,-2,-2,-1,-1,0,1)
+Region (-1,0,-1,-2,-1,-1,0,0,1)
+Region (-1,0,-1,-1,-2,0,-1,0,1)
+Region (-1,0,-1,-1,-1,0,0,0,1)
+Region (-1,0,-1,0,-2,0,-1,-1,1)
+Region (-1,0,-1,0,-1,0,-2,-1,1)
+Region (-1,0,-1,0,-1,0,-1,0,1)
+Region (-1,0,0,-1,-1,-1,0,0,1)
+Region (-1,0,0,0,-1,0,-1,-1,1)
+Region (-1,0,0,0,-1,0,0,0,1)
+Region (0,-1,-1,-2,0,-1,-1,-2,1)
+Region (0,-1,-1,-2,0,-1,0,-1,1)
+Region (0,-1,0,-1,0,-2,-1,-1,1)
+Region (0,-1,0,-1,0,-1,-1,-2,1)
+Region (0,-1,0,-1,0,-1,0,-1,1)
+Region (0,-1,0,0,0,-1,-1,-1,1)
+Region (0,0,-2,-1,-1,0,-1,-1,1)
+Region (0,0,-1,-2,-1,-1,-2,-1,1)
+Region (0,0,-1,-2,-1,-1,-1,0,1)
+Region (0,0,-1,-2,0,-1,-1,-1,1)
+Region (0,0,-1,-2,0,-1,0,0,1)
+Region (0,0,-1,-1,-1,0,-2,-1,1)
+Region (0,0,-1,-1,-1,0,-1,0,1)
+Region (0,0,-1,-1,0,0,-1,-1,1)
+Region (0,0,-1,-1,0,0,0,0,1)
+Region (0,0,-1,0,-1,0,-1,-1,1)
+Region (0,0,0,-1,0,-1,-1,-1,1)
+Region (0,0,0,-1,0,-1,0,0,1)
+Region (0,0,0,0,0,0,-1,-1,1)
+Region (0,0,0,0,0,0,0,0,1)
+
+# FRI (momentum-space) regions: 55 (runtime 0.0s)
+FRI region  1: [S, C_1, S, C_2, C_3, H, C_3, H]  ->  scaling vector (-2, -1, -2, -1, -1, 0, -1, 0, 1)
+FRI region  2: [S, C_1, C_2, S, C_3, C_5, H, H]  ->  scaling vector (-2, -1, -1, -2, -1, -1, 0, 0, 1)
+FRI region  3: [S, C_1, C_2, C_2, C_3, H, H, H]  ->  scaling vector (-2, -1, -1, -1, -1, 0, 0, 0, 1)
+FRI region  4: [S, C_1, C_3, H, C_3, H, S, C_4]  ->  scaling vector (-2, -1, -1, 0, -1, 0, -2, -1, 1)
+FRI region  5: [S, C_1, C_3, H, C_3, H, C_3, H]  ->  scaling vector (-2, -1, -1, 0, -1, 0, -1, 0, 1)
+FRI region  6: [S, C_1, H, C_5, C_3, S, H, C_1]  ->  scaling vector (-2, -1, 0, -1, -1, -2, 0, -1, 1)
+FRI region  7: [S, C_1, H, C_5, C_3, C_5, H, H]  ->  scaling vector (-2, -1, 0, -1, -1, -1, 0, 0, 1)
+FRI region  8: [S, C_1, H, H, C_3, C_1, C_4, S]  ->  scaling vector (-2, -1, 0, 0, -1, -1, -1, -2, 1)
+FRI region  9: [S, C_1, H, H, C_3, C_1, H, C_1]  ->  scaling vector (-2, -1, 0, 0, -1, -1, 0, -1, 1)
+FRI region 10: [S, C_1, H, H, C_3, H, C_4, C_4]  ->  scaling vector (-2, -1, 0, 0, -1, 0, -1, -1, 1)
+FRI region 11: [S, C_1, H, H, C_3, H, H, H]  ->  scaling vector (-2, -1, 0, 0, -1, 0, 0, 0, 1)
+FRI region 12: [C_1, S, C_2, S, H, C_5, H, C_5]  ->  scaling vector (-1, -2, -1, -2, 0, -1, 0, -1, 1)
+FRI region 13: [C_1, S, H, C_5, H, S, C_4, S]  ->  scaling vector (-1, -2, 0, -1, 0, -2, -1, -2, 1)
+FRI region 14: [C_1, S, H, C_5, H, C_5, H, C_5]  ->  scaling vector (-1, -2, 0, -1, 0, -1, 0, -1, 1)
+FRI region 15: [C_1, S, H, H, H, C_4, C_4, C_4]  ->  scaling vector (-1, -2, 0, 0, 0, -1, -1, -1, 1)
+FRI region 16: [C_1, C_1, C_2, S, H, C_5, H, H]  ->  scaling vector (-1, -1, -1, -2, 0, -1, 0, 0, 1)
+FRI region 17: [C_1, C_1, C_2, C_2, H, H, H, H]  ->  scaling vector (-1, -1, -1, -1, 0, 0, 0, 0, 1)
+FRI region 18: [C_1, C_1, H, C_5, H, S, H, C_1]  ->  scaling vector (-1, -1, 0, -1, 0, -2, 0, -1, 1)
+FRI region 19: [C_1, C_1, H, C_5, H, C_5, H, H]  ->  scaling vector (-1, -1, 0, -1, 0, -1, 0, 0, 1)
+FRI region 20: [C_1, C_1, H, H, H, C_1, C_4, S]  ->  scaling vector (-1, -1, 0, 0, 0, -1, -1, -2, 1)
+FRI region 21: [C_1, C_1, H, H, H, C_1, H, C_1]  ->  scaling vector (-1, -1, 0, 0, 0, -1, 0, -1, 1)
+FRI region 22: [C_1, C_1, H, H, H, H, C_4, C_4]  ->  scaling vector (-1, -1, 0, 0, 0, 0, -1, -1, 1)
+FRI region 23: [C_1, C_1, H, H, H, H, H, H]  ->  scaling vector (-1, -1, 0, 0, 0, 0, 0, 0, 1)
+FRI region 24: [C_3, H, S, C_2, S, H, S, C_4]  ->  scaling vector (-1, 0, -2, -1, -2, 0, -2, -1, 1)
+FRI region 25: [C_3, H, S, C_2, C_3, H, C_3, H]  ->  scaling vector (-1, 0, -2, -1, -1, 0, -1, 0, 1)
+FRI region 26: [C_3, H, C_2, S, S, C_5, C_2, H]  ->  scaling vector (-1, 0, -1, -2, -2, -1, -1, 0, 1)
+FRI region 27: [C_3, H, C_2, S, C_3, C_5, H, H]  ->  scaling vector (-1, 0, -1, -2, -1, -1, 0, 0, 1)
+FRI region 28: [C_3, H, C_2, C_2, S, H, C_2, H]  ->  scaling vector (-1, 0, -1, -1, -2, 0, -1, 0, 1)
+FRI region 29: [C_3, H, C_2, C_2, C_3, H, H, H]  ->  scaling vector (-1, 0, -1, -1, -1, 0, 0, 0, 1)
+FRI region 30: [C_3, H, C_4, H, S, H, C_4, C_4]  ->  scaling vector (-1, 0, -1, 0, -2, 0, -1, -1, 1)
+FRI region 31: [C_3, H, C_3, H, C_3, H, S, C_4]  ->  scaling vector (-1, 0, -1, 0, -1, 0, -2, -1, 1)
+FRI region 32: [C_3, H, C_3, H, C_3, H, C_3, H]  ->  scaling vector (-1, 0, -1, 0, -1, 0, -1, 0, 1)
+FRI region 33: [C_3, H, H, C_5, C_3, C_5, H, H]  ->  scaling vector (-1, 0, 0, -1, -1, -1, 0, 0, 1)
+FRI region 34: [C_3, H, H, H, C_3, H, C_4, C_4]  ->  scaling vector (-1, 0, 0, 0, -1, 0, -1, -1, 1)
+FRI region 35: [C_3, H, H, H, C_3, H, H, H]  ->  scaling vector (-1, 0, 0, 0, -1, 0, 0, 0, 1)
+FRI region 36: [H, C_5, C_2, S, H, C_5, C_4, S]  ->  scaling vector (0, -1, -1, -2, 0, -1, -1, -2, 1)
+FRI region 37: [H, C_5, C_2, S, H, C_5, H, C_5]  ->  scaling vector (0, -1, -1, -2, 0, -1, 0, -1, 1)
+FRI region 38: [H, C_4, H, C_5, H, S, C_4, C_4]  ->  scaling vector (0, -1, 0, -1, 0, -2, -1, -1, 1)
+FRI region 39: [H, C_5, H, C_5, H, C_5, C_4, S]  ->  scaling vector (0, -1, 0, -1, 0, -1, -1, -2, 1)
+FRI region 40: [H, C_5, H, C_5, H, C_5, H, C_5]  ->  scaling vector (0, -1, 0, -1, 0, -1, 0, -1, 1)
+FRI region 41: [H, C_4, H, H, H, C_4, C_4, C_4]  ->  scaling vector (0, -1, 0, 0, 0, -1, -1, -1, 1)
+FRI region 42: [H, H, S, C_2, C_4, H, C_4, C_4]  ->  scaling vector (0, 0, -2, -1, -1, 0, -1, -1, 1)
+FRI region 43: [H, H, C_2, S, C_2, C_5, S, C_4]  ->  scaling vector (0, 0, -1, -2, -1, -1, -2, -1, 1)
+FRI region 44: [H, H, C_2, S, C_2, C_5, C_2, H]  ->  scaling vector (0, 0, -1, -2, -1, -1, -1, 0, 1)
+FRI region 45: [H, H, C_2, S, H, C_5, C_4, C_4]  ->  scaling vector (0, 0, -1, -2, 0, -1, -1, -1, 1)
+FRI region 46: [H, H, C_2, S, H, C_5, H, H]  ->  scaling vector (0, 0, -1, -2, 0, -1, 0, 0, 1)
+FRI region 47: [H, H, C_2, C_2, C_2, H, S, C_4]  ->  scaling vector (0, 0, -1, -1, -1, 0, -2, -1, 1)
+FRI region 48: [H, H, C_2, C_2, C_2, H, C_2, H]  ->  scaling vector (0, 0, -1, -1, -1, 0, -1, 0, 1)
+FRI region 49: [H, H, C_2, C_2, H, H, C_4, C_4]  ->  scaling vector (0, 0, -1, -1, 0, 0, -1, -1, 1)
+FRI region 50: [H, H, C_2, C_2, H, H, H, H]  ->  scaling vector (0, 0, -1, -1, 0, 0, 0, 0, 1)
+FRI region 51: [H, H, C_4, H, C_4, H, C_4, C_4]  ->  scaling vector (0, 0, -1, 0, -1, 0, -1, -1, 1)
+FRI region 52: [H, H, H, C_5, H, C_5, C_4, C_4]  ->  scaling vector (0, 0, 0, -1, 0, -1, -1, -1, 1)
+FRI region 53: [H, H, H, C_5, H, C_5, H, H]  ->  scaling vector (0, 0, 0, -1, 0, -1, 0, 0, 1)
+FRI region 54: [H, H, H, H, H, H, C_4, C_4]  ->  scaling vector (0, 0, 0, 0, 0, 0, -1, -1, 1)
+FRI region 55: [H, H, H, H, H, H, H, H]  ->  scaling vector (0, 0, 0, 0, 0, 0, 0, 0, 1)
+
+# ==== FrogUU_k1.txt ====
+name = 'FrogUU_k1'
+    smallness_parameters = ['t1']
+    internal_lines = [['0', [1, 3]], ['0', [1, 7]], ['0', [2, 6]], ['0', [2, 5]], ['0', [3, 6]], ['0', [5, 7]], ['0', [4, 6]], ['0', [4, 7]]]
+    external_lines = [['p1', 1], ['p2', 2], ['p3', 3], ['p4', 4], ['p5', 5]]
+    li = psd.LoopIntegralFromGraph(
+       internal_lines = internal_lines,
+       external_lines = external_lines,
+       replacement_rules = [
+                              ('p1*p1', 'm1**2'),
+                              ('p2*p2', 'm2**2'),
+                              ('p3*p3', 'm3**2'),
+                              ('p4*p4', 'm4**2'),
+                              ('p5*p5', 'm5**2'),
+                              ('p1*p2', '(s12-m1**2-m2**2)/2'),
+                              ('p1*p3', '(s13-m1**2-m3**2)/2'),
+                              ('p1*p4', '(s14-m1**2-m4**2)/2'),
+                              ('p2*p3', '(s23-m2**2-m3**2)/2'),
+                              ('p2*p4', '(s24-m2**2-m4**2)/2'),
+                              ('p3*p4', '(m5**2 + 2*m1**2 + 2*m2**2 + m3**2 + m4**2 - s12 - s13 - s14 - s23 - s24)/2'),
+                              ('p1*p5', '(m1**2 + m2**2 + m3**2 + m4**2 - s12 - s13 - s14)/2'),
+                              ('p2*p5', '(m1**2 + m2**2 + m3**2 + m4**2 - s12 - s23 - s24)/2'),
+                              ('p3*p5', '(s12 + s14 + s24 - m1**2 - m2**2 - m3**2 - m4**2 - m5**2)/2'),
+                              ('p4*p5', '(s12 + s13 + s23 - m1**2 - m2**2 - m3**2 - m4**2 - m5**2)/2'),
+                              ('m1**2', 't1*m1s'),
+                              ('m2**2', 't1*m2s'),
+                              ('m3**2', 't1*m3s'),
+                              ('m4**2', '0'),
+                              ('m5**2', '0'),
+    ]
+    )
+
+Region (-2,-1,-2,-1,-1,0,-1,0,1)
+Region (-2,-1,-1,-1,-1,0,0,0,1)
+Region (-2,-1,-1,0,-1,0,-1,0,1)
+Region (-2,-1,0,0,-1,-1,0,-1,1)
+Region (-2,-1,0,0,-1,0,0,0,1)
+Region (-1,-2,0,-1,0,-2,-1,-2,1)
+Region (-1,-1,-1,-1,0,0,0,0,1)
+Region (-1,-1,0,0,0,-1,0,-1,1)
+Region (-1,-1,0,0,0,0,0,0,1)
+Region (-1,0,-2,-1,-2,0,-2,-1,1)
+Region (-1,0,-2,-1,-1,0,-1,0,1)
+Region (-1,0,-1,-1,-2,0,-1,0,1)
+Region (-1,0,-1,-1,-1,0,0,0,1)
+Region (-1,0,-1,0,-1,0,-1,0,1)
+Region (-1,0,0,0,-1,0,0,0,1)
+Region (0,0,-1,-1,-1,0,-1,0,1)
+Region (0,0,-1,-1,0,0,0,0,1)
+Region (0,0,0,0,0,0,0,0,1)
+
+# FRI (momentum-space) regions: 18 (runtime 0.0s)
+FRI region  1: [S, C_1, S, C_2, C_3, H, C_3, H]  ->  scaling vector (-2, -1, -2, -1, -1, 0, -1, 0, 1)
+FRI region  2: [S, C_1, C_2, C_2, C_3, H, H, H]  ->  scaling vector (-2, -1, -1, -1, -1, 0, 0, 0, 1)
+FRI region  3: [S, C_1, C_3, H, C_3, H, C_3, H]  ->  scaling vector (-2, -1, -1, 0, -1, 0, -1, 0, 1)
+FRI region  4: [S, C_1, H, H, C_3, C_1, H, C_1]  ->  scaling vector (-2, -1, 0, 0, -1, -1, 0, -1, 1)
+FRI region  5: [S, C_1, H, H, C_3, H, H, H]  ->  scaling vector (-2, -1, 0, 0, -1, 0, 0, 0, 1)
+FRI region  6: [C_1, S, H, C_5, H, S, C_4, S]  ->  scaling vector (-1, -2, 0, -1, 0, -2, -1, -2, 1)
+FRI region  7: [C_1, C_1, C_2, C_2, H, H, H, H]  ->  scaling vector (-1, -1, -1, -1, 0, 0, 0, 0, 1)
+FRI region  8: [C_1, C_1, H, H, H, C_1, H, C_1]  ->  scaling vector (-1, -1, 0, 0, 0, -1, 0, -1, 1)
+FRI region  9: [C_1, C_1, H, H, H, H, H, H]  ->  scaling vector (-1, -1, 0, 0, 0, 0, 0, 0, 1)
+FRI region 10: [C_3, H, S, C_2, S, H, S, C_4]  ->  scaling vector (-1, 0, -2, -1, -2, 0, -2, -1, 1)
+FRI region 11: [C_3, H, S, C_2, C_3, H, C_3, H]  ->  scaling vector (-1, 0, -2, -1, -1, 0, -1, 0, 1)
+FRI region 12: [C_3, H, C_2, C_2, S, H, C_2, H]  ->  scaling vector (-1, 0, -1, -1, -2, 0, -1, 0, 1)
+FRI region 13: [C_3, H, C_2, C_2, C_3, H, H, H]  ->  scaling vector (-1, 0, -1, -1, -1, 0, 0, 0, 1)
+FRI region 14: [C_3, H, C_3, H, C_3, H, C_3, H]  ->  scaling vector (-1, 0, -1, 0, -1, 0, -1, 0, 1)
+FRI region 15: [C_3, H, H, H, C_3, H, H, H]  ->  scaling vector (-1, 0, 0, 0, -1, 0, 0, 0, 1)
+FRI region 16: [H, H, C_2, C_2, C_2, H, C_2, H]  ->  scaling vector (0, 0, -1, -1, -1, 0, -1, 0, 1)
+FRI region 17: [H, H, C_2, C_2, H, H, H, H]  ->  scaling vector (0, 0, -1, -1, 0, 0, 0, 0, 1)
+FRI region 18: [H, H, H, H, H, H, H, H]  ->  scaling vector (0, 0, 0, 0, 0, 0, 0, 0, 1)
+
+# ==== FrogUU_k2.txt ====
+name = 'FrogUU_k2'
+    smallness_parameters = ['t1']
+    internal_lines = [['0', [1, 3]], ['0', [1, 7]], ['0', [2, 6]], ['0', [2, 5]], ['0', [3, 6]], ['0', [5, 7]], ['0', [4, 6]], ['0', [4, 7]]]
+    external_lines = [['p1', 1], ['p2', 2], ['p3', 3], ['p4', 4], ['p5', 5]]
+    li = psd.LoopIntegralFromGraph(
+       internal_lines = internal_lines,
+       external_lines = external_lines,
+       replacement_rules = [
+                              ('p1*p1', 'm1**2'),
+                              ('p2*p2', 'm2**2'),
+                              ('p3*p3', 'm3**2'),
+                              ('p4*p4', 'm4**2'),
+                              ('p5*p5', 'm5**2'),
+                              ('p1*p2', '(s12-m1**2-m2**2)/2'),
+                              ('p1*p3', '(s13-m1**2-m3**2)/2'),
+                              ('p1*p4', '(s14-m1**2-m4**2)/2'),
+                              ('p2*p3', '(s23-m2**2-m3**2)/2'),
+                              ('p2*p4', '(s24-m2**2-m4**2)/2'),
+                              ('p3*p4', '(m5**2 + 2*m1**2 + 2*m2**2 + m3**2 + m4**2 - s12 - s13 - s14 - s23 - s24)/2'),
+                              ('p1*p5', '(m1**2 + m2**2 + m3**2 + m4**2 - s12 - s13 - s14)/2'),
+                              ('p2*p5', '(m1**2 + m2**2 + m3**2 + m4**2 - s12 - s23 - s24)/2'),
+                              ('p3*p5', '(s12 + s14 + s24 - m1**2 - m2**2 - m3**2 - m4**2 - m5**2)/2'),
+                              ('p4*p5', '(s12 + s13 + s23 - m1**2 - m2**2 - m3**2 - m4**2 - m5**2)/2'),
+                              ('m1**2', 't1*m1s'),
+                              ('m2**2', 't1*m2s'),
+                              ('m3**2', '0'),
+                              ('m4**2', '0'),
+                              ('m5**2', '0'),
+    ]
+    )
+
+Region (-1,-2,0,-1,0,-2,-1,-2,1)
+Region (-1,-1,-1,-1,0,0,0,0,1)
+Region (-1,-1,0,0,0,-1,0,-1,1)
+Region (-1,-1,0,0,0,0,0,0,1)
+Region (-1,0,-2,-1,-2,0,-2,-1,1)
+Region (0,0,-1,-1,-1,0,-1,0,1)
+Region (0,0,-1,-1,0,0,0,0,1)
+Region (0,0,0,0,0,0,0,0,1)
+
+# FRI (momentum-space) regions: 8 (runtime 0.0s)
+FRI region  1: [C_1, S, H, C_5, H, S, C_4, S]  ->  scaling vector (-1, -2, 0, -1, 0, -2, -1, -2, 1)
+FRI region  2: [C_1, C_1, C_2, C_2, H, H, H, H]  ->  scaling vector (-1, -1, -1, -1, 0, 0, 0, 0, 1)
+FRI region  3: [C_1, C_1, H, H, H, C_1, H, C_1]  ->  scaling vector (-1, -1, 0, 0, 0, -1, 0, -1, 1)
+FRI region  4: [C_1, C_1, H, H, H, H, H, H]  ->  scaling vector (-1, -1, 0, 0, 0, 0, 0, 0, 1)
+FRI region  5: [C_3, H, S, C_2, S, H, S, C_4]  ->  scaling vector (-1, 0, -2, -1, -2, 0, -2, -1, 1)
+FRI region  6: [H, H, C_2, C_2, C_2, H, C_2, H]  ->  scaling vector (0, 0, -1, -1, -1, 0, -1, 0, 1)
+FRI region  7: [H, H, C_2, C_2, H, H, H, H]  ->  scaling vector (0, 0, -1, -1, 0, 0, 0, 0, 1)
+FRI region  8: [H, H, H, H, H, H, H, H]  ->  scaling vector (0, 0, 0, 0, 0, 0, 0, 0, 1)
+
+# ==== FrogUU_k3.txt ====
+name = 'FrogUU_k3'
+    smallness_parameters = ['t1']
+    internal_lines = [['0', [1, 3]], ['0', [1, 7]], ['0', [2, 6]], ['0', [2, 5]], ['0', [3, 6]], ['0', [5, 7]], ['0', [4, 6]], ['0', [4, 7]]]
+    external_lines = [['p1', 1], ['p2', 2], ['p3', 3], ['p4', 4], ['p5', 5]]
+    li = psd.LoopIntegralFromGraph(
+       internal_lines = internal_lines,
+       external_lines = external_lines,
+       replacement_rules = [
+                              ('p1*p1', 'm1**2'),
+                              ('p2*p2', 'm2**2'),
+                              ('p3*p3', 'm3**2'),
+                              ('p4*p4', 'm4**2'),
+                              ('p5*p5', 'm5**2'),
+                              ('p1*p2', '(s12-m1**2-m2**2)/2'),
+                              ('p1*p3', '(s13-m1**2-m3**2)/2'),
+                              ('p1*p4', '(s14-m1**2-m4**2)/2'),
+                              ('p2*p3', '(s23-m2**2-m3**2)/2'),
+                              ('p2*p4', '(s24-m2**2-m4**2)/2'),
+                              ('p3*p4', '(m5**2 + 2*m1**2 + 2*m2**2 + m3**2 + m4**2 - s12 - s13 - s14 - s23 - s24)/2'),
+                              ('p1*p5', '(m1**2 + m2**2 + m3**2 + m4**2 - s12 - s13 - s14)/2'),
+                              ('p2*p5', '(m1**2 + m2**2 + m3**2 + m4**2 - s12 - s23 - s24)/2'),
+                              ('p3*p5', '(s12 + s14 + s24 - m1**2 - m2**2 - m3**2 - m4**2 - m5**2)/2'),
+                              ('p4*p5', '(s12 + s13 + s23 - m1**2 - m2**2 - m3**2 - m4**2 - m5**2)/2'),
+                              ('m1**2', 't1*m1s'),
+                              ('m2**2', 't1*t1*m2s'),
+                              ('m3**2', '0'),
+                              ('m4**2', '0'),
+                              ('m5**2', '0'),
+    ]
+    )
+
+Region (-2,0,-4,-2,-4,0,-4,-2,1)
+Region (-1,-2,0,-1,0,-2,-1,-2,1)
+Region (-1,-1,-2,-2,0,0,0,0,1)
+Region (-1,-1,0,0,0,-1,0,-1,1)
+Region (-1,-1,0,0,0,0,0,0,1)
+Region (0,0,-2,-2,-2,0,-2,0,1)
+Region (0,0,-2,-2,0,0,0,0,1)
+Region (0,0,0,0,0,0,0,0,1)
+
+# FRI (momentum-space) regions: 8 (runtime 0.0s)
+FRI region  1: [C_3^2, H, S^2, C_2^2, S^2, H, S^2, C_4^2]  ->  scaling vector (-2, 0, -4, -2, -4, 0, -4, -2, 1)
+FRI region  2: [C_1, S, H, C_5, H, S, C_4, S]  ->  scaling vector (-1, -2, 0, -1, 0, -2, -1, -2, 1)
+FRI region  3: [C_1, C_1, C_2^2, C_2^2, H, H, H, H]  ->  scaling vector (-1, -1, -2, -2, 0, 0, 0, 0, 1)
+FRI region  4: [C_1, C_1, H, H, H, C_1, H, C_1]  ->  scaling vector (-1, -1, 0, 0, 0, -1, 0, -1, 1)
+FRI region  5: [C_1, C_1, H, H, H, H, H, H]  ->  scaling vector (-1, -1, 0, 0, 0, 0, 0, 0, 1)
+FRI region  6: [H, H, C_2^2, C_2^2, C_2^2, H, C_2^2, H]  ->  scaling vector (0, 0, -2, -2, -2, 0, -2, 0, 1)
+FRI region  7: [H, H, C_2^2, C_2^2, H, H, H, H]  ->  scaling vector (0, 0, -2, -2, 0, 0, 0, 0, 1)
+FRI region  8: [H, H, H, H, H, H, H, H]  ->  scaling vector (0, 0, 0, 0, 0, 0, 0, 0, 1)
+
+# ==== FrogV_k0.txt ====
+name = 'FrogV_k0'
+    smallness_parameters = ['t1']
+    internal_lines = [['0', [1, 3]], ['0', [1, 5]], ['0', [3, 5]], ['0', [2, 4]], ['0', [2, 6]], ['0', [4, 6]], ['0', [5, 6]]]
+    external_lines = [['p1',1],['p2',2],['p3',3],['p4',4],['p5',5]]
+    li = psd.LoopIntegralFromGraph(
+       internal_lines = internal_lines,
+       external_lines = external_lines,
+       replacement_rules = [
+                              ('p1*p1', 'm1**2'),
+('p2*p2', 'm2**2'),
+('p3*p3', 'm3**2'),
+('p4*p4', 'm4**2'),
+('p5*p5', 'm5**2'),
+('p1*p2', '(s12-m1**2-m2**2)/2'),
+('p1*p3', '(s13-m1**2-m3**2)/2'),
+('p1*p4', '(s14-m1**2-m4**2)/2'),
+('p2*p3', '(s23-m2**2-m3**2)/2'),
+('p2*p4', '(s24-m2**2-m4**2)/2'),
+('p3*p4', '(m5**2 + 2*m1**2 + 2*m2**2 + m3**2 + m4**2 - s12 - s13 - s14 - s23 - s24)/2'),
+('p1*p5', '(m1**2 + m2**2 + m3**2 + m4**2 - s12 - s13 - s14)/2'),
+('p2*p5', '(m1**2 + m2**2 + m3**2 + m4**2 - s12 - s23 - s24)/2'),
+('p3*p5', '(s12 + s14 + s24 - m1**2 - m2**2 - m3**2 - m4**2 - m5**2)/2'),
+('p4*p5', '(s12 + s13 + s23 - m1**2 - m2**2 - m3**2 - m4**2 - m5**2)/2'),
+('m1**2', 't1*m1s'),
+('m2**2', 't1*m2s'),
+('m3**2', 't1*m3s'),
+('m4**2', 't1*m4s'),
+('m5**2', 't1*m5s'),
+                              ]
+    )
+
+# ==== FrogV_k1.txt ====
+name = 'FrogV_k1'
+    smallness_parameters = ['t1']
+    internal_lines = [['0', [1, 3]], ['0', [1, 5]], ['0', [3, 5]], ['0', [2, 4]], ['0', [2, 6]], ['0', [4, 6]], ['0', [5, 6]]]
+    external_lines = [['p1',1],['p2',2],['p3',3],['p4',4],['p5',5]]
+    li = psd.LoopIntegralFromGraph(
+       internal_lines = internal_lines,
+       external_lines = external_lines,
+       replacement_rules = [
+                              ('p1*p1', 'm1**2'),
+('p2*p2', 'm2**2'),
+('p3*p3', 'm3**2'),
+('p4*p4', 'm4**2'),
+('p5*p5', 'm5**2'),
+('p1*p2', '(s12-m1**2-m2**2)/2'),
+('p1*p3', '(s13-m1**2-m3**2)/2'),
+('p1*p4', '(s14-m1**2-m4**2)/2'),
+('p2*p3', '(s23-m2**2-m3**2)/2'),
+('p2*p4', '(s24-m2**2-m4**2)/2'),
+('p3*p4', '(m5**2 + 2*m1**2 + 2*m2**2 + m3**2 + m4**2 - s12 - s13 - s14 - s23 - s24)/2'),
+('p1*p5', '(m1**2 + m2**2 + m3**2 + m4**2 - s12 - s13 - s14)/2'),
+('p2*p5', '(m1**2 + m2**2 + m3**2 + m4**2 - s12 - s23 - s24)/2'),
+('p3*p5', '(s12 + s14 + s24 - m1**2 - m2**2 - m3**2 - m4**2 - m5**2)/2'),
+('p4*p5', '(s12 + s13 + s23 - m1**2 - m2**2 - m3**2 - m4**2 - m5**2)/2'),
+('m1**2', 't1*m1s'),
+('m2**2', 't1*m2s'),
+('m3**2', 't1*m3s'),
+('m4**2', '0'),
+('m5**2', '0'),
+                              ]
+    )
+
+# ==== FrogV_k2.txt ====
+name = 'FrogV_k2'
+    smallness_parameters = ['t1']
+    internal_lines = [['0', [1, 3]], ['0', [1, 5]], ['0', [3, 5]], ['0', [2, 4]], ['0', [2, 6]], ['0', [4, 6]], ['0', [5, 6]]]
+    external_lines = [['p1',1],['p2',2],['p3',3],['p4',4],['p5',5]]
+    li = psd.LoopIntegralFromGraph(
+       internal_lines = internal_lines,
+       external_lines = external_lines,
+       replacement_rules = [
+                              ('p1*p1', 'm1**2'),
+('p2*p2', 'm2**2'),
+('p3*p3', 'm3**2'),
+('p4*p4', 'm4**2'),
+('p5*p5', 'm5**2'),
+('p1*p2', '(s12-m1**2-m2**2)/2'),
+('p1*p3', '(s13-m1**2-m3**2)/2'),
+('p1*p4', '(s14-m1**2-m4**2)/2'),
+('p2*p3', '(s23-m2**2-m3**2)/2'),
+('p2*p4', '(s24-m2**2-m4**2)/2'),
+('p3*p4', '(m5**2 + 2*m1**2 + 2*m2**2 + m3**2 + m4**2 - s12 - s13 - s14 - s23 - s24)/2'),
+('p1*p5', '(m1**2 + m2**2 + m3**2 + m4**2 - s12 - s13 - s14)/2'),
+('p2*p5', '(m1**2 + m2**2 + m3**2 + m4**2 - s12 - s23 - s24)/2'),
+('p3*p5', '(s12 + s14 + s24 - m1**2 - m2**2 - m3**2 - m4**2 - m5**2)/2'),
+('p4*p5', '(s12 + s13 + s23 - m1**2 - m2**2 - m3**2 - m4**2 - m5**2)/2'),
+('m1**2', 't1*m1s'),
+('m2**2', 't1*m2s'),
+('m3**2', '0'),
+('m4**2', '0'),
+('m5**2', '0'),
+                              ]
+    )
+
+# ==== FrogV_k3.txt ====
+name = 'FrogV_k3'
+    smallness_parameters = ['t1']
+    internal_lines = [['0', [1, 3]], ['0', [1, 5]], ['0', [3, 5]], ['0', [2, 4]], ['0', [2, 6]], ['0', [4, 6]], ['0', [5, 6]]]
+    external_lines = [['p1',1],['p2',2],['p3',3],['p4',4],['p5',5]]
+    li = psd.LoopIntegralFromGraph(
+       internal_lines = internal_lines,
+       external_lines = external_lines,
+       replacement_rules = [
+                              ('p1*p1', 'm1**2'),
+('p2*p2', 'm2**2'),
+('p3*p3', 'm3**2'),
+('p4*p4', 'm4**2'),
+('p5*p5', 'm5**2'),
+('p1*p2', '(s12-m1**2-m2**2)/2'),
+('p1*p3', '(s13-m1**2-m3**2)/2'),
+('p1*p4', '(s14-m1**2-m4**2)/2'),
+('p2*p3', '(s23-m2**2-m3**2)/2'),
+('p2*p4', '(s24-m2**2-m4**2)/2'),
+('p3*p4', '(m5**2 + 2*m1**2 + 2*m2**2 + m3**2 + m4**2 - s12 - s13 - s14 - s23 - s24)/2'),
+('p1*p5', '(m1**2 + m2**2 + m3**2 + m4**2 - s12 - s13 - s14)/2'),
+('p2*p5', '(m1**2 + m2**2 + m3**2 + m4**2 - s12 - s23 - s24)/2'),
+('p3*p5', '(s12 + s14 + s24 - m1**2 - m2**2 - m3**2 - m4**2 - m5**2)/2'),
+('p4*p5', '(s12 + s13 + s23 - m1**2 - m2**2 - m3**2 - m4**2 - m5**2)/2'),
+('m1**2', 't1*m1s'),
+('m2**2', 't1*t1*m2s'),
+('m3**2', '0'),
+('m4**2', '0'),
+('m5**2', '0'),
+                              ]
+    )
+

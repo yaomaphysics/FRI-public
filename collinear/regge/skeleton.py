@@ -219,6 +219,7 @@ def skel_regions(edges, verts, ext_attach, ext_mode):
     mcache = {}
 
     mk = _make_mk(mcache, bidx)
+    vbits = [(v, bidx[v]) for v in verts]   # mask-bit per vertex (vm build below)
 
     def wrap(chs):
         return [tuple((S, mk(S)) for S in ch) for ch in chs]
@@ -321,27 +322,21 @@ def skel_regions(edges, verts, ext_attach, ext_mode):
                         lv4_full = wrap(lv4_full)
                         lv2_full = [c for c in lv2_full if _l1_keep(c, mC13, m_int[2])]
                         lv4_full = [c for c in lv4_full if _l1_keep(c, mC13, m_int[4])]
-                        for t1 in lv1_full:
-                            for t3 in lv3_full:
-                                for t2 in lv2_full:
-                                    for t4 in lv4_full:
-                                        cut1 = t1[0][0] if len(t1) >= 1 else FS()
-                                        cut1sq = t1[1][0] if len(t1) >= 2 else FS()
-                                        cut3 = t3[0][0] if len(t3) >= 1 else FS()
-                                        cut3sq = t3[1][0] if len(t3) >= 2 else FS()
-                                        cut2 = t2[0][0] if len(t2) >= 1 else FS()
-                                        cut2sq = t2[1][0] if len(t2) >= 2 else FS()
-                                        cut4 = t4[0][0] if len(t4) >= 1 else FS()
-                                        cut4sq = t4[1][0] if len(t4) >= 2 else FS()
+                        # flatten the towers once: (mask lvl1, mask lvl2, cut lvl1, cut lvl2) —
+                        # removes the per-combo len()/indexing guards from the inner loop
+                        flat1 = [(t[0][1] if len(t) >= 1 else 0, t[1][1] if len(t) >= 2 else 0,
+                                  t[0][0] if len(t) >= 1 else FS(), t[1][0] if len(t) >= 2 else FS()) for t in lv1_full]
+                        flat3 = [(t[0][1] if len(t) >= 1 else 0, t[1][1] if len(t) >= 2 else 0,
+                                  t[0][0] if len(t) >= 1 else FS(), t[1][0] if len(t) >= 2 else FS()) for t in lv3_full]
+                        flat2 = [(t[0][1] if len(t) >= 1 else 0, t[1][1] if len(t) >= 2 else 0,
+                                  t[0][0] if len(t) >= 1 else FS(), t[1][0] if len(t) >= 2 else FS()) for t in lv2_full]
+                        flat4 = [(t[0][1] if len(t) >= 1 else 0, t[1][1] if len(t) >= 2 else 0,
+                                  t[0][0] if len(t) >= 1 else FS(), t[1][0] if len(t) >= 2 else FS()) for t in lv4_full]
+                        for mc1, mc1s, cut1, cut1sq in flat1:
+                            for mc3, mc3s, cut3, cut3sq in flat3:
+                                for mc2, mc2s, cut2, cut2sq in flat2:
+                                    for mc4, mc4s, cut4, cut4sq in flat4:
                                         cnt['combos'] += 1
-                                        mc1 = t1[0][1] if len(t1) >= 1 else 0
-                                        mc1s = t1[1][1] if len(t1) >= 2 else 0
-                                        mc3 = t3[0][1] if len(t3) >= 1 else 0
-                                        mc3s = t3[1][1] if len(t3) >= 2 else 0
-                                        mc2 = t2[0][1] if len(t2) >= 1 else 0
-                                        mc2s = t2[1][1] if len(t2) >= 2 else 0
-                                        mc4 = t4[0][1] if len(t4) >= 1 else 0
-                                        mc4s = t4[1][1] if len(t4) >= 2 else 0
                                         pred_bad = False
                                         if l2quick:
                                             ok2 = (mc2s == 0) or (((mc2s & mc4s) != 0) + ((mc2s & mc1) != 0) + ((mc2s & mc3) != 0) >= 2)
@@ -359,33 +354,55 @@ def skel_regions(edges, verts, ext_attach, ext_mode):
                                             continue
                                         seen_cuts.add(ck)
                                         # overlap (strengthened), mask version
-                                        fam13m = (mC13, {1: [mc1, mc1s] if P12 else [], 3: [mc3, mc3s] if P12 else []})
-                                        fam24m = (mC24, {2: [mc2, mc2s] if P24 else [], 4: [mc4, mc4s] if P24 else []})
-                                        ov = overlap_ok(fam13m, fam24m, m_int)
+                                        # fused overlap check (regge form, inline) —
+                                        # subject (leg, level n) needs >=2 of {mate@n, cross@n-1};
+                                        # the level-1 test collapses to a single AND (both cross
+                                        # partners are the family base cut); level-1 exemption =
+                                        # the level-2 cut coincides with it.
+                                        ov = True
+                                        if mc1 and (m_int[1] is None or 1 < m_int[1]) and mc1s != mc1 and not (mc1 & mC24):
+                                            ov = False
+                                        elif mc1s and (m_int[1] is None or 2 < m_int[1]) and ((mc1s & mc3s) != 0) + ((mc1s & mc2) != 0) + ((mc1s & mc4) != 0) < 2:
+                                            ov = False
+                                        elif mc2 and (m_int[2] is None or 1 < m_int[2]) and mc2s != mc2 and not (mc2 & mC13):
+                                            ov = False
+                                        elif mc2s and (m_int[2] is None or 2 < m_int[2]) and ((mc2s & mc4s) != 0) + ((mc2s & mc1) != 0) + ((mc2s & mc3) != 0) < 2:
+                                            ov = False
+                                        elif mc3 and (m_int[3] is None or 1 < m_int[3]) and mc3s != mc3 and not (mc3 & mC24):
+                                            ov = False
+                                        elif mc3s and (m_int[3] is None or 2 < m_int[3]) and ((mc3s & mc1s) != 0) + ((mc3s & mc2) != 0) + ((mc3s & mc4) != 0) < 2:
+                                            ov = False
+                                        elif mc4 and (m_int[4] is None or 1 < m_int[4]) and mc4s != mc4 and not (mc4 & mC13):
+                                            ov = False
+                                        elif mc4s and (m_int[4] is None or 2 < m_int[4]) and ((mc4s & mc2s) != 0) + ((mc4s & mc1) != 0) + ((mc4s & mc3) != 0) < 2:
+                                            ov = False
                                         if pred_bad and _SHADOW_L2 and ov:
                                             cnt['shadow_inv'] += 1
                                         if not ov:
                                             cnt['ov_kill'] += 1
                                             continue
-                                        cuts = (('C13', C13), ('C24', C24),
-                                                ('C1C13', cut1), ('C3C13', cut3),
-                                                ('C2C24', cut2), ('C4C24', cut4),
-                                                ('C1^2C13', cut1sq), ('C3^2C13', cut3sq),
-                                                ('C2^2C24', cut2sq), ('C4^2C24', cut4sq))
-                                        # pre-(em,vm) skip
+                                        # pre-(em,vm) skip (mask-based cut membership:
+                                        # msk & bit == "vertex in cut", faster than a set lookup)
+                                        cut_masks = (('C13', mC13), ('C24', mC24),
+                                                     ('C1C13', mc1), ('C3C13', mc3),
+                                                     ('C2C24', mc2), ('C4C24', mc4),
+                                                     ('C1^2C13', mc1s), ('C3^2C13', mc3s),
+                                                     ('C2^2C24', mc2s), ('C4^2C24', mc4s))
                                         vm = {}
-                                        for v in verts:
+                                        for v, bv in vbits:
                                             acc = None
-                                            for mstr, S in cuts:
-                                                if v in S:
+                                            for mstr, msk in cut_masks:
+                                                if msk & bv:
                                                     acc = mstr if acc is None else meet(acc, mstr)
                                             vm[v] = acc if acc is not None else 'H'
-                                        em = [meet(vm[a], vm[b]) for (a, b) in E]
-                                        pre = (tuple(em), tuple(vm.values()))
-                                        if pre in seen_pre:
+                                        # vm-only dedup key — em is a deterministic
+                                        # function of vm, so the dedup classes are identical
+                                        # (em is not needed for anything else here).
+                                        vkey = tuple(vm.values())
+                                        if vkey in seen_pre:
                                             cnt['skip_pre'] += 1
                                             continue
-                                        seen_pre.add(pre)
+                                        seen_pre.add(vkey)
                                         reg = R._build_region(E, verts, ext_attach, ext_mode, C13, C24, cut1, cut3, cut2, cut4, cut1sq, cut3sq, cut2sq, cut4sq)
                                         if reg is None:
                                             cnt['build_none'] += 1

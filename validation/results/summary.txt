@@ -1,0 +1,16 @@
+# FRI vs pySecDec - wide-angle validation summary
+# per-case records: the *_report.txt files in this directory
+# columns: batch, cases, OK, scaleless, mismatch
+
+5 legs (k0-k3):
+  rand1000_3l               4000   3991      9      0
+  rand700_4l                2800   2796      4      0
+  rand100_5l                 400    398      2      0
+  rand500_5l (first 200)     800    800      0      0
+
+4 legs (k0-k5):
+  rand1000_4l               6000   5970     30      0
+  rand200_4l                1200   1194      6      0
+  rand200_5l                1200   1197      3      0
+
+total: 16400 cases, 16346 OK, 54 scaleless, 0 mismatch

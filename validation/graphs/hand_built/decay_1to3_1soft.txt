@@ -1,0 +1,1590 @@
+# hand-built configurations -- decay_1to3_1soft (61 cases)
+# one spec block per case (graph + kinematics; pySecDec LoopIntegralFromGraph convention)
+
+# ==== CheesePizza_k0.txt ====
+name = 'CheesePizza_k0'
+    smallness_parameters = ['t1']
+    internal_lines = [['0', [1, 5]], ['0', [2, 5]], ['0', [3, 5]], ['0', [4, 5]], ['0', [4, 6]], ['0', [6, 7]], ['0', [6, 9]], ['0', [1, 8]], ['0', [2, 8]], ['0', [7, 8]], ['0', [5, 7]], ['0', [3, 10]], ['0', [2, 10]], ['0', [9, 10]], ['0', [5, 9]]]
+    external_lines = [['p1', 1], ['p2', 2], ['p3', 3], ['l1', 4], ['q1', 5]]
+    li = psd.LoopIntegralFromGraph(
+       internal_lines = internal_lines,
+       external_lines = external_lines,
+       replacement_rules = [('p1*p1', 't1*p1s'), ('p2*p2', 't1*p2s'), ('p3*p3', 't1*p3s'), ('l1*l1', 't1**3*l1s'), ('q1*q1', 'q1s'), ('p1*p2', 's12'), ('p1*p3', 's13'), ('p2*p3', 's23'), ('p1*l1', 't1*p1l'), ('p2*l1', 't1*p2l'), ('p3*l1', 't1*p3l'), ('p1*q1', 'p1q'), ('p2*q1', 'p2q'), ('p3*q1', 'p3q'), ('l1*q1', 't1*lq')],
+    )
+
+# ==== CheesePizza_k1.txt ====
+name = 'CheesePizza_k1'
+    smallness_parameters = ['t1']
+    internal_lines = [['0', [1, 5]], ['0', [2, 5]], ['0', [3, 5]], ['0', [4, 5]], ['0', [4, 6]], ['0', [6, 7]], ['0', [6, 9]], ['0', [1, 8]], ['0', [2, 8]], ['0', [7, 8]], ['0', [5, 7]], ['0', [3, 10]], ['0', [2, 10]], ['0', [9, 10]], ['0', [5, 9]]]
+    external_lines = [['p1', 1], ['p2', 2], ['p3', 3], ['l1', 4], ['q1', 5]]
+    li = psd.LoopIntegralFromGraph(
+       internal_lines = internal_lines,
+       external_lines = external_lines,
+       replacement_rules = [
+                              ('p1*p1', '0'),
+                              ('p2*p2', 't1'),
+                              ('p3*p3', '0'),
+                              ('l1*l1', 't1**3'),
+                              ('q1*q1', '1'),
+                              ('p1*p2', '1'),
+                              ('p1*p3', '1'),
+                              ('p2*p3', '1'),
+                              ('p1*l1', 't1'),
+                              ('p2*l1', 't1'),
+                              ('p3*l1', 't1'),
+                              ('p1*q1', '1'),
+                              ('p2*q1', '1'),
+                              ('p3*q1', '1'),
+                              ('l1*q1', 't1'),
+                              ]
+    )
+
+# ==== CheesePizza_k2.txt ====
+name = 'CheesePizza_k2'
+    smallness_parameters = ['t1']
+    internal_lines = [['0', [1, 5]], ['0', [2, 5]], ['0', [3, 5]], ['0', [4, 5]], ['0', [4, 6]], ['0', [6, 7]], ['0', [6, 9]], ['0', [1, 8]], ['0', [2, 8]], ['0', [7, 8]], ['0', [5, 7]], ['0', [3, 10]], ['0', [2, 10]], ['0', [9, 10]], ['0', [5, 9]]]
+    external_lines = [['p1', 1], ['p2', 2], ['p3', 3], ['l1', 4], ['q1', 5]]
+    li = psd.LoopIntegralFromGraph(
+       internal_lines = internal_lines,
+       external_lines = external_lines,
+       replacement_rules = [('p1*p1', 't1*t1*p1s'), ('p2*p2', '0'), ('p3*p3', 't1*t1*p3s'), ('l1*l1', 't1**3*l1s'), ('q1*q1', 'q1s'), ('p1*p2', 's12'), ('p1*p3', 's13'), ('p2*p3', 's23'), ('p1*l1', 't1*p1l'), ('p2*l1', 't1*p2l'), ('p3*l1', 't1*p3l'), ('p1*q1', 'p1q'), ('p2*q1', 'p2q'), ('p3*q1', 'p3q'), ('l1*q1', 't1*lq')],
+    )
+
+# ==== CheesePizza_k3.txt ====
+name = 'CheesePizza_k3'
+    smallness_parameters = ['t1']
+    internal_lines = [['0', [1, 5]], ['0', [2, 5]], ['0', [3, 5]], ['0', [4, 5]], ['0', [4, 6]], ['0', [6, 7]], ['0', [6, 9]], ['0', [1, 8]], ['0', [2, 8]], ['0', [7, 8]], ['0', [5, 7]], ['0', [3, 10]], ['0', [2, 10]], ['0', [9, 10]], ['0', [5, 9]]]
+    external_lines = [['p1', 1], ['p2', 2], ['p3', 3], ['l1', 4], ['q1', 5]]
+    li = psd.LoopIntegralFromGraph(
+       internal_lines = internal_lines,
+       external_lines = external_lines,
+       replacement_rules = [('p1*p1', '0'), ('p2*p2', '0'), ('p3*p3', '0'), ('l1*l1', '0'), ('q1*q1', 'q1s'), ('p1*p2', 's12'), ('p1*p3', 's13'), ('p2*p3', 's23'), ('p1*l1', 't1*p1l'), ('p2*l1', 't1*p2l'), ('p3*l1', 't1*p3l'), ('p1*q1', 'p1q'), ('p2*q1', 'p2q'), ('p3*q1', 'p3q'), ('l1*q1', 't1*lq')],
+    )
+
+# ==== CheesePizza_k4.txt ====
+name = 'CheesePizza_k4'
+    smallness_parameters = ['t1']
+    internal_lines = [['0', [1, 5]], ['0', [2, 5]], ['0', [3, 5]], ['0', [4, 5]], ['0', [4, 6]], ['0', [6, 7]], ['0', [6, 9]], ['0', [1, 8]], ['0', [2, 8]], ['0', [7, 8]], ['0', [5, 7]], ['0', [3, 10]], ['0', [2, 10]], ['0', [9, 10]], ['0', [5, 9]]]
+    external_lines = [['p1', 1], ['p2', 2], ['p3', 3], ['l1', 4], ['q1', 5]]
+    li = psd.LoopIntegralFromGraph(
+       internal_lines = internal_lines,
+       external_lines = external_lines,
+       replacement_rules = [('p1*p1', 't1*t1*p1s'), ('p2*p2', 't1*p2s'), ('p3*p3', 't1*t1*p3s'), ('l1*l1', 't1**3*l1s'), ('q1*q1', 'q1s'), ('p1*p2', 's12'), ('p1*p3', 's13'), ('p2*p3', 's23'), ('p1*l1', 't1*p1l'), ('p2*l1', 't1*p2l'), ('p3*l1', 't1*p3l'), ('p1*q1', 'p1q'), ('p2*q1', 'p2q'), ('p3*q1', 'p3q'), ('l1*q1', 't1*lq')],
+    )
+
+# ==== CheesePizza_k5.txt ====
+name = 'CheesePizza_k5'
+    smallness_parameters = ['t1']
+    internal_lines = [['0', [1, 5]], ['0', [2, 5]], ['0', [3, 5]], ['0', [4, 5]], ['0', [4, 6]], ['0', [6, 7]], ['0', [6, 9]], ['0', [1, 8]], ['0', [2, 8]], ['0', [7, 8]], ['0', [5, 7]], ['0', [3, 10]], ['0', [2, 10]], ['0', [9, 10]], ['0', [5, 9]]]
+    external_lines = [['p1', 1], ['p2', 2], ['p3', 3], ['l1', 4], ['q1', 5]]
+    li = psd.LoopIntegralFromGraph(
+       internal_lines = internal_lines,
+       external_lines = external_lines,
+       replacement_rules = [('p1*p1', 't1*t1*p1s'), ('p2*p2', '0'), ('p3*p3', '0'), ('l1*l1', 't1**3*l1s'), ('q1*q1', 'q1s'), ('p1*p2', 's12'), ('p1*p3', 's13'), ('p2*p3', 's23'), ('p1*l1', 't1*p1l'), ('p2*l1', 't1*p2l'), ('p3*l1', 't1*p3l'), ('p1*q1', 'p1q'), ('p2*q1', 'p2q'), ('p3*q1', 'p3q'), ('l1*q1', 't1*lq')],
+    )
+
+# ==== CrownASE_k0.txt ====
+name = 'CrownASE_k0'
+    smallness_parameters = ['t1']
+    internal_lines = [['0',[5,1]],['0',[5,2]],['0',[5,3]],['0',[5,4]],['0',[6,1]],['0',[6,2]],['0',[6,3]],['0',[6,4]]]
+    external_lines = [['p1',1],['p2',2],['p3',3],['p4',4],['l1',5]]
+    li = psd.LoopIntegralFromGraph(
+       internal_lines = internal_lines,
+       external_lines = external_lines,
+       replacement_rules = [
+                              ('p1*p1', 'm1**2'),
+                              ('p2*p2', 'm2**2'),
+                              ('p3*p3', 'm3**2'),
+                              ('p4*p4', 'm4**2'),
+                              ('p1*p2', '(s12-m1**2+m2**2)/2'),
+                              ('p1*p3', '(s13-m1**2+m3**2)/2'),
+                              ('p1*p4', '(s14-m1**2+m4**2)/2'),
+                              ('m1**2', 't1*m1s'),
+                              ('m2**2', 't1*t1*m2s'),
+                              ('m3**2', 'm3s'),
+                              ('m4**2', '0'),
+                              
+                              ('l1*l1', '0'),
+                              ('p1*l1', 't1'),
+                              ('p2*l1', 't1'),
+                              ('p3*l1', 't1'),
+                              ('p4*l1', 't1'),
+]
+    )
+
+# ==== CrownSASE_k0.txt ====
+name = 'CrownSASE_k0'
+    smallness_parameters = ['t1']
+    internal_lines = [['0', [5, 1]], ['0', [5, 2]], ['0', [5, 3]], ['0', [5, 4]], ['0', [6, 1]], ['0', [6, 2]], ['0', [7, 3]], ['0', [7, 4]], ['0', [6, 7]]]
+    external_lines = [['p1',1],['p2',2],['p3',3],['p4',4],['l1',5]]
+    li = psd.LoopIntegralFromGraph(
+       internal_lines = internal_lines,
+       external_lines = external_lines,
+       replacement_rules = [
+                              ('p1*p1', 'm1**2'),
+                              ('p2*p2', 'm2**2'),
+                              ('p3*p3', 'm3**2'),
+                              ('p4*p4', 'm4**2'),
+                              ('p1*p2', '(s12-m1**2+m2**2)/2'),
+                              ('p1*p3', '(s13-m1**2+m3**2)/2'),
+                              ('p1*p4', '(s14-m1**2+m4**2)/2'),
+                              ('m1**2', 't1*m1s'),
+                              ('m2**2', 't1*t1*m2s'),
+                              ('m3**2', 'm3s'),
+                              ('m4**2', '0'),
+                              
+                              ('l1*l1', '0'),
+                              ('p1*l1', 't1'),
+                              ('p2*l1', 't1'),
+                              ('p3*l1', 't1'),
+                              ('p4*l1', 't1'),
+]
+    )
+
+# ==== CrownSSASE_k0.txt ====
+name = 'CrownSSASE_k0'
+    smallness_parameters = ['t1']
+    internal_lines = [['0', [1, 5]], ['0', [2, 5]], ['0', [5, 6]], ['0', [3, 6]], ['0', [4, 6]], ['0', [1, 7]], ['0', [2, 7]], ['0', [7, 8]], ['0', [3, 8]], ['0', [4, 8]]]
+    external_lines = [['p1',1],['p2',2],['p3',3],['p4',4],['l1',5]]
+    li = psd.LoopIntegralFromGraph(
+       internal_lines = internal_lines,
+       external_lines = external_lines,
+       replacement_rules = [
+                              ('p1*p1', 'm1**2'),
+                              ('p2*p2', 'm2**2'),
+                              ('p3*p3', 'm3**2'),
+                              ('p4*p4', 'm4**2'),
+                              ('p1*p2', '(s12-m1**2+m2**2)/2'),
+                              ('p1*p3', '(s13-m1**2+m3**2)/2'),
+                              ('p1*p4', '(s14-m1**2+m4**2)/2'),
+                              ('m1**2', 't1*m1s'),
+                              ('m2**2', 't1*t1*m2s'),
+                              ('m3**2', 'm3s'),
+                              ('m4**2', '0'),
+                              
+                              ('l1*l1', '0'),
+                              ('p1*l1', 't1'),
+                              ('p2*l1', 't1'),
+                              ('p3*l1', 't1'),
+                              ('p4*l1', 't1'),
+]
+    )
+
+# ==== CrownSTASE_k0.txt ====
+name = 'CrownSTASE_k0'
+    smallness_parameters = ['t1']
+    internal_lines = [['0',[1,5]],['0',[1,8]],['0',[2,5]],['0',[2,7]],['0',[3,6]],['0',[3,8]],['0',[4,6]],['0',[4,7]],['0',[5,6]],['0',[7,8]]]
+    external_lines = [['p1',1],['p2',2],['p3',3],['p4',4],['l1',5]]
+    li = psd.LoopIntegralFromGraph(
+       internal_lines = internal_lines,
+       external_lines = external_lines,
+       replacement_rules = [
+                              ('p1*p1', 'm1**2'),
+                              ('p2*p2', 'm2**2'),
+                              ('p3*p3', 'm3**2'),
+                              ('p4*p4', 'm4**2'),
+                              ('p1*p2', '(s12-m1**2+m2**2)/2'),
+                              ('p1*p3', '(s13-m1**2+m3**2)/2'),
+                              ('p1*p4', '(s14-m1**2+m4**2)/2'),
+                              ('m1**2', 't1*m1s'),
+                              ('m2**2', 't1*t1*m2s'),
+                              ('m3**2', 'm3s'),
+                              ('m4**2', '0'),
+                              
+                              ('l1*l1', '0'),
+                              ('p1*l1', 't1'),
+                              ('p2*l1', 't1'),
+                              ('p3*l1', 't1'),
+                              ('p4*l1', 't1'),
+]
+    )
+
+# ==== CrownSUASE_k0.txt ====
+name = 'CrownSUASE_k0'
+    smallness_parameters = ['t1']
+    internal_lines = [['0', [1, 5]], ['0', [2, 5]], ['0', [5, 6]], ['0', [3, 6]], ['0', [4, 6]], ['0', [2, 7]], ['0', [3, 7]], ['0', [7, 8]], ['0', [1, 8]], ['0', [4, 8]]]
+    external_lines = [['p1',1],['p2',2],['p3',3],['p4',4],['l1',5]]
+    li = psd.LoopIntegralFromGraph(
+       internal_lines = internal_lines,
+       external_lines = external_lines,
+       replacement_rules = [
+                              ('p1*p1', 'm1**2'),
+                              ('p2*p2', 'm2**2'),
+                              ('p3*p3', 'm3**2'),
+                              ('p4*p4', 'm4**2'),
+                              ('p1*p2', '(s12-m1**2+m2**2)/2'),
+                              ('p1*p3', '(s13-m1**2+m3**2)/2'),
+                              ('p1*p4', '(s14-m1**2+m4**2)/2'),
+                              ('m1**2', 't1*m1s'),
+                              ('m2**2', 't1*t1*m2s'),
+                              ('m3**2', 'm3s'),
+                              ('m4**2', '0'),
+                              
+                              ('l1*l1', '0'),
+                              ('p1*l1', 't1'),
+                              ('p2*l1', 't1'),
+                              ('p3*l1', 't1'),
+                              ('p4*l1', 't1'),
+]
+    )
+
+# ==== CrownT7_m1_k0.txt ====
+name = 'CrownT7_m1_k0'
+    smallness_parameters = ['t1']
+    internal_lines = [['0', [1, 5]], ['0', [1, 6]], ['0', [2, 5]], ['0', [2, 6]], ['0', [2, 7]], ['0', [3, 5]], ['0', [3, 6]], ['0', [3, 7]], ['0', [4, 5]], ['0', [4, 6]], ['0', [4, 7]]]
+    external_lines = [['p1',1],['p2',2],['p3',3],['l1',4],['q1',5]]
+    li = psd.LoopIntegralFromGraph(
+       internal_lines = internal_lines,
+       external_lines = external_lines,
+       replacement_rules = [
+                              ('p1*p1', '0'),
+                              ('p2*p2', '0'),
+                              ('p3*p3', '0'),
+                              ('l1*l1', '0'),
+                              ('q1*q1', 'q1s'),
+                              ('p1*p2', 's12'),
+                              ('p1*p3', 's13'),
+                              ('p2*p3', 's23'),
+                              ('p1*l1', 't1*p1l'),
+                              ('p2*l1', 't1*p2l'),
+                              ('p3*l1', 't1*p3l'),
+                              ('p1*q1', 'p1q'),
+                              ('p2*q1', 'p2q'),
+                              ('p3*q1', 'p3q'),
+                              ('l1*q1', 't1*lq'),
+                              ]
+    )
+
+# ==== CrownT7_m2_k0.txt ====
+name = 'CrownT7_m2_k0'
+    smallness_parameters = ['t1']
+    internal_lines = [['0', [1, 5]], ['0', [1, 6]], ['0', [1, 7]], ['0', [2, 5]], ['0', [2, 6]], ['0', [3, 5]], ['0', [3, 6]], ['0', [3, 7]], ['0', [4, 5]], ['0', [4, 6]], ['0', [4, 7]]]
+    external_lines = [['p1',1],['p2',2],['p3',3],['l1',4],['q1',5]]
+    li = psd.LoopIntegralFromGraph(
+       internal_lines = internal_lines,
+       external_lines = external_lines,
+       replacement_rules = [
+                              ('p1*p1', '0'),
+                              ('p2*p2', '0'),
+                              ('p3*p3', '0'),
+                              ('l1*l1', '0'),
+                              ('q1*q1', 'q1s'),
+                              ('p1*p2', 's12'),
+                              ('p1*p3', 's13'),
+                              ('p2*p3', 's23'),
+                              ('p1*l1', 't1*p1l'),
+                              ('p2*l1', 't1*p2l'),
+                              ('p3*l1', 't1*p3l'),
+                              ('p1*q1', 'p1q'),
+                              ('p2*q1', 'p2q'),
+                              ('p3*q1', 'p3q'),
+                              ('l1*q1', 't1*lq'),
+                              ]
+    )
+
+# ==== CrownT7_m3_k0.txt ====
+name = 'CrownT7_m3_k0'
+    smallness_parameters = ['t1']
+    internal_lines = [['0', [1, 5]], ['0', [1, 6]], ['0', [1, 7]], ['0', [2, 5]], ['0', [2, 6]], ['0', [2, 7]], ['0', [3, 5]], ['0', [3, 6]], ['0', [4, 5]], ['0', [4, 6]], ['0', [4, 7]]]
+    external_lines = [['p1',1],['p2',2],['p3',3],['l1',4],['q1',5]]
+    li = psd.LoopIntegralFromGraph(
+       internal_lines = internal_lines,
+       external_lines = external_lines,
+       replacement_rules = [
+                              ('p1*p1', '0'),
+                              ('p2*p2', '0'),
+                              ('p3*p3', '0'),
+                              ('l1*l1', '0'),
+                              ('q1*q1', 'q1s'),
+                              ('p1*p2', 's12'),
+                              ('p1*p3', 's13'),
+                              ('p2*p3', 's23'),
+                              ('p1*l1', 't1*p1l'),
+                              ('p2*l1', 't1*p2l'),
+                              ('p3*l1', 't1*p3l'),
+                              ('p1*q1', 'p1q'),
+                              ('p2*q1', 'p2q'),
+                              ('p3*q1', 'p3q'),
+                              ('l1*q1', 't1*lq'),
+                              ]
+    )
+
+# ==== CrownT7_m4_k0.txt ====
+name = 'CrownT7_m4_k0'
+    smallness_parameters = ['t1']
+    internal_lines = [['0', [1, 5]], ['0', [1, 6]], ['0', [1, 7]], ['0', [2, 5]], ['0', [2, 6]], ['0', [2, 7]], ['0', [3, 5]], ['0', [3, 6]], ['0', [3, 7]], ['0', [4, 5]], ['0', [4, 6]]]
+    external_lines = [['p1',1],['p2',2],['p3',3],['l1',4],['q1',5]]
+    li = psd.LoopIntegralFromGraph(
+       internal_lines = internal_lines,
+       external_lines = external_lines,
+       replacement_rules = [
+                              ('p1*p1', '0'),
+                              ('p2*p2', '0'),
+                              ('p3*p3', '0'),
+                              ('l1*l1', '0'),
+                              ('q1*q1', 'q1s'),
+                              ('p1*p2', 's12'),
+                              ('p1*p3', 's13'),
+                              ('p2*p3', 's23'),
+                              ('p1*l1', 't1*p1l'),
+                              ('p2*l1', 't1*p2l'),
+                              ('p3*l1', 't1*p3l'),
+                              ('p1*q1', 'p1q'),
+                              ('p2*q1', 'p2q'),
+                              ('p3*q1', 'p3q'),
+                              ('l1*q1', 't1*lq'),
+                              ]
+    )
+
+# ==== CrownTASE_k0.txt ====
+name = 'CrownTASE_k0'
+    smallness_parameters = ['t1']
+    internal_lines = [['0', [5, 1]], ['0', [5, 2]], ['0', [5, 3]], ['0', [5, 4]], ['0', [6, 1]], ['0', [6, 3]], ['0', [7, 2]], ['0', [7, 4]], ['0', [6, 7]]]
+    external_lines = [['p1',1],['p2',2],['p3',3],['p4',4],['l1',5]]
+    li = psd.LoopIntegralFromGraph(
+       internal_lines = internal_lines,
+       external_lines = external_lines,
+       replacement_rules = [
+                              ('p1*p1', 'm1**2'),
+                              ('p2*p2', 'm2**2'),
+                              ('p3*p3', 'm3**2'),
+                              ('p4*p4', 'm4**2'),
+                              ('p1*p2', '(s12-m1**2+m2**2)/2'),
+                              ('p1*p3', '(s13-m1**2+m3**2)/2'),
+                              ('p1*p4', '(s14-m1**2+m4**2)/2'),
+                              ('m1**2', 't1*m1s'),
+                              ('m2**2', 't1*t1*m2s'),
+                              ('m3**2', 'm3s'),
+                              ('m4**2', '0'),
+                              
+                              ('l1*l1', '0'),
+                              ('p1*l1', 't1'),
+                              ('p2*l1', 't1'),
+                              ('p3*l1', 't1'),
+                              ('p4*l1', 't1'),
+]
+    )
+
+# ==== CrownTTASE_k0.txt ====
+name = 'CrownTTASE_k0'
+    smallness_parameters = ['t1']
+    internal_lines = [['0', [1, 5]], ['0', [3, 5]], ['0', [5, 6]], ['0', [2, 6]], ['0', [4, 6]], ['0', [1, 7]], ['0', [3, 7]], ['0', [7, 8]], ['0', [2, 8]], ['0', [4, 8]]]
+    external_lines = [['p1',1],['p2',2],['p3',3],['p4',4],['l1',5]]
+    li = psd.LoopIntegralFromGraph(
+       internal_lines = internal_lines,
+       external_lines = external_lines,
+       replacement_rules = [
+                              ('p1*p1', 'm1**2'),
+                              ('p2*p2', 'm2**2'),
+                              ('p3*p3', 'm3**2'),
+                              ('p4*p4', 'm4**2'),
+                              ('p1*p2', '(s12-m1**2+m2**2)/2'),
+                              ('p1*p3', '(s13-m1**2+m3**2)/2'),
+                              ('p1*p4', '(s14-m1**2+m4**2)/2'),
+                              ('m1**2', 't1*m1s'),
+                              ('m2**2', 't1*t1*m2s'),
+                              ('m3**2', 'm3s'),
+                              ('m4**2', '0'),
+                              
+                              ('l1*l1', '0'),
+                              ('p1*l1', 't1'),
+                              ('p2*l1', 't1'),
+                              ('p3*l1', 't1'),
+                              ('p4*l1', 't1'),
+]
+    )
+
+# ==== CrownTUASE_k0.txt ====
+name = 'CrownTUASE_k0'
+    smallness_parameters = ['t1']
+    internal_lines = [['0', [1, 5]], ['0', [3, 5]], ['0', [5, 6]], ['0', [2, 6]], ['0', [4, 6]], ['0', [2, 7]], ['0', [3, 7]], ['0', [7, 8]], ['0', [1, 8]], ['0', [4, 8]]]
+    external_lines = [['p1',1],['p2',2],['p3',3],['p4',4],['l1',5]]
+    li = psd.LoopIntegralFromGraph(
+       internal_lines = internal_lines,
+       external_lines = external_lines,
+       replacement_rules = [
+                              ('p1*p1', 'm1**2'),
+                              ('p2*p2', 'm2**2'),
+                              ('p3*p3', 'm3**2'),
+                              ('p4*p4', 'm4**2'),
+                              ('p1*p2', '(s12-m1**2+m2**2)/2'),
+                              ('p1*p3', '(s13-m1**2+m3**2)/2'),
+                              ('p1*p4', '(s14-m1**2+m4**2)/2'),
+                              ('m1**2', 't1*m1s'),
+                              ('m2**2', 't1*t1*m2s'),
+                              ('m3**2', 'm3s'),
+                              ('m4**2', '0'),
+                              
+                              ('l1*l1', '0'),
+                              ('p1*l1', 't1'),
+                              ('p2*l1', 't1'),
+                              ('p3*l1', 't1'),
+                              ('p4*l1', 't1'),
+]
+    )
+
+# ==== CrownUASE_k0.txt ====
+name = 'CrownUASE_k0'
+    smallness_parameters = ['t1']
+    internal_lines = [['0', [5, 1]], ['0', [5, 2]], ['0', [5, 3]], ['0', [5, 4]], ['0', [6, 1]], ['0', [6, 4]], ['0', [7, 2]], ['0', [7, 3]], ['0', [6, 7]]]
+    external_lines = [['p1',1],['p2',2],['p3',3],['p4',4],['l1',5]]
+    li = psd.LoopIntegralFromGraph(
+       internal_lines = internal_lines,
+       external_lines = external_lines,
+       replacement_rules = [
+                              ('p1*p1', 'm1**2'),
+                              ('p2*p2', 'm2**2'),
+                              ('p3*p3', 'm3**2'),
+                              ('p4*p4', 'm4**2'),
+                              ('p1*p2', '(s12-m1**2+m2**2)/2'),
+                              ('p1*p3', '(s13-m1**2+m3**2)/2'),
+                              ('p1*p4', '(s14-m1**2+m4**2)/2'),
+                              ('m1**2', 't1*m1s'),
+                              ('m2**2', 't1*t1*m2s'),
+                              ('m3**2', 'm3s'),
+                              ('m4**2', '0'),
+                              
+                              ('l1*l1', '0'),
+                              ('p1*l1', 't1'),
+                              ('p2*l1', 't1'),
+                              ('p3*l1', 't1'),
+                              ('p4*l1', 't1'),
+]
+    )
+
+# ==== CrownUUASE_k0.txt ====
+name = 'CrownUUASE_k0'
+    smallness_parameters = ['t1']
+    internal_lines = [['0', [1, 5]], ['0', [4, 5]], ['0', [5, 6]], ['0', [2, 6]], ['0', [3, 6]], ['0', [2, 7]], ['0', [3, 7]], ['0', [7, 8]], ['0', [1, 8]], ['0', [4, 8]]]
+    external_lines = [['p1',1],['p2',2],['p3',3],['p4',4],['l1',5]]
+    li = psd.LoopIntegralFromGraph(
+       internal_lines = internal_lines,
+       external_lines = external_lines,
+       replacement_rules = [
+                              ('p1*p1', 'm1**2'),
+                              ('p2*p2', 'm2**2'),
+                              ('p3*p3', 'm3**2'),
+                              ('p4*p4', 'm4**2'),
+                              ('p1*p2', '(s12-m1**2+m2**2)/2'),
+                              ('p1*p3', '(s13-m1**2+m3**2)/2'),
+                              ('p1*p4', '(s14-m1**2+m4**2)/2'),
+                              ('m1**2', 't1*m1s'),
+                              ('m2**2', 't1*t1*m2s'),
+                              ('m3**2', 'm3s'),
+                              ('m4**2', '0'),
+                              
+                              ('l1*l1', '0'),
+                              ('p1*l1', 't1'),
+                              ('p2*l1', 't1'),
+                              ('p3*l1', 't1'),
+                              ('p4*l1', 't1'),
+]
+    )
+
+# ==== K33A5_k0.txt ====
+name = 'K33A5_k0'
+    smallness_parameters = ['t1']
+    internal_lines = [['0', [1, 2]], ['0', [1, 3]], ['0', [1, 4]], ['0', [2, 5]], ['0', [2, 6]], ['0', [3, 5]], ['0', [3, 6]], ['0', [4, 5]], ['0', [4, 6]], ['0', [5, 6]]]
+    external_lines = [['p1',1],['p2',2],['p3',3],['l1',4],['q1',5]]
+    li = psd.LoopIntegralFromGraph(
+       internal_lines = internal_lines,
+       external_lines = external_lines,
+       replacement_rules = [
+                              ('p1*p1', '0'),
+                              ('p2*p2', '0'),
+                              ('p3*p3', '0'),
+                              ('l1*l1', '0'),
+                              ('q1*q1', 'q1s'),
+                              ('p1*p2', 's12'),
+                              ('p1*p3', 's13'),
+                              ('p2*p3', 's23'),
+                              ('p1*l1', 't1*p1l'),
+                              ('p2*l1', 't1*p2l'),
+                              ('p3*l1', 't1*p3l'),
+                              ('p1*q1', 'p1q'),
+                              ('p2*q1', 'p2q'),
+                              ('p3*q1', 'p3q'),
+                              ('l1*q1', 't1*lq'),
+                              ]
+    )
+
+# ==== K33B5_k0.txt ====
+name = 'K33B5_k0'
+    smallness_parameters = ['t1']
+    internal_lines = [['0', [1, 4]], ['0', [1, 6]], ['0', [1, 7]], ['0', [2, 5]], ['0', [2, 6]], ['0', [2, 7]], ['0', [3, 5]], ['0', [3, 6]], ['0', [3, 7]], ['0', [4, 5]], ['0', [6, 7]]]
+    external_lines = [['p1',1],['p2',2],['p3',3],['l1',4],['q1',5]]
+    li = psd.LoopIntegralFromGraph(
+       internal_lines = internal_lines,
+       external_lines = external_lines,
+       replacement_rules = [
+                              ('p1*p1', '0'),
+                              ('p2*p2', '0'),
+                              ('p3*p3', '0'),
+                              ('l1*l1', '0'),
+                              ('q1*q1', 'q1s'),
+                              ('p1*p2', 's12'),
+                              ('p1*p3', 's13'),
+                              ('p2*p3', 's23'),
+                              ('p1*l1', 't1*p1l'),
+                              ('p2*l1', 't1*p2l'),
+                              ('p3*l1', 't1*p3l'),
+                              ('p1*q1', 'p1q'),
+                              ('p2*q1', 'p2q'),
+                              ('p3*q1', 'p3q'),
+                              ('l1*q1', 't1*lq'),
+                              ]
+    )
+
+# ==== K33C5_k0.txt ====
+name = 'K33C5_k0'
+    smallness_parameters = ['t1']
+    internal_lines = [['0', [1, 4]], ['0', [1, 6]], ['0', [1, 7]], ['0', [2, 5]], ['0', [2, 6]], ['0', [2, 7]], ['0', [3, 5]], ['0', [3, 6]], ['0', [3, 7]], ['0', [4, 5]], ['0', [4, 6]]]
+    external_lines = [['p1',1],['p2',2],['p3',3],['l1',4],['q1',5]]
+    li = psd.LoopIntegralFromGraph(
+       internal_lines = internal_lines,
+       external_lines = external_lines,
+       replacement_rules = [
+                              ('p1*p1', '0'),
+                              ('p2*p2', '0'),
+                              ('p3*p3', '0'),
+                              ('l1*l1', '0'),
+                              ('q1*q1', 'q1s'),
+                              ('p1*p2', 's12'),
+                              ('p1*p3', 's13'),
+                              ('p2*p3', 's23'),
+                              ('p1*l1', 't1*p1l'),
+                              ('p2*l1', 't1*p2l'),
+                              ('p3*l1', 't1*p3l'),
+                              ('p1*q1', 'p1q'),
+                              ('p2*q1', 'p2q'),
+                              ('p3*q1', 'p3q'),
+                              ('l1*q1', 't1*lq'),
+                              ]
+    )
+
+# ==== K33D2_p7_k0.txt ====
+name = 'K33D2_p7_k0'
+    smallness_parameters = ['t1']
+    internal_lines = [['0', [1, 3]], ['0', [1, 6]], ['0', [1, 7]], ['0', [2, 4]], ['0', [2, 6]], ['0', [2, 7]], ['0', [3, 5]], ['0', [3, 7]], ['0', [4, 5]], ['0', [5, 8]], ['0', [6, 8]], ['0', [7, 8]]]
+    external_lines = [['p1',1],['p2',2],['p3',3],['l1',4],['q1',5]]
+    li = psd.LoopIntegralFromGraph(
+       internal_lines = internal_lines,
+       external_lines = external_lines,
+       replacement_rules = [
+                              ('p1*p1', '0'),
+                              ('p2*p2', '0'),
+                              ('p3*p3', '0'),
+                              ('l1*l1', '0'),
+                              ('q1*q1', 'q1s'),
+                              ('p1*p2', 's12'),
+                              ('p1*p3', 's13'),
+                              ('p2*p3', 's23'),
+                              ('p1*l1', 't1*p1l'),
+                              ('p2*l1', 't1*p2l'),
+                              ('p3*l1', 't1*p3l'),
+                              ('p1*q1', 'p1q'),
+                              ('p2*q1', 'p2q'),
+                              ('p3*q1', 'p3q'),
+                              ('l1*q1', 't1*lq'),
+                              ]
+    )
+
+# ==== K33D3_p6_k0.txt ====
+name = 'K33D3_p6_k0'
+    smallness_parameters = ['t1']
+    internal_lines = [['0', [1, 3]], ['0', [1, 6]], ['0', [1, 7]], ['0', [2, 5]], ['0', [2, 6]], ['0', [2, 7]], ['0', [3, 4]], ['0', [3, 6]], ['0', [4, 5]], ['0', [5, 8]], ['0', [6, 8]], ['0', [7, 8]]]
+    external_lines = [['p1',1],['p2',2],['p3',3],['l1',4],['q1',5]]
+    li = psd.LoopIntegralFromGraph(
+       internal_lines = internal_lines,
+       external_lines = external_lines,
+       replacement_rules = [
+                              ('p1*p1', '0'),
+                              ('p2*p2', '0'),
+                              ('p3*p3', '0'),
+                              ('l1*l1', '0'),
+                              ('q1*q1', 'q1s'),
+                              ('p1*p2', 's12'),
+                              ('p1*p3', 's13'),
+                              ('p2*p3', 's23'),
+                              ('p1*l1', 't1*p1l'),
+                              ('p2*l1', 't1*p2l'),
+                              ('p3*l1', 't1*p3l'),
+                              ('p1*q1', 'p1q'),
+                              ('p2*q1', 'p2q'),
+                              ('p3*q1', 'p3q'),
+                              ('l1*q1', 't1*lq'),
+                              ]
+    )
+
+# ==== K33D3_p8_k0.txt ====
+name = 'K33D3_p8_k0'
+    smallness_parameters = ['t1']
+    internal_lines = [['0', [1, 3]], ['0', [1, 6]], ['0', [1, 7]], ['0', [2, 5]], ['0', [2, 6]], ['0', [2, 7]], ['0', [3, 4]], ['0', [3, 8]], ['0', [4, 5]], ['0', [5, 8]], ['0', [6, 8]], ['0', [7, 8]]]
+    external_lines = [['p1',1],['p2',2],['p3',3],['l1',4],['q1',5]]
+    li = psd.LoopIntegralFromGraph(
+       internal_lines = internal_lines,
+       external_lines = external_lines,
+       replacement_rules = [
+                              ('p1*p1', '0'),
+                              ('p2*p2', '0'),
+                              ('p3*p3', '0'),
+                              ('l1*l1', '0'),
+                              ('q1*q1', 'q1s'),
+                              ('p1*p2', 's12'),
+                              ('p1*p3', 's13'),
+                              ('p2*p3', 's23'),
+                              ('p1*l1', 't1*p1l'),
+                              ('p2*l1', 't1*p2l'),
+                              ('p3*l1', 't1*p3l'),
+                              ('p1*q1', 'p1q'),
+                              ('p2*q1', 'p2q'),
+                              ('p3*q1', 'p3q'),
+                              ('l1*q1', 't1*lq'),
+                              ]
+    )
+
+# ==== K33D5_k0.txt ====
+name = 'K33D5_k0'
+    smallness_parameters = ['t1']
+    internal_lines = [['0', [1, 3]], ['0', [1, 6]], ['0', [1, 7]], ['0', [2, 4]], ['0', [2, 5]], ['0', [2, 7]], ['0', [3, 5]], ['0', [4, 6]], ['0', [5, 6]], ['0', [5, 8]], ['0', [6, 8]], ['0', [7, 8]]]
+    external_lines = [['p1',1],['p2',2],['p3',3],['l1',4],['q1',5]]
+    li = psd.LoopIntegralFromGraph(
+       internal_lines = internal_lines,
+       external_lines = external_lines,
+       replacement_rules = [
+                              ('p1*p1', '0'),
+                              ('p2*p2', '0'),
+                              ('p3*p3', '0'),
+                              ('l1*l1', '0'),
+                              ('q1*q1', 'q1s'),
+                              ('p1*p2', 's12'),
+                              ('p1*p3', 's13'),
+                              ('p2*p3', 's23'),
+                              ('p1*l1', 't1*p1l'),
+                              ('p2*l1', 't1*p2l'),
+                              ('p3*l1', 't1*p3l'),
+                              ('p1*q1', 'p1q'),
+                              ('p2*q1', 'p2q'),
+                              ('p3*q1', 'p3q'),
+                              ('l1*q1', 't1*lq'),
+                              ]
+    )
+
+# ==== K33E5_k0.txt ====
+name = 'K33E5_k0'
+    smallness_parameters = ['t1']
+    internal_lines = [['0', [1, 3]], ['0', [1, 6]], ['0', [1, 7]], ['0', [2, 4]], ['0', [2, 6]], ['0', [2, 7]], ['0', [3, 5]], ['0', [4, 5]], ['0', [5, 8]], ['0', [6, 7]], ['0', [6, 8]], ['0', [7, 8]]]
+    external_lines = [['p1',1],['p2',2],['p3',3],['l1',4],['q1',5]]
+    li = psd.LoopIntegralFromGraph(
+       internal_lines = internal_lines,
+       external_lines = external_lines,
+       replacement_rules = [
+                              ('p1*p1', '0'),
+                              ('p2*p2', '0'),
+                              ('p3*p3', '0'),
+                              ('l1*l1', '0'),
+                              ('q1*q1', 'q1s'),
+                              ('p1*p2', 's12'),
+                              ('p1*p3', 's13'),
+                              ('p2*p3', 's23'),
+                              ('p1*l1', 't1*p1l'),
+                              ('p2*l1', 't1*p2l'),
+                              ('p3*l1', 't1*p3l'),
+                              ('p1*q1', 'p1q'),
+                              ('p2*q1', 'p2q'),
+                              ('p3*q1', 'p3q'),
+                              ('l1*q1', 't1*lq'),
+                              ]
+    )
+
+# ==== K33P01_k0.txt ====
+name = 'K33P01_k0'
+    smallness_parameters = ['t1']
+    internal_lines = [['0', [1, 2]], ['0', [1, 5]], ['0', [1, 6]], ['0', [2, 3]], ['0', [2, 4]], ['0', [3, 5]], ['0', [3, 6]], ['0', [4, 5]], ['0', [4, 6]], ['0', [5, 6]]]
+    external_lines = [['p1',1],['p2',2],['p3',3],['l1',4],['q1',5]]
+    li = psd.LoopIntegralFromGraph(
+       internal_lines = internal_lines,
+       external_lines = external_lines,
+       replacement_rules = [
+                              ('p1*p1', '0'),
+                              ('p2*p2', '0'),
+                              ('p3*p3', '0'),
+                              ('l1*l1', '0'),
+                              ('q1*q1', 'q1s'),
+                              ('p1*p2', 's12'),
+                              ('p1*p3', 's13'),
+                              ('p2*p3', 's23'),
+                              ('p1*l1', 't1*p1l'),
+                              ('p2*l1', 't1*p2l'),
+                              ('p3*l1', 't1*p3l'),
+                              ('p1*q1', 'p1q'),
+                              ('p2*q1', 'p2q'),
+                              ('p3*q1', 'p3q'),
+                              ('l1*q1', 't1*lq'),
+                              ]
+    )
+
+# ==== K33P02_k0.txt ====
+name = 'K33P02_k0'
+    smallness_parameters = ['t1']
+    internal_lines = [['0', [1, 2]], ['0', [1, 6]], ['0', [1, 7]], ['0', [2, 3]], ['0', [2, 5]], ['0', [3, 6]], ['0', [3, 8]], ['0', [4, 7]], ['0', [4, 9]], ['0', [5, 8]], ['0', [5, 9]], ['0', [6, 9]], ['0', [7, 8]]]
+    external_lines = [['p1',1],['p2',2],['p3',3],['l1',4],['q1',5]]
+    li = psd.LoopIntegralFromGraph(
+       internal_lines = internal_lines,
+       external_lines = external_lines,
+       replacement_rules = [
+                              ('p1*p1', '0'),
+                              ('p2*p2', '0'),
+                              ('p3*p3', '0'),
+                              ('l1*l1', '0'),
+                              ('q1*q1', 'q1s'),
+                              ('p1*p2', 's12'),
+                              ('p1*p3', 's13'),
+                              ('p2*p3', 's23'),
+                              ('p1*l1', 't1*p1l'),
+                              ('p2*l1', 't1*p2l'),
+                              ('p3*l1', 't1*p3l'),
+                              ('p1*q1', 'p1q'),
+                              ('p2*q1', 'p2q'),
+                              ('p3*q1', 'p3q'),
+                              ('l1*q1', 't1*lq'),
+                              ]
+    )
+
+# ==== K33P03_k0.txt ====
+name = 'K33P03_k0'
+    smallness_parameters = ['t1']
+    internal_lines = [['0', [1, 2]], ['0', [1, 6]], ['0', [1, 7]], ['0', [2, 5]], ['0', [2, 8]], ['0', [3, 6]], ['0', [3, 8]], ['0', [4, 7]], ['0', [4, 9]], ['0', [5, 8]], ['0', [5, 9]], ['0', [6, 9]], ['0', [7, 8]]]
+    external_lines = [['p1',1],['p2',2],['p3',3],['l1',4],['q1',5]]
+    li = psd.LoopIntegralFromGraph(
+       internal_lines = internal_lines,
+       external_lines = external_lines,
+       replacement_rules = [
+                              ('p1*p1', '0'),
+                              ('p2*p2', '0'),
+                              ('p3*p3', '0'),
+                              ('l1*l1', '0'),
+                              ('q1*q1', 'q1s'),
+                              ('p1*p2', 's12'),
+                              ('p1*p3', 's13'),
+                              ('p2*p3', 's23'),
+                              ('p1*l1', 't1*p1l'),
+                              ('p2*l1', 't1*p2l'),
+                              ('p3*l1', 't1*p3l'),
+                              ('p1*q1', 'p1q'),
+                              ('p2*q1', 'p2q'),
+                              ('p3*q1', 'p3q'),
+                              ('l1*q1', 't1*lq'),
+                              ]
+    )
+
+# ==== K33P04_k0.txt ====
+name = 'K33P04_k0'
+    smallness_parameters = ['t1']
+    internal_lines = [['0', [1, 2]], ['0', [1, 6]], ['0', [1, 7]], ['0', [2, 5]], ['0', [3, 6]], ['0', [3, 8]], ['0', [4, 7]], ['0', [4, 9]], ['0', [5, 6]], ['0', [5, 8]], ['0', [5, 9]], ['0', [6, 9]], ['0', [7, 8]]]
+    external_lines = [['p1',1],['p2',2],['p3',3],['l1',4],['q1',5]]
+    li = psd.LoopIntegralFromGraph(
+       internal_lines = internal_lines,
+       external_lines = external_lines,
+       replacement_rules = [
+                              ('p1*p1', '0'),
+                              ('p2*p2', '0'),
+                              ('p3*p3', '0'),
+                              ('l1*l1', '0'),
+                              ('q1*q1', 'q1s'),
+                              ('p1*p2', 's12'),
+                              ('p1*p3', 's13'),
+                              ('p2*p3', 's23'),
+                              ('p1*l1', 't1*p1l'),
+                              ('p2*l1', 't1*p2l'),
+                              ('p3*l1', 't1*p3l'),
+                              ('p1*q1', 'p1q'),
+                              ('p2*q1', 'p2q'),
+                              ('p3*q1', 'p3q'),
+                              ('l1*q1', 't1*lq'),
+                              ]
+    )
+
+# ==== K33P05_k0.txt ====
+name = 'K33P05_k0'
+    smallness_parameters = ['t1']
+    internal_lines = [['0', [1, 2]], ['0', [1, 5]], ['0', [2, 6]], ['0', [2, 7]], ['0', [3, 5]], ['0', [3, 6]], ['0', [3, 7]], ['0', [4, 5]], ['0', [4, 6]], ['0', [4, 7]], ['0', [5, 6]]]
+    external_lines = [['p1',1],['p2',2],['p3',3],['l1',4],['q1',5]]
+    li = psd.LoopIntegralFromGraph(
+       internal_lines = internal_lines,
+       external_lines = external_lines,
+       replacement_rules = [
+                              ('p1*p1', '0'),
+                              ('p2*p2', '0'),
+                              ('p3*p3', '0'),
+                              ('l1*l1', '0'),
+                              ('q1*q1', 'q1s'),
+                              ('p1*p2', 's12'),
+                              ('p1*p3', 's13'),
+                              ('p2*p3', 's23'),
+                              ('p1*l1', 't1*p1l'),
+                              ('p2*l1', 't1*p2l'),
+                              ('p3*l1', 't1*p3l'),
+                              ('p1*q1', 'p1q'),
+                              ('p2*q1', 'p2q'),
+                              ('p3*q1', 'p3q'),
+                              ('l1*q1', 't1*lq'),
+                              ]
+    )
+
+# ==== K33P06_k0.txt ====
+name = 'K33P06_k0'
+    smallness_parameters = ['t1']
+    internal_lines = [['0', [1, 2]], ['0', [1, 6]], ['0', [1, 7]], ['0', [2, 5]], ['0', [3, 5]], ['0', [3, 6]], ['0', [3, 7]], ['0', [4, 5]], ['0', [4, 6]], ['0', [4, 7]], ['0', [5, 6]]]
+    external_lines = [['p1',1],['p2',2],['p3',3],['l1',4],['q1',5]]
+    li = psd.LoopIntegralFromGraph(
+       internal_lines = internal_lines,
+       external_lines = external_lines,
+       replacement_rules = [
+                              ('p1*p1', '0'),
+                              ('p2*p2', '0'),
+                              ('p3*p3', '0'),
+                              ('l1*l1', '0'),
+                              ('q1*q1', 'q1s'),
+                              ('p1*p2', 's12'),
+                              ('p1*p3', 's13'),
+                              ('p2*p3', 's23'),
+                              ('p1*l1', 't1*p1l'),
+                              ('p2*l1', 't1*p2l'),
+                              ('p3*l1', 't1*p3l'),
+                              ('p1*q1', 'p1q'),
+                              ('p2*q1', 'p2q'),
+                              ('p3*q1', 'p3q'),
+                              ('l1*q1', 't1*lq'),
+                              ]
+    )
+
+# ==== K33P07_k0.txt ====
+name = 'K33P07_k0'
+    smallness_parameters = ['t1']
+    internal_lines = [['0', [1, 2]], ['0', [1, 5]], ['0', [2, 6]], ['0', [2, 7]], ['0', [3, 5]], ['0', [3, 6]], ['0', [3, 7]], ['0', [4, 5]], ['0', [4, 6]], ['0', [4, 7]], ['0', [6, 7]]]
+    external_lines = [['p1',1],['p2',2],['p3',3],['l1',4],['q1',5]]
+    li = psd.LoopIntegralFromGraph(
+       internal_lines = internal_lines,
+       external_lines = external_lines,
+       replacement_rules = [
+                              ('p1*p1', '0'),
+                              ('p2*p2', '0'),
+                              ('p3*p3', '0'),
+                              ('l1*l1', '0'),
+                              ('q1*q1', 'q1s'),
+                              ('p1*p2', 's12'),
+                              ('p1*p3', 's13'),
+                              ('p2*p3', 's23'),
+                              ('p1*l1', 't1*p1l'),
+                              ('p2*l1', 't1*p2l'),
+                              ('p3*l1', 't1*p3l'),
+                              ('p1*q1', 'p1q'),
+                              ('p2*q1', 'p2q'),
+                              ('p3*q1', 'p3q'),
+                              ('l1*q1', 't1*lq'),
+                              ]
+    )
+
+# ==== K33P08_k0.txt ====
+name = 'K33P08_k0'
+    smallness_parameters = ['t1']
+    internal_lines = [['0', [1, 2]], ['0', [1, 3]], ['0', [1, 5]], ['0', [2, 6]], ['0', [2, 7]], ['0', [3, 5]], ['0', [3, 6]], ['0', [3, 7]], ['0', [4, 5]], ['0', [4, 6]], ['0', [4, 7]]]
+    external_lines = [['p1',1],['p2',2],['p3',3],['l1',4],['q1',5]]
+    li = psd.LoopIntegralFromGraph(
+       internal_lines = internal_lines,
+       external_lines = external_lines,
+       replacement_rules = [
+                              ('p1*p1', '0'),
+                              ('p2*p2', '0'),
+                              ('p3*p3', '0'),
+                              ('l1*l1', '0'),
+                              ('q1*q1', 'q1s'),
+                              ('p1*p2', 's12'),
+                              ('p1*p3', 's13'),
+                              ('p2*p3', 's23'),
+                              ('p1*l1', 't1*p1l'),
+                              ('p2*l1', 't1*p2l'),
+                              ('p3*l1', 't1*p3l'),
+                              ('p1*q1', 'p1q'),
+                              ('p2*q1', 'p2q'),
+                              ('p3*q1', 'p3q'),
+                              ('l1*q1', 't1*lq'),
+                              ]
+    )
+
+# ==== K33P09_k0.txt ====
+name = 'K33P09_k0'
+    smallness_parameters = ['t1']
+    internal_lines = [['0', [1, 2]], ['0', [1, 6]], ['0', [1, 7]], ['0', [2, 3]], ['0', [2, 5]], ['0', [3, 5]], ['0', [3, 6]], ['0', [3, 7]], ['0', [4, 5]], ['0', [4, 6]], ['0', [4, 7]]]
+    external_lines = [['p1',1],['p2',2],['p3',3],['l1',4],['q1',5]]
+    li = psd.LoopIntegralFromGraph(
+       internal_lines = internal_lines,
+       external_lines = external_lines,
+       replacement_rules = [
+                              ('p1*p1', '0'),
+                              ('p2*p2', '0'),
+                              ('p3*p3', '0'),
+                              ('l1*l1', '0'),
+                              ('q1*q1', 'q1s'),
+                              ('p1*p2', 's12'),
+                              ('p1*p3', 's13'),
+                              ('p2*p3', 's23'),
+                              ('p1*l1', 't1*p1l'),
+                              ('p2*l1', 't1*p2l'),
+                              ('p3*l1', 't1*p3l'),
+                              ('p1*q1', 'p1q'),
+                              ('p2*q1', 'p2q'),
+                              ('p3*q1', 'p3q'),
+                              ('l1*q1', 't1*lq'),
+                              ]
+    )
+
+# ==== K33P10_k0.txt ====
+name = 'K33P10_k0'
+    smallness_parameters = ['t1']
+    internal_lines = [['0', [1, 2]], ['0', [1, 5]], ['0', [2, 5]], ['0', [2, 6]], ['0', [2, 7]], ['0', [3, 5]], ['0', [3, 6]], ['0', [3, 7]], ['0', [4, 5]], ['0', [4, 6]], ['0', [4, 7]]]
+    external_lines = [['p1',1],['p2',2],['p3',3],['l1',4],['q1',5]]
+    li = psd.LoopIntegralFromGraph(
+       internal_lines = internal_lines,
+       external_lines = external_lines,
+       replacement_rules = [
+                              ('p1*p1', '0'),
+                              ('p2*p2', '0'),
+                              ('p3*p3', '0'),
+                              ('l1*l1', '0'),
+                              ('q1*q1', 'q1s'),
+                              ('p1*p2', 's12'),
+                              ('p1*p3', 's13'),
+                              ('p2*p3', 's23'),
+                              ('p1*l1', 't1*p1l'),
+                              ('p2*l1', 't1*p2l'),
+                              ('p3*l1', 't1*p3l'),
+                              ('p1*q1', 'p1q'),
+                              ('p2*q1', 'p2q'),
+                              ('p3*q1', 'p3q'),
+                              ('l1*q1', 't1*lq'),
+                              ]
+    )
+
+# ==== K33P11_k0.txt ====
+name = 'K33P11_k0'
+    smallness_parameters = ['t1']
+    internal_lines = [['0', [1, 3]], ['0', [1, 6]], ['0', [1, 7]], ['0', [2, 3]], ['0', [2, 4]], ['0', [2, 5]], ['0', [2, 7]], ['0', [3, 5]], ['0', [4, 6]], ['0', [5, 8]], ['0', [6, 8]], ['0', [7, 8]]]
+    external_lines = [['p1',1],['p2',2],['p3',3],['l1',4],['q1',5]]
+    li = psd.LoopIntegralFromGraph(
+       internal_lines = internal_lines,
+       external_lines = external_lines,
+       replacement_rules = [
+                              ('p1*p1', '0'),
+                              ('p2*p2', '0'),
+                              ('p3*p3', '0'),
+                              ('l1*l1', '0'),
+                              ('q1*q1', 'q1s'),
+                              ('p1*p2', 's12'),
+                              ('p1*p3', 's13'),
+                              ('p2*p3', 's23'),
+                              ('p1*l1', 't1*p1l'),
+                              ('p2*l1', 't1*p2l'),
+                              ('p3*l1', 't1*p3l'),
+                              ('p1*q1', 'p1q'),
+                              ('p2*q1', 'p2q'),
+                              ('p3*q1', 'p3q'),
+                              ('l1*q1', 't1*lq'),
+                              ]
+    )
+
+# ==== K33P12_k0.txt ====
+name = 'K33P12_k0'
+    smallness_parameters = ['t1']
+    internal_lines = [['0', [1, 3]], ['0', [1, 6]], ['0', [1, 7]], ['0', [2, 4]], ['0', [2, 5]], ['0', [2, 7]], ['0', [3, 4]], ['0', [3, 5]], ['0', [4, 6]], ['0', [5, 8]], ['0', [6, 8]], ['0', [7, 8]]]
+    external_lines = [['p1',1],['p2',2],['p3',3],['l1',4],['q1',5]]
+    li = psd.LoopIntegralFromGraph(
+       internal_lines = internal_lines,
+       external_lines = external_lines,
+       replacement_rules = [
+                              ('p1*p1', '0'),
+                              ('p2*p2', '0'),
+                              ('p3*p3', '0'),
+                              ('l1*l1', '0'),
+                              ('q1*q1', 'q1s'),
+                              ('p1*p2', 's12'),
+                              ('p1*p3', 's13'),
+                              ('p2*p3', 's23'),
+                              ('p1*l1', 't1*p1l'),
+                              ('p2*l1', 't1*p2l'),
+                              ('p3*l1', 't1*p3l'),
+                              ('p1*q1', 'p1q'),
+                              ('p2*q1', 'p2q'),
+                              ('p3*q1', 'p3q'),
+                              ('l1*q1', 't1*lq'),
+                              ]
+    )
+
+# ==== K33P13_k0.txt ====
+name = 'K33P13_k0'
+    smallness_parameters = ['t1']
+    internal_lines = [['0', [1, 3]], ['0', [1, 6]], ['0', [1, 7]], ['0', [2, 4]], ['0', [2, 5]], ['0', [2, 7]], ['0', [3, 5]], ['0', [3, 7]], ['0', [4, 6]], ['0', [5, 8]], ['0', [6, 8]], ['0', [7, 8]]]
+    external_lines = [['p1',1],['p2',2],['p3',3],['l1',4],['q1',5]]
+    li = psd.LoopIntegralFromGraph(
+       internal_lines = internal_lines,
+       external_lines = external_lines,
+       replacement_rules = [
+                              ('p1*p1', '0'),
+                              ('p2*p2', '0'),
+                              ('p3*p3', '0'),
+                              ('l1*l1', '0'),
+                              ('q1*q1', 'q1s'),
+                              ('p1*p2', 's12'),
+                              ('p1*p3', 's13'),
+                              ('p2*p3', 's23'),
+                              ('p1*l1', 't1*p1l'),
+                              ('p2*l1', 't1*p2l'),
+                              ('p3*l1', 't1*p3l'),
+                              ('p1*q1', 'p1q'),
+                              ('p2*q1', 'p2q'),
+                              ('p3*q1', 'p3q'),
+                              ('l1*q1', 't1*lq'),
+                              ]
+    )
+
+# ==== K33P14_k0.txt ====
+name = 'K33P14_k0'
+    smallness_parameters = ['t1']
+    internal_lines = [['0', [1, 3]], ['0', [1, 6]], ['0', [1, 7]], ['0', [2, 4]], ['0', [2, 5]], ['0', [2, 7]], ['0', [3, 5]], ['0', [4, 6]], ['0', [5, 7]], ['0', [5, 8]], ['0', [6, 8]], ['0', [7, 8]]]
+    external_lines = [['p1',1],['p2',2],['p3',3],['l1',4],['q1',5]]
+    li = psd.LoopIntegralFromGraph(
+       internal_lines = internal_lines,
+       external_lines = external_lines,
+       replacement_rules = [
+                              ('p1*p1', '0'),
+                              ('p2*p2', '0'),
+                              ('p3*p3', '0'),
+                              ('l1*l1', '0'),
+                              ('q1*q1', 'q1s'),
+                              ('p1*p2', 's12'),
+                              ('p1*p3', 's13'),
+                              ('p2*p3', 's23'),
+                              ('p1*l1', 't1*p1l'),
+                              ('p2*l1', 't1*p2l'),
+                              ('p3*l1', 't1*p3l'),
+                              ('p1*q1', 'p1q'),
+                              ('p2*q1', 'p2q'),
+                              ('p3*q1', 'p3q'),
+                              ('l1*q1', 't1*lq'),
+                              ]
+    )
+
+# ==== K33P15_k0.txt ====
+name = 'K33P15_k0'
+    smallness_parameters = ['t1']
+    internal_lines = [['0', [1, 3]], ['0', [1, 6]], ['0', [1, 7]], ['0', [2, 3]], ['0', [2, 4]], ['0', [2, 6]], ['0', [2, 7]], ['0', [3, 5]], ['0', [4, 5]], ['0', [5, 8]], ['0', [6, 8]], ['0', [7, 8]]]
+    external_lines = [['p1',1],['p2',2],['p3',3],['l1',4],['q1',5]]
+    li = psd.LoopIntegralFromGraph(
+       internal_lines = internal_lines,
+       external_lines = external_lines,
+       replacement_rules = [
+                              ('p1*p1', '0'),
+                              ('p2*p2', '0'),
+                              ('p3*p3', '0'),
+                              ('l1*l1', '0'),
+                              ('q1*q1', 'q1s'),
+                              ('p1*p2', 's12'),
+                              ('p1*p3', 's13'),
+                              ('p2*p3', 's23'),
+                              ('p1*l1', 't1*p1l'),
+                              ('p2*l1', 't1*p2l'),
+                              ('p3*l1', 't1*p3l'),
+                              ('p1*q1', 'p1q'),
+                              ('p2*q1', 'p2q'),
+                              ('p3*q1', 'p3q'),
+                              ('l1*q1', 't1*lq'),
+                              ]
+    )
+
+# ==== K33P16_k0.txt ====
+name = 'K33P16_k0'
+    smallness_parameters = ['t1']
+    internal_lines = [['0', [1, 3]], ['0', [1, 6]], ['0', [1, 7]], ['0', [2, 4]], ['0', [2, 6]], ['0', [2, 7]], ['0', [3, 4]], ['0', [3, 5]], ['0', [4, 5]], ['0', [5, 8]], ['0', [6, 8]], ['0', [7, 8]]]
+    external_lines = [['p1',1],['p2',2],['p3',3],['l1',4],['q1',5]]
+    li = psd.LoopIntegralFromGraph(
+       internal_lines = internal_lines,
+       external_lines = external_lines,
+       replacement_rules = [
+                              ('p1*p1', '0'),
+                              ('p2*p2', '0'),
+                              ('p3*p3', '0'),
+                              ('l1*l1', '0'),
+                              ('q1*q1', 'q1s'),
+                              ('p1*p2', 's12'),
+                              ('p1*p3', 's13'),
+                              ('p2*p3', 's23'),
+                              ('p1*l1', 't1*p1l'),
+                              ('p2*l1', 't1*p2l'),
+                              ('p3*l1', 't1*p3l'),
+                              ('p1*q1', 'p1q'),
+                              ('p2*q1', 'p2q'),
+                              ('p3*q1', 'p3q'),
+                              ('l1*q1', 't1*lq'),
+                              ]
+    )
+
+# ==== K33P17_k0.txt ====
+name = 'K33P17_k0'
+    smallness_parameters = ['t1']
+    internal_lines = [['0', [1, 3]], ['0', [1, 6]], ['0', [1, 7]], ['0', [2, 4]], ['0', [2, 6]], ['0', [2, 7]], ['0', [3, 5]], ['0', [3, 8]], ['0', [4, 5]], ['0', [5, 8]], ['0', [6, 8]], ['0', [7, 8]]]
+    external_lines = [['p1',1],['p2',2],['p3',3],['l1',4],['q1',5]]
+    li = psd.LoopIntegralFromGraph(
+       internal_lines = internal_lines,
+       external_lines = external_lines,
+       replacement_rules = [
+                              ('p1*p1', '0'),
+                              ('p2*p2', '0'),
+                              ('p3*p3', '0'),
+                              ('l1*l1', '0'),
+                              ('q1*q1', 'q1s'),
+                              ('p1*p2', 's12'),
+                              ('p1*p3', 's13'),
+                              ('p2*p3', 's23'),
+                              ('p1*l1', 't1*p1l'),
+                              ('p2*l1', 't1*p2l'),
+                              ('p3*l1', 't1*p3l'),
+                              ('p1*q1', 'p1q'),
+                              ('p2*q1', 'p2q'),
+                              ('p3*q1', 'p3q'),
+                              ('l1*q1', 't1*lq'),
+                              ]
+    )
+
+# ==== K33P18_k0.txt ====
+name = 'K33P18_k0'
+    smallness_parameters = ['t1']
+    internal_lines = [['0', [1, 3]], ['0', [1, 6]], ['0', [1, 7]], ['0', [2, 3]], ['0', [2, 5]], ['0', [2, 6]], ['0', [2, 7]], ['0', [3, 4]], ['0', [4, 5]], ['0', [5, 8]], ['0', [6, 8]], ['0', [7, 8]]]
+    external_lines = [['p1',1],['p2',2],['p3',3],['l1',4],['q1',5]]
+    li = psd.LoopIntegralFromGraph(
+       internal_lines = internal_lines,
+       external_lines = external_lines,
+       replacement_rules = [
+                              ('p1*p1', '0'),
+                              ('p2*p2', '0'),
+                              ('p3*p3', '0'),
+                              ('l1*l1', '0'),
+                              ('q1*q1', 'q1s'),
+                              ('p1*p2', 's12'),
+                              ('p1*p3', 's13'),
+                              ('p2*p3', 's23'),
+                              ('p1*l1', 't1*p1l'),
+                              ('p2*l1', 't1*p2l'),
+                              ('p3*l1', 't1*p3l'),
+                              ('p1*q1', 'p1q'),
+                              ('p2*q1', 'p2q'),
+                              ('p3*q1', 'p3q'),
+                              ('l1*q1', 't1*lq'),
+                              ]
+    )
+
+# ==== K33P19_k0.txt ====
+name = 'K33P19_k0'
+    smallness_parameters = ['t1']
+    internal_lines = [['0', [1, 3]], ['0', [1, 6]], ['0', [1, 7]], ['0', [2, 5]], ['0', [2, 6]], ['0', [2, 7]], ['0', [3, 4]], ['0', [4, 5]], ['0', [5, 6]], ['0', [5, 8]], ['0', [6, 8]], ['0', [7, 8]]]
+    external_lines = [['p1',1],['p2',2],['p3',3],['l1',4],['q1',5]]
+    li = psd.LoopIntegralFromGraph(
+       internal_lines = internal_lines,
+       external_lines = external_lines,
+       replacement_rules = [
+                              ('p1*p1', '0'),
+                              ('p2*p2', '0'),
+                              ('p3*p3', '0'),
+                              ('l1*l1', '0'),
+                              ('q1*q1', 'q1s'),
+                              ('p1*p2', 's12'),
+                              ('p1*p3', 's13'),
+                              ('p2*p3', 's23'),
+                              ('p1*l1', 't1*p1l'),
+                              ('p2*l1', 't1*p2l'),
+                              ('p3*l1', 't1*p3l'),
+                              ('p1*q1', 'p1q'),
+                              ('p2*q1', 'p2q'),
+                              ('p3*q1', 'p3q'),
+                              ('l1*q1', 't1*lq'),
+                              ]
+    )
+
+# ==== K33P20_k0.txt ====
+name = 'K33P20_k0'
+    smallness_parameters = ['t1']
+    internal_lines = [['0', [1, 3]], ['0', [1, 6]], ['0', [1, 7]], ['0', [2, 5]], ['0', [2, 6]], ['0', [2, 7]], ['0', [3, 4]], ['0', [4, 5]], ['0', [5, 8]], ['0', [6, 7]], ['0', [6, 8]], ['0', [7, 8]]]
+    external_lines = [['p1',1],['p2',2],['p3',3],['l1',4],['q1',5]]
+    li = psd.LoopIntegralFromGraph(
+       internal_lines = internal_lines,
+       external_lines = external_lines,
+       replacement_rules = [
+                              ('p1*p1', '0'),
+                              ('p2*p2', '0'),
+                              ('p3*p3', '0'),
+                              ('l1*l1', '0'),
+                              ('q1*q1', 'q1s'),
+                              ('p1*p2', 's12'),
+                              ('p1*p3', 's13'),
+                              ('p2*p3', 's23'),
+                              ('p1*l1', 't1*p1l'),
+                              ('p2*l1', 't1*p2l'),
+                              ('p3*l1', 't1*p3l'),
+                              ('p1*q1', 'p1q'),
+                              ('p2*q1', 'p2q'),
+                              ('p3*q1', 'p3q'),
+                              ('l1*q1', 't1*lq'),
+                              ]
+    )
+
+# ==== K33a2_l3_k0.txt ====
+name = 'K33a2_l3_k0'
+    smallness_parameters = ['t1']
+    internal_lines = [['0', [1, 3]], ['0', [1, 5]], ['0', [1, 6]], ['0', [2, 3]], ['0', [2, 5]], ['0', [2, 6]], ['0', [3, 4]], ['0', [4, 5]], ['0', [4, 6]], ['0', [5, 6]]]
+    external_lines = [['p1',1],['p2',2],['p3',3],['l1',4],['q1',5]]
+    li = psd.LoopIntegralFromGraph(
+       internal_lines = internal_lines,
+       external_lines = external_lines,
+       replacement_rules = [
+                              ('p1*p1', '0'),
+                              ('p2*p2', '0'),
+                              ('p3*p3', '0'),
+                              ('l1*l1', '0'),
+                              ('q1*q1', 'q1s'),
+                              ('p1*p2', 's12'),
+                              ('p1*p3', 's13'),
+                              ('p2*p3', 's23'),
+                              ('p1*l1', 't1*p1l'),
+                              ('p2*l1', 't1*p2l'),
+                              ('p3*l1', 't1*p3l'),
+                              ('p1*q1', 'p1q'),
+                              ('p2*q1', 'p2q'),
+                              ('p3*q1', 'p3q'),
+                              ('l1*q1', 't1*lq'),
+                              ]
+    )
+
+# ==== K33a2_l4_k0.txt ====
+name = 'K33a2_l4_k0'
+    smallness_parameters = ['t1']
+    internal_lines = [['0', [1, 4]], ['0', [1, 5]], ['0', [1, 6]], ['0', [2, 4]], ['0', [2, 5]], ['0', [2, 6]], ['0', [3, 4]], ['0', [3, 5]], ['0', [3, 6]], ['0', [5, 6]]]
+    external_lines = [['p1',1],['p2',2],['p3',3],['l1',4],['q1',5]]
+    li = psd.LoopIntegralFromGraph(
+       internal_lines = internal_lines,
+       external_lines = external_lines,
+       replacement_rules = [
+                              ('p1*p1', '0'),
+                              ('p2*p2', '0'),
+                              ('p3*p3', '0'),
+                              ('l1*l1', '0'),
+                              ('q1*q1', 'q1s'),
+                              ('p1*p2', 's12'),
+                              ('p1*p3', 's13'),
+                              ('p2*p3', 's23'),
+                              ('p1*l1', 't1*p1l'),
+                              ('p2*l1', 't1*p2l'),
+                              ('p3*l1', 't1*p3l'),
+                              ('p1*q1', 'p1q'),
+                              ('p2*q1', 'p2q'),
+                              ('p3*q1', 'p3q'),
+                              ('l1*q1', 't1*lq'),
+                              ]
+    )
+
+# ==== K33a3_1_pi_k0.txt ====
+name = 'K33a3_1_pi_k0'
+    smallness_parameters = ['t1']
+    internal_lines = [['0', [1, 2]], ['0', [1, 5]], ['0', [1, 6]], ['0', [2, 6]], ['0', [2, 7]], ['0', [3, 5]], ['0', [3, 6]], ['0', [3, 7]], ['0', [4, 5]], ['0', [4, 6]], ['0', [4, 7]]]
+    external_lines = [['p1',1],['p2',2],['p3',3],['l1',4],['q1',5]]
+    li = psd.LoopIntegralFromGraph(
+       internal_lines = internal_lines,
+       external_lines = external_lines,
+       replacement_rules = [
+                              ('p1*p1', '0'),
+                              ('p2*p2', '0'),
+                              ('p3*p3', '0'),
+                              ('l1*l1', '0'),
+                              ('q1*q1', 'q1s'),
+                              ('p1*p2', 's12'),
+                              ('p1*p3', 's13'),
+                              ('p2*p3', 's23'),
+                              ('p1*l1', 't1*p1l'),
+                              ('p2*l1', 't1*p2l'),
+                              ('p3*l1', 't1*p3l'),
+                              ('p1*q1', 'p1q'),
+                              ('p2*q1', 'p2q'),
+                              ('p3*q1', 'p3q'),
+                              ('l1*q1', 't1*lq'),
+                              ]
+    )
+
+# ==== K33a3_2_nn_k0.txt ====
+name = 'K33a3_2_nn_k0'
+    smallness_parameters = ['t1']
+    internal_lines = [['0', [1, 2]], ['0', [1, 6]], ['0', [1, 7]], ['0', [2, 5]], ['0', [3, 5]], ['0', [3, 6]], ['0', [3, 7]], ['0', [4, 5]], ['0', [4, 6]], ['0', [4, 7]], ['0', [6, 7]]]
+    external_lines = [['p1',1],['p2',2],['p3',3],['l1',4],['q1',5]]
+    li = psd.LoopIntegralFromGraph(
+       internal_lines = internal_lines,
+       external_lines = external_lines,
+       replacement_rules = [
+                              ('p1*p1', '0'),
+                              ('p2*p2', '0'),
+                              ('p3*p3', '0'),
+                              ('l1*l1', '0'),
+                              ('q1*q1', 'q1s'),
+                              ('p1*p2', 's12'),
+                              ('p1*p3', 's13'),
+                              ('p2*p3', 's23'),
+                              ('p1*l1', 't1*p1l'),
+                              ('p2*l1', 't1*p2l'),
+                              ('p3*l1', 't1*p3l'),
+                              ('p1*q1', 'p1q'),
+                              ('p2*q1', 'p2q'),
+                              ('p3*q1', 'p3q'),
+                              ('l1*q1', 't1*lq'),
+                              ]
+    )
+
+# ==== K33a3_3_es_k0.txt ====
+name = 'K33a3_3_es_k0'
+    smallness_parameters = ['t1']
+    internal_lines = [['0', [1, 3]], ['0', [1, 6]], ['0', [1, 7]], ['0', [2, 5]], ['0', [2, 6]], ['0', [2, 7]], ['0', [3, 5]], ['0', [4, 5]], ['0', [4, 6]], ['0', [4, 7]], ['0', [5, 6]]]
+    external_lines = [['p1',1],['p2',2],['p3',3],['l1',4],['q1',5]]
+    li = psd.LoopIntegralFromGraph(
+       internal_lines = internal_lines,
+       external_lines = external_lines,
+       replacement_rules = [
+                              ('p1*p1', '0'),
+                              ('p2*p2', '0'),
+                              ('p3*p3', '0'),
+                              ('l1*l1', '0'),
+                              ('q1*q1', 'q1s'),
+                              ('p1*p2', 's12'),
+                              ('p1*p3', 's13'),
+                              ('p2*p3', 's23'),
+                              ('p1*l1', 't1*p1l'),
+                              ('p2*l1', 't1*p2l'),
+                              ('p3*l1', 't1*p3l'),
+                              ('p1*q1', 'p1q'),
+                              ('p2*q1', 'p2q'),
+                              ('p3*q1', 'p3q'),
+                              ('l1*q1', 't1*lq'),
+                              ]
+    )
+
+# ==== K33a3_3_nn_k0.txt ====
+name = 'K33a3_3_nn_k0'
+    smallness_parameters = ['t1']
+    internal_lines = [['0', [1, 3]], ['0', [1, 6]], ['0', [1, 7]], ['0', [2, 5]], ['0', [2, 6]], ['0', [2, 7]], ['0', [3, 5]], ['0', [4, 5]], ['0', [4, 6]], ['0', [4, 7]], ['0', [6, 7]]]
+    external_lines = [['p1',1],['p2',2],['p3',3],['l1',4],['q1',5]]
+    li = psd.LoopIntegralFromGraph(
+       internal_lines = internal_lines,
+       external_lines = external_lines,
+       replacement_rules = [
+                              ('p1*p1', '0'),
+                              ('p2*p2', '0'),
+                              ('p3*p3', '0'),
+                              ('l1*l1', '0'),
+                              ('q1*q1', 'q1s'),
+                              ('p1*p2', 's12'),
+                              ('p1*p3', 's13'),
+                              ('p2*p3', 's23'),
+                              ('p1*l1', 't1*p1l'),
+                              ('p2*l1', 't1*p2l'),
+                              ('p3*l1', 't1*p3l'),
+                              ('p1*q1', 'p1q'),
+                              ('p2*q1', 'p2q'),
+                              ('p3*q1', 'p3q'),
+                              ('l1*q1', 't1*lq'),
+                              ]
+    )
+
+# ==== K33a3_3_pi_k0.txt ====
+name = 'K33a3_3_pi_k0'
+    smallness_parameters = ['t1']
+    internal_lines = [['0', [1, 3]], ['0', [1, 6]], ['0', [1, 7]], ['0', [2, 5]], ['0', [2, 6]], ['0', [2, 7]], ['0', [3, 5]], ['0', [3, 6]], ['0', [4, 5]], ['0', [4, 6]], ['0', [4, 7]]]
+    external_lines = [['p1',1],['p2',2],['p3',3],['l1',4],['q1',5]]
+    li = psd.LoopIntegralFromGraph(
+       internal_lines = internal_lines,
+       external_lines = external_lines,
+       replacement_rules = [
+                              ('p1*p1', '0'),
+                              ('p2*p2', '0'),
+                              ('p3*p3', '0'),
+                              ('l1*l1', '0'),
+                              ('q1*q1', 'q1s'),
+                              ('p1*p2', 's12'),
+                              ('p1*p3', 's13'),
+                              ('p2*p3', 's23'),
+                              ('p1*l1', 't1*p1l'),
+                              ('p2*l1', 't1*p2l'),
+                              ('p3*l1', 't1*p3l'),
+                              ('p1*q1', 'p1q'),
+                              ('p2*q1', 'p2q'),
+                              ('p3*q1', 'p3q'),
+                              ('l1*q1', 't1*lq'),
+                              ]
+    )
+
+# ==== K33a3_4_es_k0.txt ====
+name = 'K33a3_4_es_k0'
+    smallness_parameters = ['t1']
+    internal_lines = [['0', [1, 4]], ['0', [1, 6]], ['0', [1, 7]], ['0', [2, 5]], ['0', [2, 6]], ['0', [2, 7]], ['0', [3, 5]], ['0', [3, 6]], ['0', [3, 7]], ['0', [4, 5]], ['0', [5, 6]]]
+    external_lines = [['p1',1],['p2',2],['p3',3],['l1',4],['q1',5]]
+    li = psd.LoopIntegralFromGraph(
+       internal_lines = internal_lines,
+       external_lines = external_lines,
+       replacement_rules = [
+                              ('p1*p1', '0'),
+                              ('p2*p2', '0'),
+                              ('p3*p3', '0'),
+                              ('l1*l1', '0'),
+                              ('q1*q1', 'q1s'),
+                              ('p1*p2', 's12'),
+                              ('p1*p3', 's13'),
+                              ('p2*p3', 's23'),
+                              ('p1*l1', 't1*p1l'),
+                              ('p2*l1', 't1*p2l'),
+                              ('p3*l1', 't1*p3l'),
+                              ('p1*q1', 'p1q'),
+                              ('p2*q1', 'p2q'),
+                              ('p3*q1', 'p3q'),
+                              ('l1*q1', 't1*lq'),
+                              ]
+    )
+
+# ==== K33a5_24_k0.txt ====
+name = 'K33a5_24_k0'
+    smallness_parameters = ['t1']
+    internal_lines = [['0', [1, 2]], ['0', [1, 6]], ['0', [1, 7]], ['0', [2, 4]], ['0', [2, 5]], ['0', [3, 6]], ['0', [3, 8]], ['0', [4, 7]], ['0', [4, 9]], ['0', [5, 8]], ['0', [5, 9]], ['0', [6, 9]], ['0', [7, 8]]]
+    external_lines = [['p1',1],['p2',2],['p3',3],['l1',4],['q1',5]]
+    li = psd.LoopIntegralFromGraph(
+       internal_lines = internal_lines,
+       external_lines = external_lines,
+       replacement_rules = [
+                              ('p1*p1', '0'),
+                              ('p2*p2', '0'),
+                              ('p3*p3', '0'),
+                              ('l1*l1', '0'),
+                              ('q1*q1', 'q1s'),
+                              ('p1*p2', 's12'),
+                              ('p1*p3', 's13'),
+                              ('p2*p3', 's23'),
+                              ('p1*l1', 't1*p1l'),
+                              ('p2*l1', 't1*p2l'),
+                              ('p3*l1', 't1*p3l'),
+                              ('p1*q1', 'p1q'),
+                              ('p2*q1', 'p2q'),
+                              ('p3*q1', 'p3q'),
+                              ('l1*q1', 't1*lq'),
+                              ]
+    )
+
+# ==== K33a5_26_k0.txt ====
+name = 'K33a5_26_k0'
+    smallness_parameters = ['t1']
+    internal_lines = [['0', [1, 2]], ['0', [1, 6]], ['0', [1, 7]], ['0', [2, 5]], ['0', [2, 6]], ['0', [3, 6]], ['0', [3, 8]], ['0', [4, 7]], ['0', [4, 9]], ['0', [5, 8]], ['0', [5, 9]], ['0', [6, 9]], ['0', [7, 8]]]
+    external_lines = [['p1',1],['p2',2],['p3',3],['l1',4],['q1',5]]
+    li = psd.LoopIntegralFromGraph(
+       internal_lines = internal_lines,
+       external_lines = external_lines,
+       replacement_rules = [
+                              ('p1*p1', '0'),
+                              ('p2*p2', '0'),
+                              ('p3*p3', '0'),
+                              ('l1*l1', '0'),
+                              ('q1*q1', 'q1s'),
+                              ('p1*p2', 's12'),
+                              ('p1*p3', 's13'),
+                              ('p2*p3', 's23'),
+                              ('p1*l1', 't1*p1l'),
+                              ('p2*l1', 't1*p2l'),
+                              ('p3*l1', 't1*p3l'),
+                              ('p1*q1', 'p1q'),
+                              ('p2*q1', 'p2q'),
+                              ('p3*q1', 'p3q'),
+                              ('l1*q1', 't1*lq'),
+                              ]
+    )
+
+# ==== K33a5_35_k0.txt ====
+name = 'K33a5_35_k0'
+    smallness_parameters = ['t1']
+    internal_lines = [['0', [1, 2]], ['0', [1, 6]], ['0', [1, 7]], ['0', [2, 5]], ['0', [3, 5]], ['0', [3, 6]], ['0', [3, 8]], ['0', [4, 7]], ['0', [4, 9]], ['0', [5, 8]], ['0', [5, 9]], ['0', [6, 9]], ['0', [7, 8]]]
+    external_lines = [['p1',1],['p2',2],['p3',3],['l1',4],['q1',5]]
+    li = psd.LoopIntegralFromGraph(
+       internal_lines = internal_lines,
+       external_lines = external_lines,
+       replacement_rules = [
+                              ('p1*p1', '0'),
+                              ('p2*p2', '0'),
+                              ('p3*p3', '0'),
+                              ('l1*l1', '0'),
+                              ('q1*q1', 'q1s'),
+                              ('p1*p2', 's12'),
+                              ('p1*p3', 's13'),
+                              ('p2*p3', 's23'),
+                              ('p1*l1', 't1*p1l'),
+                              ('p2*l1', 't1*p2l'),
+                              ('p3*l1', 't1*p3l'),
+                              ('p1*q1', 'p1q'),
+                              ('p2*q1', 'p2q'),
+                              ('p3*q1', 'p3q'),
+                              ('l1*q1', 't1*lq'),
+                              ]
+    )
+
+# ==== K33a5_46_k0.txt ====
+name = 'K33a5_46_k0'
+    smallness_parameters = ['t1']
+    internal_lines = [['0', [1, 2]], ['0', [1, 6]], ['0', [1, 7]], ['0', [2, 5]], ['0', [3, 6]], ['0', [3, 8]], ['0', [4, 6]], ['0', [4, 7]], ['0', [4, 9]], ['0', [5, 8]], ['0', [5, 9]], ['0', [6, 9]], ['0', [7, 8]]]
+    external_lines = [['p1',1],['p2',2],['p3',3],['l1',4],['q1',5]]
+    li = psd.LoopIntegralFromGraph(
+       internal_lines = internal_lines,
+       external_lines = external_lines,
+       replacement_rules = [
+                              ('p1*p1', '0'),
+                              ('p2*p2', '0'),
+                              ('p3*p3', '0'),
+                              ('l1*l1', '0'),
+                              ('q1*q1', 'q1s'),
+                              ('p1*p2', 's12'),
+                              ('p1*p3', 's13'),
+                              ('p2*p3', 's23'),
+                              ('p1*l1', 't1*p1l'),
+                              ('p2*l1', 't1*p2l'),
+                              ('p3*l1', 't1*p3l'),
+                              ('p1*q1', 'p1q'),
+                              ('p2*q1', 'p2q'),
+                              ('p3*q1', 'p3q'),
+                              ('l1*q1', 't1*lq'),
+                              ]
+    )
+
+# ==== K33a5_67_k0.txt ====
+name = 'K33a5_67_k0'
+    smallness_parameters = ['t1']
+    internal_lines = [['0', [1, 2]], ['0', [1, 6]], ['0', [1, 7]], ['0', [2, 5]], ['0', [3, 6]], ['0', [3, 8]], ['0', [4, 7]], ['0', [4, 9]], ['0', [5, 8]], ['0', [5, 9]], ['0', [6, 7]], ['0', [6, 9]], ['0', [7, 8]]]
+    external_lines = [['p1',1],['p2',2],['p3',3],['l1',4],['q1',5]]
+    li = psd.LoopIntegralFromGraph(
+       internal_lines = internal_lines,
+       external_lines = external_lines,
+       replacement_rules = [
+                              ('p1*p1', '0'),
+                              ('p2*p2', '0'),
+                              ('p3*p3', '0'),
+                              ('l1*l1', '0'),
+                              ('q1*q1', 'q1s'),
+                              ('p1*p2', 's12'),
+                              ('p1*p3', 's13'),
+                              ('p2*p3', 's23'),
+                              ('p1*l1', 't1*p1l'),
+                              ('p2*l1', 't1*p2l'),
+                              ('p3*l1', 't1*p3l'),
+                              ('p1*q1', 'p1q'),
+                              ('p2*q1', 'p2q'),
+                              ('p3*q1', 'p3q'),
+                              ('l1*q1', 't1*lq'),
+                              ]
+    )
+

@@ -15,7 +15,7 @@ For the collinear kinematics, the region-structure understanding is from the aut
 2. Four-point scattering in the Regge limit ($1+2\to 3+4$, with 1 and 3 spacelike-collinear while 2 and 4 spacelike-collinear).
 It is worth noting that in the second case above, Glauber-mode propagators can emerge.
 
-Pure Python (>= 3.9), standard library only. pySecDec is used *only* for off-line cross-validation, which is not part of this repository. The optional region visualisation renders through the Wolfram Engine — see *Quick start* below.
+Pure Python (>= 3.9), standard library only — region finding needs no installation. pySecDec is used *only* for off-line cross-validation, which is not part of this repository. The optional region visualisation additionally uses `wolframscript` (Wolfram Engine) for rendering, `gs` (ghostscript) or `pdfunite` (poppler-utils) for merging atlas pages, and `pdftotext` (poppler-utils) for the atlas font check.
 
 ---
 
@@ -42,7 +42,7 @@ In collinear kinematics, on top of these modes above, we also have:
 ### Usage
 
 Run `python3 facet_regions_interactive.py` and choose a kinematics class; the browser takes the graph (edge list + external attachments) as the only input — the cut formalism stays internal.  It enumerates all regions and lists them together with their momentum-space mode assignment: one entry per internal edge, in input order — the same scaling vector that the region finders of pySecDec report, as compared in the cross-checks below.
-From there the browser can: inspect individual regions (per-mode subgraphs and loop numbers, plus a concrete independent-loop-momentum basis), translate them to the Lee-Pomeransky parametric representation ($x_e \sim \lambda^{v_e}$ with $v_e = -V$, edge order) — the language natural to integration-by-regions tools — classify the list by the characteristic (softest) mode of each region or by power counting (optionally with a numerator polynomial in the edge momenta; a per-region derivation of the power is available as a PDF report), or render regions as figures: a single PDF atlas (default; A4 pages of rows, each with the region figure, `R{n}  v = (...)`, and the per-mode lines) or one PNG per region, written to `<module>/fri_out/regions_<timestamp>/` together with the rendering script and a preview page.  The renderer checks font fidelity first, so a broken font encoding fails loudly instead of producing silent glyph errors.  See *Quick start* for the commands.
+From there the browser can: inspect individual regions (per-mode subgraphs and loop numbers, plus a concrete independent-loop-momentum basis), translate them to the Lee-Pomeransky parametric representation ($x_e \sim \lambda^{v_e}$ with $v_e = -V$, edge order) — the language natural to integration-by-regions tools — classify the list by the characteristic (softest) mode of each region or by power counting (optionally with a numerator polynomial in the edge momenta; a per-region derivation of the power is available as a PDF report), or render regions as figures: a single PDF atlas (default; A4 pages of rows, each with the region figure, `R{n}  v = (...)`, and the per-mode lines) or one PNG per region, written to `<module>/fri_out/regions_<timestamp>/` together with the rendering script and a preview page.  The renderer checks font fidelity first, so a broken font encoding fails loudly instead of producing silent glyph errors.
 
 ---
 
@@ -96,43 +96,6 @@ The check implementations live in `region_checker.py` (one per framework: wide-a
 
 ---
 
-## Quick start
-
-```bash
-# unified entry: [1] wide-angle / [2] collinear
-#   ([2]: regge 2->2 / five-point 2->3 / mode stepper)
-python3 facet_regions_interactive.py
-
-# wide-angle: interactive browser for a new graph (direct entry)
-python3 wide_angle/facet_regions_interactive.py
-
-# wide-angle: why a mode assignment is NOT a region (scaleless diagnosis)
-python3 wide_angle/scaleless_diagnosis.py
-
-# Regge 2->2: interactive enumerator for a new graph (kinematics k0..k5)
-python3 collinear/regge/facet_regions_interactive.py
-
-# Regge 2->2: stepper for the mode first-appearance ladder
-python3 collinear/regge/mode_level_interactive.py
-
-# five-point 2->3: interactive enumerator for a new graph (kinematics k0..k4);
-# the built-in five-point example is the edge list 1-3,1-5,2-3,2-5,3-4,4-5
-python3 collinear/2to3/facet_regions_interactive.py
-
-# five-point 2->3: stepper for the mode first-appearance ladder
-python3 collinear/2to3/mode_level_interactive.py
-
-# self-checks and small demos (plain scripts, no pytest needed)
-python3 wide_angle/tests/unit_test_messenger_sc.py
-python3 collinear/regge/mode_levels.py --check
-python3 collinear/2to3/mode_levels.py --check
-```
-
-Region finding needs no installation: everything runs on a stock Python 3 (standard library only).
-The optional region visualisation additionally uses `wolframscript` (Wolfram Engine) for rendering, `gs` (ghostscript) or `pdfunite` (poppler-utils) for merging atlas pages, and `pdftotext` (poppler-utils) for the atlas font check.
-
----
-
 ## Layout
 
 ```
@@ -160,7 +123,7 @@ FRI-project/
     │   ├── kin23.py                    #     kinematics table (k0--k4 presets; general virtuality patterns)
     │   ├── mode_levels.py              #     mode first-appearance ladder + cut-chain level derivation
     │   ├── mode_level_interactive.py   #     interactive stepper for the mode ladder
-    │   ├── facet_regions_interactive.py #     interactive enumerator for a new graph
+    │   ├── facet_regions_interactive.py #     interactive enumerator for a new graph (built-in example: 1-3,1-5,2-3,2-5,3-4,4-5)
     │   └── region_plot.py              #     region figures + PDF atlas
     └── regge/                         #   part 2: Regge limit of 2->2
         ├── primitives.py              #     mode algebra + mode strings + graph tools (zero-judgment base layer)
@@ -185,18 +148,30 @@ Every implementation has been cross-checked against the region finder of [pySecD
 <table>
 <tr><th colspan="2">class</th><th>hand-built</th><th>random</th></tr>
 <tr><td rowspan="4"><b>wide-angle</b></td><td><b>4 legs</b><br><span style="font-size: 90%; white-space: nowrap;">(with&nbsp;6&nbsp;kinematics)</span></td><td>52 topologies (3–5 loops)</td><td>1,200 (4-loop) + 200 (5-loop) graphs (on top of ~19,000 earlier random cases)</td></tr>
-<tr><td><b>5 legs</b><br><span style="font-size: 90%; white-space: nowrap;">(with&nbsp;4&nbsp;kinematics)</span></td><td>397 graphs (a 5th leg attached to some 4-leg topologies)</td><td>500 (4-loop) + 100 (5-loop) + a 500-graph 5-loop batch (first 20 graphs)</td></tr>
+<tr><td><b>5 legs</b><br><span style="font-size: 90%; white-space: nowrap;">(with&nbsp;4&nbsp;kinematics)</span></td><td>397 graphs (a 5th leg attached to some 4-leg topologies)</td><td>1,000 (3-loop) + 700 (4-loop) + 300 (5-loop)</td></tr>
 <tr><td><b>soft emission</b></td><td>470 configurations: the soft-emission families (Crown*ASE, v5-ASE, Frog soft-leg) plus CheesePizza</td><td>—</td></tr>
 <tr><td><b>other topologies</b></td><td>2 configurations: MTest1</td><td>—</td></tr>
-<tr><td colspan="2"><b>collinear: 2→3</b> (p2 ∥ p3)<br><span style="font-size: 90%; white-space: nowrap;">(with&nbsp;5&nbsp;kinematics)</span></td><td>397 graphs (a 5th leg attached to some 4-leg topologies)</td><td>1,000 (3-loop) + 700 (4-loop) + 100 (5-loop) graphs</td></tr>
+<tr><td colspan="2"><b>collinear: 2→3</b> (p2 ∥ p3)<br><span style="font-size: 90%; white-space: nowrap;">(with&nbsp;5&nbsp;kinematics)</span></td><td>397 graphs (a 5th leg attached to some 4-leg topologies)</td><td>1,000 (3-loop) + 700 (4-loop) + 300 (5-loop) graphs</td></tr>
 <tr><td colspan="2"><b>collinear: 2→2 (Regge)</b> (p1 ∥ p3, p2 ∥ p4)<br><span style="font-size: 90%; white-space: nowrap;">(with&nbsp;6&nbsp;kinematics)</span></td><td>region files of 56 graphs</td><td>1,000 (3-loop) + 700 (4-loop) + 300 (5-loop) graphs</td></tr>
 </table>
+
+### Runtimes
+
+As an example, the table below compares the average wall-clock time per case of FRI and of pySecDec's `find_regions` for the 5-leg class (averages over the 5-leg random batches and their four kinematics):
+
+| loops | cases | FRI | pySecDec | speed-up |
+|------:|------:|----:|---------:|---------:|
+| 3 loops | 4,000 | 0.02 s | 0.02 s | ≈ 1× |
+| 4 loops | 2,800 | 0.11 s | 0.83 s | ≈ 7× |
+| 5 loops | 1,200 | 1.1 s | 160 s | ≈ 150× |
+
+The advantage of FRI grows rapidly with the number of loops: the two tools are comparable on the smallest (3-loop) samples, while in the heaviest (5-loop) cases FRI is over two orders of magnitude faster — a single `find_regions` call takes minutes on average there.
 
 ---
 
 ## Status
 
-Research-grade, version 0.1.0.  License: TBD.
+Research-grade, version 0.1.0.  License: MIT.
 
 **Open items — general**
 

@@ -47,7 +47,7 @@ the soft corpora (464/464 files; see verify_soft_full.py).
   as some overlap requirement is provably unsatisfiable for all completions
   (route violations prune at the offending leg) — regions identical to the
   full product enumeration, far fewer combos visited.
-  [A/B escape: FRI_NO_REFUTE=1]
+  [A/B escape: FRI_NO_PRUNE=1]
 
 (v1/v2/v3/v3.2 development history preserved in
 private/skeleton_rules_history.md.)
@@ -525,7 +525,7 @@ def run(verts, edges, ext_attach, ext_mode, verbose=True, use_overlap=True, use_
     t0 = time.time()
     _DBG_OVL = bool(os.environ.get('FRI_DEBUG_OVL'))
     _DBG_ROUTE = bool(os.environ.get('FRI_DEBUG_ROUTE'))
-    _no_prune = bool(os.environ.get('FRI_NO_REFUTE'))   # [A/B escape: disable the early pruning]
+    _no_prune = bool(os.environ.get('FRI_NO_PRUNE'))   # [A/B escape: disable the early pruning]
     # Soft externals: supported since the 2026-09-20 spec; validated against the soft corpora (464/464); allow_soft kept for backward compatibility (no-op).
     # k0: always the union construction (single-path route removed 2026-09-20).
     r = _run_k0_union(verts, edges, ext_attach, ext_mode, verbose=verbose, vm_dedup=vm_dedup)
@@ -591,7 +591,7 @@ def run(verts, edges, ext_attach, ext_mode, verbose=True, use_overlap=True, use_
                         allowed_by_cut[name][idx].discard(ext_attach[ln_])
     ctype = [n for n in ext_cuts if ext_mode[n][0] == 0]
     stype = [n for n in ext_cuts if ext_mode[n][0] != 0]   # S^mC^n / S^m, m>=1
-    # Check plan for early refutation: per checked cut (C-type leg, layer n < m) —
+    # Check plan for early pruning: per checked cut (C-type leg, layer n < m) —
     # partner slot pairs (same sigma = n, other directions; SC slots included)
     # + soft-support slots (soft power == n).
     _legnames = sorted(ext_cuts.keys())
@@ -723,7 +723,7 @@ def run(verts, edges, ext_attach, ext_mode, verbose=True, use_overlap=True, use_
             if not okc:
                 continue
             leglist = sorted(chain_opts.keys())
-            # per-slot possibility masks (union over this context's chain options), used by the refutation
+            # per-slot possibility masks (union over this context's chain options), used by the early pruning
             _slotposs = {}
             for _n in leglist:
                 for _ci in range(len(ext_cuts.get(_n, []))):
@@ -732,7 +732,7 @@ def run(verts, edges, ext_attach, ext_mode, verbose=True, use_overlap=True, use_
                         if len(_ch) > _ci:
                             _pm |= _ch[_ci][1]
                     _slotposs[(_n, _ci)] = _pm
-            _use_refute = bool(use_overlap and overlap_strong and overlap_level and _checks
+            _use_prune = bool(use_overlap and overlap_strong and overlap_level and _checks
                                and _legnames == leglist)
             # route masks: P_j as a bitmask (route test:  m & pmask[jn])
             pmask = {jn: mk(P) for jn, P in path_assign.items()}
@@ -741,7 +741,7 @@ def run(verts, edges, ext_attach, ext_mode, verbose=True, use_overlap=True, use_
             # regions identical to a full product enumeration, just far fewer combos visited.
             _opts = [chain_opts[n] for n in leglist]
             _nleg = len(leglist)
-            # visit legs owning overlap checks first (they unlock refutation), the rest after
+            # visit legs owning overlap checks first (they unlock early pruning), the rest after
             _haschk = [False] * len(leglist)
             for _ck in _checks:
                 _haschk[_ck['owner']] = True
@@ -766,7 +766,7 @@ def run(verts, edges, ext_attach, ext_mode, verbose=True, use_overlap=True, use_
                     return _v[_ci]
                 return _slotposs.get((_n, _ci), 0)
 
-            def _ref_kills():
+            def _prune_dead():
                 # True if some overlap check is provably failed for every completion of this prefix
                 for _ck in _checks:
                     _v = _cur[_ck['owner']]
@@ -828,7 +828,7 @@ def run(verts, edges, ext_attach, ext_mode, verbose=True, use_overlap=True, use_
                     n_prune_rt += _sk
                     continue
                 if _d < _nleg - 1:
-                    if _use_refute and not _no_prune and _ref_kills():
+                    if _use_prune and not _no_prune and _prune_dead():
                         _sk = 1
                         for _dd in range(_d + 1, _nleg):
                             _sk *= len(_opts[_dord[_dd]])
