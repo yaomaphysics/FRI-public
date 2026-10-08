@@ -141,7 +141,7 @@ FRI-project/
 
 ## Validation
 
-Every implementation has been cross-checked against the region finder of [pySecDec](https://github.com/gudrunhe/secdec) (`find_regions`): the two region sets are compared as **sets of scaling vectors** (one entry per internal line, plus the smallness parameter).  All comparisons agree exactly.  Each kinematics class is checked on **two complementary sets of graphs** — (1) hand-built diagrams that target specific region structures, and (2) random batches of 1000+ graphs that probe for unexpected ones — the two catch different kinds of mistakes.
+Every implementation has been cross-checked against the region finder of [pySecDec](https://github.com/gudrunhe/secdec) (`find_regions`): the two region sets are compared as **sets of scaling vectors** (one entry per internal line, plus the smallness parameter).  All comparisons agree exactly.  Each kinematics class is checked on **two complementary sets of graphs** — (1) hand-built diagrams that target specific region structures, and (2) random batches of 1000+ graphs that probe for unexpected ones — the two catch different kinds of mistakes.  The complete records of these comparisons — the exact graph lists, the case-by-case verdicts, worked examples, and a ready-to-run recomputation script — are collected in [`validation/`](validation/).
 
 <!-- raw HTML because markdown pipe-tables cannot merge cells; renders on GitHub, VS Code, and the preview tooling -->
 
@@ -165,13 +165,13 @@ As an example, the table below compares the average wall-clock time per case of 
 | 4 loops | 2,800 | 0.11 s | 0.83 s | ≈ 7× |
 | 5 loops | 1,200 | 1.1 s | 160 s | ≈ 150× |
 
-The advantage of FRI grows rapidly with the number of loops: the two tools are comparable on the smallest (3-loop) samples, while in the heaviest (5-loop) cases FRI is over two orders of magnitude faster — a single `find_regions` call takes minutes on average there.
+The advantage of FRI grows rapidly with the number of loops: the two tools are comparable on the smallest (3-loop) samples, while in the heaviest (5-loop) cases FRI is over two orders of magnitude faster — a single `find_regions` call takes minutes on average there.  The full per-group tables are in [`validation/runtimes_summary.txt`](validation/runtimes_summary.txt).
 
 ---
 
 ## Status
 
-Research-grade, version 0.1.0.  License: MIT.
+Research-grade, version 0.1.0.  License: MIT (code); CC BY 4.0 (validation data).  © 2026 ETH Zurich; created by Yao Ma.
 
 **Open items — general**
 
@@ -188,3 +188,22 @@ Cleared for now.
 **Open items — regge**
 
 Cleared for now.
+
+---
+
+## Citation
+
+If you use FRI in your work, please cite the accompanying paper:
+
+Y. Ma, *All-order prescription for facet regions in massless wide-angle scattering*, [arXiv:2601.22144](https://arxiv.org/abs/2601.22144).
+
+```bibtex
+@article{Ma:2026facet,
+  author        = {Ma, Yao},
+  title         = {All-order prescription for facet regions in massless wide-angle scattering},
+  year          = {2026},
+  eprint        = {2601.22144},
+  archivePrefix = {arXiv},
+  primaryClass  = {hep-ph}
+}
+```

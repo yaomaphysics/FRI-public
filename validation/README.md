@@ -20,6 +20,7 @@ Companion records for section 8 of *"All-order prescription for facet regions in
 - [`results/`](results/) --- the case-by-case comparison records: per-case verdicts and region counts.
 - [`examples/`](examples/) --- one or two worked examples with complete inputs and both sides' full region lists, for inspection without running anything.
 - [`run_fri.py`](run_fri.py) --- a small runner that recomputes FRI's region lists for all cases (no pySecDec needed).
+- [`runtimes_summary.txt`](runtimes_summary.txt) --- the FRI vs pySecDec runtime comparison (per batch and kinematics).
 
 ## Versions
 
@@ -31,14 +32,16 @@ Companion records for section 8 of *"All-order prescription for facet regions in
 A ready-made runner is included --- `python3 run_fri.py --all` recomputes FRI's region lists for every validated case and reports, per case, the FRI runtime and whether the region count matches the stored record in `results/` (only the FRI code from the main repository is used; pySecDec is not needed).
 The output should be like:
 
+```text
 FRI region runner (validation package) -- uses the FRI code from the main repository; pySecDec is not needed.
 Each line: <case> <kin>: <N> regions  (<time>s, matched) -- "matched" = the count equals the stored record in results/.
 
 == rand1000_4l_v8-10_no2v.json (1000 graphs, seed 2026091823) ==
-  0000 v=9 k0: 309 regions  (<time>, matched)
-  0000 v=9 k1: 62 regions  (<time>, matched)
-  0000 v=9 k2: 76 regions  (<time>, matched)
+  0000 v=9 k0: 309 regions  (0.14s, matched)
+  0000 v=9 k1: 62 regions  (0.04s, matched)
+  0000 v=9 k2: 76 regions  (0.12s, matched)
   ...
+```
 
 See `python3 run_fri.py --help` for per-batch and per-case modes, and `--full` to print the complete region lists.
 
@@ -48,3 +51,7 @@ The records in `results/` contain the expected verdicts and counts.
 ## Note
 
 The collinear kinematic classes implemented in FRI are validated separately, which will be documented in a forthcoming publication.
+
+## License
+
+The graph lists and comparison records in this directory are released under the [Creative Commons Attribution 4.0 International License](https://creativecommons.org/licenses/by/4.0/); the FRI source code is released under the MIT License (© 2026 ETH Zurich; created by Yao Ma) --- see the main repository.

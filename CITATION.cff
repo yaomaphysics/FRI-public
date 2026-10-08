@@ -1,0 +1,22 @@
+cff-version: 1.2.0
+message: "If you use FRI in your work, please cite it as below."
+authors:
+  - family-names: Ma
+    given-names: Yao
+    affiliation: "Institute for Theoretical Physics, ETH Zürich"
+title: "FRI — Facet Region Interpreter"
+version: 0.1.0
+date-released: 2026-10-08
+license: MIT
+repository-code: "https://github.com/yaomaphysics/FRI-public"
+preferred-citation:
+  type: article
+  title: "All-order prescription for facet regions in massless wide-angle scattering"
+  authors:
+    - family-names: Ma
+      given-names: Yao
+  year: 2026
+  identifiers:
+    - type: other
+      value: "arXiv:2601.22144"
+  url: "https://arxiv.org/abs/2601.22144"

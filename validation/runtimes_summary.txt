@@ -1,0 +1,56 @@
+# Runtime summary — FRI vs pySecDec
+#
+# Dedicated FRI-only timing runs (2026-10-08) over the validation batches; all entries are
+# per-case averages.  "ratio" = mean(pySecDec) / mean(FRI).  Scaleless cases have no pySecDec
+# reference time and are excluded from the pySecDec means.
+
+## wide-angle 4 legs, 4-loop  (1,200 graphs x k0-k5)
+k       N    OK  mism  scal | FRI mean   FRI max | pySecDec mean  pySecDec max | ratio
+k0    1200  1200     0     0 |    0.117    1.147 |      0.765       6.699 |   6.5x
+k1    1200  1190     0    10 |    0.032    0.899 |      0.336       1.779 |  10.7x
+k2    1200  1190     0    10 |    0.092    1.616 |      0.493       5.136 |   5.4x
+k3    1200  1197     0     3 |    0.038    0.997 |      0.566       6.611 |  14.7x
+k4    1200  1197     0     3 |    0.090    1.108 |      0.819       8.997 |   9.1x
+k5    1200  1190     0    10 |    0.093    1.674 |      0.536       5.823 |   5.7x
+ALL   7200  7164     0    36 |    0.077    1.674 |      0.586       8.997 |   7.6x
+
+## wide-angle 4 legs, 5-loop  (200 graphs x k0-k5)
+k       N    OK  mism  scal | FRI mean   FRI max | pySecDec mean  pySecDec max | ratio
+k0     200   200     0     0 |    0.575    2.865 |     81.629    1655.421 | 141.9x
+k1     200   199     0     1 |    0.163    0.879 |     13.667     389.266 |  83.7x
+k2     200   199     0     1 |    1.360   25.075 |     50.228     962.674 |  36.9x
+k3     200   200     0     0 |    0.296    4.459 |     52.676    1029.066 | 178.1x
+k4     200   200     0     0 |    0.639    5.302 |    100.213    1975.365 | 156.8x
+k5     200   199     0     1 |    1.375   25.516 |     63.122    1193.336 |  45.9x
+ALL   1200  1197     0     3 |    0.735   25.516 |     60.301    1975.365 |  82.1x
+
+## wide-angle 5 legs, 3-loop  (1,000 graphs x k0-k3)
+k       N    OK  mism  scal | FRI mean   FRI max | pySecDec mean  pySecDec max | ratio
+k0    1000  1000     0     0 |    0.045    1.095 |      0.023       0.097 |   0.5x
+k1    1000   999     0     1 |    0.015    0.534 |      0.013       0.048 |   0.9x
+k2    1000   996     0     4 |    0.009    0.126 |      0.012       0.041 |   1.4x
+k3    1000   996     0     4 |    0.015    0.446 |      0.018       0.095 |   1.2x
+ALL   4000  3991     0     9 |    0.021    1.095 |      0.016       0.097 |   0.8x
+
+## wide-angle 5 legs, 4-loop  (700 graphs x k0-k3)
+k       N    OK  mism  scal | FRI mean   FRI max | pySecDec mean  pySecDec max | ratio
+k0     700   700     0     0 |    0.215    1.535 |      1.272      14.323 |   5.9x
+k1     700   700     0     0 |    0.065    1.004 |      0.401       3.863 |   6.2x
+k2     700   698     0     2 |    0.040    0.540 |      0.298       2.412 |   7.4x
+k3     700   698     0     2 |    0.129    2.204 |      1.349      19.999 |  10.5x
+ALL   2800  2796     0     4 |    0.112    2.204 |      0.830      19.999 |   7.4x
+
+## wide-angle 5 legs, 5-loop  (300 graphs x k0-k3)
+k       N    OK  mism  scal | FRI mean   FRI max | pySecDec mean  pySecDec max | ratio
+k0     300   300     0     0 |    1.295    7.777 |    286.529    4218.208 | 221.3x
+k1     300   300     0     0 |    0.308    1.546 |     50.145     709.847 | 162.7x
+k2     300   299     0     1 |    0.222    1.257 |     33.317     494.730 | 150.3x
+k3     300   299     0     1 |    2.494   66.194 |    266.253    3771.005 | 106.8x
+ALL   1200  1198     0     2 |    1.080   66.194 |    159.077    4218.208 | 147.3x
+
+## Summary — 5 legs, by loop order
+3 loops  n=  4000   FRI mean 0.021 s   pySecDec mean 0.016 s   ratio 0.8
+4 loops  n=  2800   FRI mean 0.112 s   pySecDec mean 0.830 s   ratio 7.4
+5 loops  n=  1200   FRI mean 1.080 s   pySecDec mean 159.077 s   ratio 147.3
+
+Overall: 16400 cases;  FRI total 3130 s;  pySecDec total 269341 s (74.8 h);  ratio 86.0.
