@@ -22,7 +22,7 @@ Companion records for section 8 of *"All-order prescription for facet regions in
 
 ## Versions
 
-- FRI: v0.1.0
+- FRI: v0.1.0 (commit `821b1b2`)
 - pySecDec: 1.6.6
 
 ## Reproducing -- for the user's curiosity
