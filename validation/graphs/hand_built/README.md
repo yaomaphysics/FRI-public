@@ -6,7 +6,8 @@ The hand-built graphs used in the validation, one spec book per class (internal 
 |------|------:|---------|
 | `lightlike_2to2.txt` | 261 | four-point (2→2) topologies, k0–k4 |
 | `decay_1to3.txt` | 51 | the same topologies in the decay kinematics |
-| `lightlike_2to3.txt` | 44 | five-point (2→3) Frog families, k0–k3 |
+| `lightlike_2to3.txt` | 44 | five-point (2→3) Fish families, k0–k3 |
+| `lightlike_2to3_fifthleg.txt` | 1,544 | fifth-leg configurations (a fifth leg attached to the 4-leg topologies), k0–k3 |
 | `lightlike_2to2_1soft.txt` | 409 | soft-emission variants of the 4-leg topologies (soft + hard external legs) |
 | `decay_1to3_1soft.txt` | 61 | soft-emission variants in the decay kinematics |
 

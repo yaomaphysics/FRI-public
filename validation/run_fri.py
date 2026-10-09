@@ -22,7 +22,7 @@ REPO = os.path.dirname(HERE)
 sys.path.insert(0, os.path.join(REPO, 'wide_angle'))
 
 import skeleton as SG                      # noqa: E402
-from read_graph import mode_str            # noqa: E402
+from primitives import mode_str            # noqa: E402
 
 DATA = json.load(open(os.path.join(HERE, 'fri_runner_data.json')))
 
@@ -39,6 +39,7 @@ BOOKS = [
     'graphs/hand_built/lightlike_2to2.txt',
     'graphs/hand_built/decay_1to3.txt',
     'graphs/hand_built/lightlike_2to3.txt',
+    'graphs/hand_built/lightlike_2to3_fifthleg.txt',
     'graphs/hand_built/lightlike_2to2_1soft.txt',
     'graphs/hand_built/decay_1to3_1soft.txt',
 ]

@@ -1,8 +1,8 @@
 # hand-built configurations -- lightlike_2to3 (44 cases)
 # one spec block per case (graph + kinematics; pySecDec LoopIntegralFromGraph convention)
 
-# ==== Frog_k0.txt ====
-name = 'Frog_k0'
+# ==== Fish_k0.txt ====
+name = 'Fish_k0'
     smallness_parameters = ['t1']
     internal_lines = [['0', [1, 3]], ['0', [1, 5]], ['0', [2, 3]], ['0', [2, 5]], ['0', [3, 4]], ['0', [4, 5]]]
     external_lines = [['p1', 1], ['p2', 2], ['p3', 3], ['p4', 4], ['p5', 5]]
@@ -78,8 +78,8 @@ FRI region 19: [H, H, C_2, C_2, H, H]  ->  scaling vector (0, 0, -1, -1, 0, 0, 1
 FRI region 20: [H, H, H, H, C_4, C_4]  ->  scaling vector (0, 0, 0, 0, -1, -1, 1)
 FRI region 21: [H, H, H, H, H, H]  ->  scaling vector (0, 0, 0, 0, 0, 0, 1)
 
-# ==== Frog_k1.txt ====
-name = 'Frog_k1'
+# ==== Fish_k1.txt ====
+name = 'Fish_k1'
     smallness_parameters = ['t1']
     internal_lines = [['0', [1, 3]], ['0', [1, 5]], ['0', [2, 3]], ['0', [2, 5]], ['0', [3, 4]], ['0', [4, 5]]]
     external_lines = [['p1', 1], ['p2', 2], ['p3', 3], ['p4', 4], ['p5', 5]]
@@ -129,8 +129,8 @@ FRI region  6: [C_3, H, C_3, H, C_3, H]  ->  scaling vector (-1, 0, -1, 0, -1, 0
 FRI region  7: [H, H, C_2, C_2, H, H]  ->  scaling vector (0, 0, -1, -1, 0, 0, 1)
 FRI region  8: [H, H, H, H, H, H]  ->  scaling vector (0, 0, 0, 0, 0, 0, 1)
 
-# ==== Frog_k2.txt ====
-name = 'Frog_k2'
+# ==== Fish_k2.txt ====
+name = 'Fish_k2'
     smallness_parameters = ['t1']
     internal_lines = [['0', [1, 3]], ['0', [1, 5]], ['0', [2, 3]], ['0', [2, 5]], ['0', [3, 4]], ['0', [4, 5]]]
     external_lines = [['p1', 1], ['p2', 2], ['p3', 3], ['p4', 4], ['p5', 5]]
@@ -172,8 +172,8 @@ FRI region  2: [C_1, C_1, H, H, H, H]  ->  scaling vector (-1, -1, 0, 0, 0, 0, 1
 FRI region  3: [H, H, C_2, C_2, H, H]  ->  scaling vector (0, 0, -1, -1, 0, 0, 1)
 FRI region  4: [H, H, H, H, H, H]  ->  scaling vector (0, 0, 0, 0, 0, 0, 1)
 
-# ==== Frog_k3.txt ====
-name = 'Frog_k3'
+# ==== Fish_k3.txt ====
+name = 'Fish_k3'
     smallness_parameters = ['t1']
     internal_lines = [['0', [1, 3]], ['0', [1, 5]], ['0', [2, 3]], ['0', [2, 5]], ['0', [3, 4]], ['0', [4, 5]]]
     external_lines = [['p1', 1], ['p2', 2], ['p3', 3], ['p4', 4], ['p5', 5]]
@@ -215,8 +215,8 @@ FRI region  2: [C_1, C_1, H, H, H, H]  ->  scaling vector (-1, -1, 0, 0, 0, 0, 1
 FRI region  3: [H, H, C_2^2, C_2^2, H, H]  ->  scaling vector (0, 0, -2, -2, 0, 0, 1)
 FRI region  4: [H, H, H, H, H, H]  ->  scaling vector (0, 0, 0, 0, 0, 0, 1)
 
-# ==== FrogS_k0.txt ====
-name = 'FrogS_k0'
+# ==== FishS_k0.txt ====
+name = 'FishS_k0'
     smallness_parameters = ['t1']
     internal_lines = [['0', [1, 6]], ['0', [1, 5]], ['0', [2, 6]], ['0', [2, 5]], ['0', [3, 6]], ['0', [3, 4]], ['0', [4, 5]]]
     external_lines = [['p1', 1], ['p2', 2], ['p3', 3], ['p4', 4], ['p5', 5]]
@@ -316,8 +316,8 @@ FRI region 31: [H, H, H, H, C_3, C_3, H]  ->  scaling vector (0, 0, 0, 0, -1, -1
 FRI region 32: [H, H, H, H, H, C_4, C_4]  ->  scaling vector (0, 0, 0, 0, 0, -1, -1, 1)
 FRI region 33: [H, H, H, H, H, H, H]  ->  scaling vector (0, 0, 0, 0, 0, 0, 0, 1)
 
-# ==== FrogS_k1.txt ====
-name = 'FrogS_k1'
+# ==== FishS_k1.txt ====
+name = 'FishS_k1'
     smallness_parameters = ['t1']
     internal_lines = [['0', [1, 6]], ['0', [1, 5]], ['0', [2, 6]], ['0', [2, 5]], ['0', [3, 6]], ['0', [3, 4]], ['0', [4, 5]]]
     external_lines = [['p1', 1], ['p2', 2], ['p3', 3], ['p4', 4], ['p5', 5]]
@@ -385,8 +385,8 @@ FRI region 15: [H, H, C_2, C_2, H, H, H]  ->  scaling vector (0, 0, -1, -1, 0, 0
 FRI region 16: [H, H, H, H, C_3, C_3, H]  ->  scaling vector (0, 0, 0, 0, -1, -1, 0, 1)
 FRI region 17: [H, H, H, H, H, H, H]  ->  scaling vector (0, 0, 0, 0, 0, 0, 0, 1)
 
-# ==== FrogS_k2.txt ====
-name = 'FrogS_k2'
+# ==== FishS_k2.txt ====
+name = 'FishS_k2'
     smallness_parameters = ['t1']
     internal_lines = [['0', [1, 6]], ['0', [1, 5]], ['0', [2, 6]], ['0', [2, 5]], ['0', [3, 6]], ['0', [3, 4]], ['0', [4, 5]]]
     external_lines = [['p1', 1], ['p2', 2], ['p3', 3], ['p4', 4], ['p5', 5]]
@@ -438,8 +438,8 @@ FRI region  7: [C_2, H, C_2, C_2, C_2, H, H]  ->  scaling vector (-1, 0, -1, -1,
 FRI region  8: [H, H, C_2, C_2, H, H, H]  ->  scaling vector (0, 0, -1, -1, 0, 0, 0, 1)
 FRI region  9: [H, H, H, H, H, H, H]  ->  scaling vector (0, 0, 0, 0, 0, 0, 0, 1)
 
-# ==== FrogS_k3.txt ====
-name = 'FrogS_k3'
+# ==== FishS_k3.txt ====
+name = 'FishS_k3'
     smallness_parameters = ['t1']
     internal_lines = [['0', [1, 6]], ['0', [1, 5]], ['0', [2, 6]], ['0', [2, 5]], ['0', [3, 6]], ['0', [3, 4]], ['0', [4, 5]]]
     external_lines = [['p1', 1], ['p2', 2], ['p3', 3], ['p4', 4], ['p5', 5]]
@@ -495,8 +495,8 @@ FRI region  9: [C_1, C_1, H, H, H, H, H]  ->  scaling vector (-1, -1, 0, 0, 0, 0
 FRI region 10: [H, H, C_2^2, C_2^2, H, H, H]  ->  scaling vector (0, 0, -2, -2, 0, 0, 0, 1)
 FRI region 11: [H, H, H, H, H, H, H]  ->  scaling vector (0, 0, 0, 0, 0, 0, 0, 1)
 
-# ==== FrogSS_k0.txt ====
-name = 'FrogSS_k0'
+# ==== FishSS_k0.txt ====
+name = 'FishSS_k0'
     smallness_parameters = ['t1']
     internal_lines = [['0', [1, 6]], ['0', [1, 7]], ['0', [2, 6]], ['0', [2, 7]], ['0', [3, 6]], ['0', [5, 7]], ['0', [3, 4]], ['0', [4, 5]]]
     external_lines = [['p1', 1], ['p2', 2], ['p3', 3], ['p4', 4], ['p5', 5]]
@@ -624,8 +624,8 @@ FRI region 45: [H, H, H, H, H, C_5, H, C_5]  ->  scaling vector (0, 0, 0, 0, 0, 
 FRI region 46: [H, H, H, H, H, H, C_4, C_4]  ->  scaling vector (0, 0, 0, 0, 0, 0, -1, -1, 1)
 FRI region 47: [H, H, H, H, H, H, H, H]  ->  scaling vector (0, 0, 0, 0, 0, 0, 0, 0, 1)
 
-# ==== FrogSS_k1.txt ====
-name = 'FrogSS_k1'
+# ==== FishSS_k1.txt ====
+name = 'FishSS_k1'
     smallness_parameters = ['t1']
     internal_lines = [['0', [1, 6]], ['0', [1, 7]], ['0', [2, 6]], ['0', [2, 7]], ['0', [3, 6]], ['0', [5, 7]], ['0', [3, 4]], ['0', [4, 5]]]
     external_lines = [['p1', 1], ['p2', 2], ['p3', 3], ['p4', 4], ['p5', 5]]
@@ -707,8 +707,8 @@ FRI region 22: [H, H, C_2, C_2, H, H, H, H]  ->  scaling vector (0, 0, -1, -1, 0
 FRI region 23: [H, H, H, H, C_3, H, C_3, H]  ->  scaling vector (0, 0, 0, 0, -1, 0, -1, 0, 1)
 FRI region 24: [H, H, H, H, H, H, H, H]  ->  scaling vector (0, 0, 0, 0, 0, 0, 0, 0, 1)
 
-# ==== FrogSS_k2.txt ====
-name = 'FrogSS_k2'
+# ==== FishSS_k2.txt ====
+name = 'FishSS_k2'
     smallness_parameters = ['t1']
     internal_lines = [['0', [1, 6]], ['0', [1, 7]], ['0', [2, 6]], ['0', [2, 7]], ['0', [3, 6]], ['0', [5, 7]], ['0', [3, 4]], ['0', [4, 5]]]
     external_lines = [['p1', 1], ['p2', 2], ['p3', 3], ['p4', 4], ['p5', 5]]
@@ -774,8 +774,8 @@ FRI region 14: [H, C_2, C_2, C_2, H, C_2, H, H]  ->  scaling vector (0, -1, -1, 
 FRI region 15: [H, H, C_2, C_2, H, H, H, H]  ->  scaling vector (0, 0, -1, -1, 0, 0, 0, 0, 1)
 FRI region 16: [H, H, H, H, H, H, H, H]  ->  scaling vector (0, 0, 0, 0, 0, 0, 0, 0, 1)
 
-# ==== FrogSS_k3.txt ====
-name = 'FrogSS_k3'
+# ==== FishSS_k3.txt ====
+name = 'FishSS_k3'
     smallness_parameters = ['t1']
     internal_lines = [['0', [1, 6]], ['0', [1, 7]], ['0', [2, 6]], ['0', [2, 7]], ['0', [3, 6]], ['0', [5, 7]], ['0', [3, 4]], ['0', [4, 5]]]
     external_lines = [['p1', 1], ['p2', 2], ['p3', 3], ['p4', 4], ['p5', 5]]
@@ -849,8 +849,8 @@ FRI region 18: [H, C_2^2, C_2^2, C_2^2, H, C_2^2, H, H]  ->  scaling vector (0, 
 FRI region 19: [H, H, C_2^2, C_2^2, H, H, H, H]  ->  scaling vector (0, 0, -2, -2, 0, 0, 0, 0, 1)
 FRI region 20: [H, H, H, H, H, H, H, H]  ->  scaling vector (0, 0, 0, 0, 0, 0, 0, 0, 1)
 
-# ==== FrogST_k0.txt ====
-name = 'FrogST_k0'
+# ==== FishST_k0.txt ====
+name = 'FishST_k0'
     smallness_parameters = ['t1']
     internal_lines = [['0', [1, 6]], ['0', [1, 5]], ['0', [2, 6]], ['0', [2, 7]], ['0', [3, 6]], ['0', [5, 7]], ['0', [3, 4]], ['0', [4, 7]]]
     external_lines = [['p1', 1], ['p2', 2], ['p3', 3], ['p4', 4], ['p5', 5]]
@@ -994,8 +994,8 @@ FRI region 53: [H, H, H, H, C_3, H, C_3, H]  ->  scaling vector (0, 0, 0, 0, -1,
 FRI region 54: [H, H, H, H, H, H, C_4, C_4]  ->  scaling vector (0, 0, 0, 0, 0, 0, -1, -1, 1)
 FRI region 55: [H, H, H, H, H, H, H, H]  ->  scaling vector (0, 0, 0, 0, 0, 0, 0, 0, 1)
 
-# ==== FrogST_k1.txt ====
-name = 'FrogST_k1'
+# ==== FishST_k1.txt ====
+name = 'FishST_k1'
     smallness_parameters = ['t1']
     internal_lines = [['0', [1, 6]], ['0', [1, 5]], ['0', [2, 6]], ['0', [2, 7]], ['0', [3, 6]], ['0', [5, 7]], ['0', [3, 4]], ['0', [4, 7]]]
     external_lines = [['p1', 1], ['p2', 2], ['p3', 3], ['p4', 4], ['p5', 5]]
@@ -1067,8 +1067,8 @@ FRI region 17: [H, H, C_2, C_2, H, H, H, H]  ->  scaling vector (0, 0, -1, -1, 0
 FRI region 18: [H, H, H, H, C_3, H, C_3, H]  ->  scaling vector (0, 0, 0, 0, -1, 0, -1, 0, 1)
 FRI region 19: [H, H, H, H, H, H, H, H]  ->  scaling vector (0, 0, 0, 0, 0, 0, 0, 0, 1)
 
-# ==== FrogST_k2.txt ====
-name = 'FrogST_k2'
+# ==== FishST_k2.txt ====
+name = 'FishST_k2'
     smallness_parameters = ['t1']
     internal_lines = [['0', [1, 6]], ['0', [1, 5]], ['0', [2, 6]], ['0', [2, 7]], ['0', [3, 6]], ['0', [5, 7]], ['0', [3, 4]], ['0', [4, 7]]]
     external_lines = [['p1', 1], ['p2', 2], ['p3', 3], ['p4', 4], ['p5', 5]]
@@ -1124,8 +1124,8 @@ FRI region  9: [H, H, C_2, C_2, H, C_2, H, C_2]  ->  scaling vector (0, 0, -1, -
 FRI region 10: [H, H, C_2, C_2, H, H, H, H]  ->  scaling vector (0, 0, -1, -1, 0, 0, 0, 0, 1)
 FRI region 11: [H, H, H, H, H, H, H, H]  ->  scaling vector (0, 0, 0, 0, 0, 0, 0, 0, 1)
 
-# ==== FrogST_k3.txt ====
-name = 'FrogST_k3'
+# ==== FishST_k3.txt ====
+name = 'FishST_k3'
     smallness_parameters = ['t1']
     internal_lines = [['0', [1, 6]], ['0', [1, 5]], ['0', [2, 6]], ['0', [2, 7]], ['0', [3, 6]], ['0', [5, 7]], ['0', [3, 4]], ['0', [4, 7]]]
     external_lines = [['p1', 1], ['p2', 2], ['p3', 3], ['p4', 4], ['p5', 5]]
@@ -1185,8 +1185,8 @@ FRI region 11: [H, H, C_2^2, C_2^2, H, C_2^2, H, C_2^2]  ->  scaling vector (0, 
 FRI region 12: [H, H, C_2^2, C_2^2, H, H, H, H]  ->  scaling vector (0, 0, -2, -2, 0, 0, 0, 0, 1)
 FRI region 13: [H, H, H, H, H, H, H, H]  ->  scaling vector (0, 0, 0, 0, 0, 0, 0, 0, 1)
 
-# ==== FrogSU_k0.txt ====
-name = 'FrogSU_k0'
+# ==== FishSU_k0.txt ====
+name = 'FishSU_k0'
     smallness_parameters = ['t1']
     internal_lines = [['0', [1, 6]], ['0', [1, 7]], ['0', [2, 6]], ['0', [2, 5]], ['0', [3, 6]], ['0', [5, 7]], ['0', [3, 4]], ['0', [4, 7]]]
     external_lines = [['p1', 1], ['p2', 2], ['p3', 3], ['p4', 4], ['p5', 5]]
@@ -1330,8 +1330,8 @@ FRI region 53: [H, H, H, H, C_3, H, C_3, H]  ->  scaling vector (0, 0, 0, 0, -1,
 FRI region 54: [H, H, H, H, H, H, C_4, C_4]  ->  scaling vector (0, 0, 0, 0, 0, 0, -1, -1, 1)
 FRI region 55: [H, H, H, H, H, H, H, H]  ->  scaling vector (0, 0, 0, 0, 0, 0, 0, 0, 1)
 
-# ==== FrogSU_k1.txt ====
-name = 'FrogSU_k1'
+# ==== FishSU_k1.txt ====
+name = 'FishSU_k1'
     smallness_parameters = ['t1']
     internal_lines = [['0', [1, 6]], ['0', [1, 7]], ['0', [2, 6]], ['0', [2, 5]], ['0', [3, 6]], ['0', [5, 7]], ['0', [3, 4]], ['0', [4, 7]]]
     external_lines = [['p1', 1], ['p2', 2], ['p3', 3], ['p4', 4], ['p5', 5]]
@@ -1403,8 +1403,8 @@ FRI region 17: [H, H, C_2, C_2, H, H, H, H]  ->  scaling vector (0, 0, -1, -1, 0
 FRI region 18: [H, H, H, H, C_3, H, C_3, H]  ->  scaling vector (0, 0, 0, 0, -1, 0, -1, 0, 1)
 FRI region 19: [H, H, H, H, H, H, H, H]  ->  scaling vector (0, 0, 0, 0, 0, 0, 0, 0, 1)
 
-# ==== FrogSU_k2.txt ====
-name = 'FrogSU_k2'
+# ==== FishSU_k2.txt ====
+name = 'FishSU_k2'
     smallness_parameters = ['t1']
     internal_lines = [['0', [1, 6]], ['0', [1, 7]], ['0', [2, 6]], ['0', [2, 5]], ['0', [3, 6]], ['0', [5, 7]], ['0', [3, 4]], ['0', [4, 7]]]
     external_lines = [['p1', 1], ['p2', 2], ['p3', 3], ['p4', 4], ['p5', 5]]
@@ -1460,8 +1460,8 @@ FRI region  9: [C_2, H, C_2, C_2, C_2, H, H, H]  ->  scaling vector (-1, 0, -1, 
 FRI region 10: [H, H, C_2, C_2, H, H, H, H]  ->  scaling vector (0, 0, -1, -1, 0, 0, 0, 0, 1)
 FRI region 11: [H, H, H, H, H, H, H, H]  ->  scaling vector (0, 0, 0, 0, 0, 0, 0, 0, 1)
 
-# ==== FrogSU_k3.txt ====
-name = 'FrogSU_k3'
+# ==== FishSU_k3.txt ====
+name = 'FishSU_k3'
     smallness_parameters = ['t1']
     internal_lines = [['0', [1, 6]], ['0', [1, 7]], ['0', [2, 6]], ['0', [2, 5]], ['0', [3, 6]], ['0', [5, 7]], ['0', [3, 4]], ['0', [4, 7]]]
     external_lines = [['p1', 1], ['p2', 2], ['p3', 3], ['p4', 4], ['p5', 5]]
@@ -1521,8 +1521,8 @@ FRI region 11: [C_1, C_1, H, H, H, H, H, H]  ->  scaling vector (-1, -1, 0, 0, 0
 FRI region 12: [H, H, C_2^2, C_2^2, H, H, H, H]  ->  scaling vector (0, 0, -2, -2, 0, 0, 0, 0, 1)
 FRI region 13: [H, H, H, H, H, H, H, H]  ->  scaling vector (0, 0, 0, 0, 0, 0, 0, 0, 1)
 
-# ==== FrogT_k0.txt ====
-name = 'FrogT_k0'
+# ==== FishT_k0.txt ====
+name = 'FishT_k0'
     smallness_parameters = ['t1']
     internal_lines = [['0', [1, 6]], ['0', [1, 5]], ['0', [2, 3]], ['0', [2, 5]], ['0', [3, 6]], ['0', [6, 4]], ['0', [4, 5]]]
     external_lines = [['p1', 1], ['p2', 2], ['p3', 3], ['p4', 4], ['p5', 5]]
@@ -1622,8 +1622,8 @@ FRI region 31: [H, H, C_3, H, C_3, H, H]  ->  scaling vector (0, 0, -1, 0, -1, 0
 FRI region 32: [H, H, H, H, H, C_4, C_4]  ->  scaling vector (0, 0, 0, 0, 0, -1, -1, 1)
 FRI region 33: [H, H, H, H, H, H, H]  ->  scaling vector (0, 0, 0, 0, 0, 0, 0, 1)
 
-# ==== FrogT_k1.txt ====
-name = 'FrogT_k1'
+# ==== FishT_k1.txt ====
+name = 'FishT_k1'
     smallness_parameters = ['t1']
     internal_lines = [['0', [1, 6]], ['0', [1, 5]], ['0', [2, 3]], ['0', [2, 5]], ['0', [3, 6]], ['0', [6, 4]], ['0', [4, 5]]]
     external_lines = [['p1', 1], ['p2', 2], ['p3', 3], ['p4', 4], ['p5', 5]]
@@ -1687,8 +1687,8 @@ FRI region 13: [H, H, C_2, C_2, H, H, H]  ->  scaling vector (0, 0, -1, -1, 0, 0
 FRI region 14: [H, H, C_3, H, C_3, H, H]  ->  scaling vector (0, 0, -1, 0, -1, 0, 0, 1)
 FRI region 15: [H, H, H, H, H, H, H]  ->  scaling vector (0, 0, 0, 0, 0, 0, 0, 1)
 
-# ==== FrogT_k2.txt ====
-name = 'FrogT_k2'
+# ==== FishT_k2.txt ====
+name = 'FishT_k2'
     smallness_parameters = ['t1']
     internal_lines = [['0', [1, 6]], ['0', [1, 5]], ['0', [2, 3]], ['0', [2, 5]], ['0', [3, 6]], ['0', [6, 4]], ['0', [4, 5]]]
     external_lines = [['p1', 1], ['p2', 2], ['p3', 3], ['p4', 4], ['p5', 5]]
@@ -1734,8 +1734,8 @@ FRI region  4: [C_1, C_1, H, H, H, H, H]  ->  scaling vector (-1, -1, 0, 0, 0, 0
 FRI region  5: [H, H, C_2, C_2, H, H, H]  ->  scaling vector (0, 0, -1, -1, 0, 0, 0, 1)
 FRI region  6: [H, H, H, H, H, H, H]  ->  scaling vector (0, 0, 0, 0, 0, 0, 0, 1)
 
-# ==== FrogT_k3.txt ====
-name = 'FrogT_k3'
+# ==== FishT_k3.txt ====
+name = 'FishT_k3'
     smallness_parameters = ['t1']
     internal_lines = [['0', [1, 6]], ['0', [1, 5]], ['0', [2, 3]], ['0', [2, 5]], ['0', [3, 6]], ['0', [6, 4]], ['0', [4, 5]]]
     external_lines = [['p1', 1], ['p2', 2], ['p3', 3], ['p4', 4], ['p5', 5]]
@@ -1781,8 +1781,8 @@ FRI region  4: [C_1, C_1, H, H, H, H, H]  ->  scaling vector (-1, -1, 0, 0, 0, 0
 FRI region  5: [H, H, C_2^2, C_2^2, H, H, H]  ->  scaling vector (0, 0, -2, -2, 0, 0, 0, 1)
 FRI region  6: [H, H, H, H, H, H, H]  ->  scaling vector (0, 0, 0, 0, 0, 0, 0, 1)
 
-# ==== FrogTT_k0.txt ====
-name = 'FrogTT_k0'
+# ==== FishTT_k0.txt ====
+name = 'FishTT_k0'
     smallness_parameters = ['t1']
     internal_lines = [['0', [1, 6]], ['0', [1, 5]], ['0', [2, 3]], ['0', [2, 7]], ['0', [3, 6]], ['0', [5, 7]], ['0', [4, 6]], ['0', [4, 7]]]
     external_lines = [['p1', 1], ['p2', 2], ['p3', 3], ['p4', 4], ['p5', 5]]
@@ -1926,8 +1926,8 @@ FRI region 53: [H, H, H, C_4, H, C_4, C_4, C_4]  ->  scaling vector (0, 0, 0, -1
 FRI region 54: [H, H, H, H, H, H, C_4, C_4]  ->  scaling vector (0, 0, 0, 0, 0, 0, -1, -1, 1)
 FRI region 55: [H, H, H, H, H, H, H, H]  ->  scaling vector (0, 0, 0, 0, 0, 0, 0, 0, 1)
 
-# ==== FrogTT_k1.txt ====
-name = 'FrogTT_k1'
+# ==== FishTT_k1.txt ====
+name = 'FishTT_k1'
     smallness_parameters = ['t1']
     internal_lines = [['0', [1, 6]], ['0', [1, 5]], ['0', [2, 3]], ['0', [2, 7]], ['0', [3, 6]], ['0', [5, 7]], ['0', [4, 6]], ['0', [4, 7]]]
     external_lines = [['p1', 1], ['p2', 2], ['p3', 3], ['p4', 4], ['p5', 5]]
@@ -1997,8 +1997,8 @@ FRI region 16: [H, H, C_2, C_2, H, H, H, H]  ->  scaling vector (0, 0, -1, -1, 0
 FRI region 17: [H, H, C_3, H, C_3, H, H, H]  ->  scaling vector (0, 0, -1, 0, -1, 0, 0, 0, 1)
 FRI region 18: [H, H, H, H, H, H, H, H]  ->  scaling vector (0, 0, 0, 0, 0, 0, 0, 0, 1)
 
-# ==== FrogTT_k2.txt ====
-name = 'FrogTT_k2'
+# ==== FishTT_k2.txt ====
+name = 'FishTT_k2'
     smallness_parameters = ['t1']
     internal_lines = [['0', [1, 6]], ['0', [1, 5]], ['0', [2, 3]], ['0', [2, 7]], ['0', [3, 6]], ['0', [5, 7]], ['0', [4, 6]], ['0', [4, 7]]]
     external_lines = [['p1', 1], ['p2', 2], ['p3', 3], ['p4', 4], ['p5', 5]]
@@ -2048,8 +2048,8 @@ FRI region  6: [H, H, C_2, C_2, H, C_2, H, C_2]  ->  scaling vector (0, 0, -1, -
 FRI region  7: [H, H, C_2, C_2, H, H, H, H]  ->  scaling vector (0, 0, -1, -1, 0, 0, 0, 0, 1)
 FRI region  8: [H, H, H, H, H, H, H, H]  ->  scaling vector (0, 0, 0, 0, 0, 0, 0, 0, 1)
 
-# ==== FrogTT_k3.txt ====
-name = 'FrogTT_k3'
+# ==== FishTT_k3.txt ====
+name = 'FishTT_k3'
     smallness_parameters = ['t1']
     internal_lines = [['0', [1, 6]], ['0', [1, 5]], ['0', [2, 3]], ['0', [2, 7]], ['0', [3, 6]], ['0', [5, 7]], ['0', [4, 6]], ['0', [4, 7]]]
     external_lines = [['p1', 1], ['p2', 2], ['p3', 3], ['p4', 4], ['p5', 5]]
@@ -2099,8 +2099,8 @@ FRI region  6: [H, H, C_2^2, C_2^2, H, C_2^2, H, C_2^2]  ->  scaling vector (0, 
 FRI region  7: [H, H, C_2^2, C_2^2, H, H, H, H]  ->  scaling vector (0, 0, -2, -2, 0, 0, 0, 0, 1)
 FRI region  8: [H, H, H, H, H, H, H, H]  ->  scaling vector (0, 0, 0, 0, 0, 0, 0, 0, 1)
 
-# ==== FrogTU_k0.txt ====
-name = 'FrogTU_k0'
+# ==== FishTU_k0.txt ====
+name = 'FishTU_k0'
     smallness_parameters = ['t1']
     internal_lines = [['0', [1, 6]], ['0', [1, 7]], ['0', [2, 3]], ['0', [2, 5]], ['0', [3, 6]], ['0', [5, 7]], ['0', [4, 6]], ['0', [4, 7]]]
     external_lines = [['p1', 1], ['p2', 2], ['p3', 3], ['p4', 4], ['p5', 5]]
@@ -2228,8 +2228,8 @@ FRI region 45: [H, H, H, C_5, H, C_5, H, H]  ->  scaling vector (0, 0, 0, -1, 0,
 FRI region 46: [H, H, H, H, H, H, C_4, C_4]  ->  scaling vector (0, 0, 0, 0, 0, 0, -1, -1, 1)
 FRI region 47: [H, H, H, H, H, H, H, H]  ->  scaling vector (0, 0, 0, 0, 0, 0, 0, 0, 1)
 
-# ==== FrogTU_k1.txt ====
-name = 'FrogTU_k1'
+# ==== FishTU_k1.txt ====
+name = 'FishTU_k1'
     smallness_parameters = ['t1']
     internal_lines = [['0', [1, 6]], ['0', [1, 7]], ['0', [2, 3]], ['0', [2, 5]], ['0', [3, 6]], ['0', [5, 7]], ['0', [4, 6]], ['0', [4, 7]]]
     external_lines = [['p1', 1], ['p2', 2], ['p3', 3], ['p4', 4], ['p5', 5]]
@@ -2297,8 +2297,8 @@ FRI region 15: [H, H, C_2, C_2, H, H, H, H]  ->  scaling vector (0, 0, -1, -1, 0
 FRI region 16: [H, H, C_3, H, C_3, H, H, H]  ->  scaling vector (0, 0, -1, 0, -1, 0, 0, 0, 1)
 FRI region 17: [H, H, H, H, H, H, H, H]  ->  scaling vector (0, 0, 0, 0, 0, 0, 0, 0, 1)
 
-# ==== FrogTU_k2.txt ====
-name = 'FrogTU_k2'
+# ==== FishTU_k2.txt ====
+name = 'FishTU_k2'
     smallness_parameters = ['t1']
     internal_lines = [['0', [1, 6]], ['0', [1, 7]], ['0', [2, 3]], ['0', [2, 5]], ['0', [3, 6]], ['0', [5, 7]], ['0', [4, 6]], ['0', [4, 7]]]
     external_lines = [['p1', 1], ['p2', 2], ['p3', 3], ['p4', 4], ['p5', 5]]
@@ -2348,8 +2348,8 @@ FRI region  6: [C_1, C_1, H, H, H, H, H, H]  ->  scaling vector (-1, -1, 0, 0, 0
 FRI region  7: [H, H, C_2, C_2, H, H, H, H]  ->  scaling vector (0, 0, -1, -1, 0, 0, 0, 0, 1)
 FRI region  8: [H, H, H, H, H, H, H, H]  ->  scaling vector (0, 0, 0, 0, 0, 0, 0, 0, 1)
 
-# ==== FrogTU_k3.txt ====
-name = 'FrogTU_k3'
+# ==== FishTU_k3.txt ====
+name = 'FishTU_k3'
     smallness_parameters = ['t1']
     internal_lines = [['0', [1, 6]], ['0', [1, 7]], ['0', [2, 3]], ['0', [2, 5]], ['0', [3, 6]], ['0', [5, 7]], ['0', [4, 6]], ['0', [4, 7]]]
     external_lines = [['p1', 1], ['p2', 2], ['p3', 3], ['p4', 4], ['p5', 5]]
@@ -2399,8 +2399,8 @@ FRI region  6: [C_1, C_1, H, H, H, H, H, H]  ->  scaling vector (-1, -1, 0, 0, 0
 FRI region  7: [H, H, C_2^2, C_2^2, H, H, H, H]  ->  scaling vector (0, 0, -2, -2, 0, 0, 0, 0, 1)
 FRI region  8: [H, H, H, H, H, H, H, H]  ->  scaling vector (0, 0, 0, 0, 0, 0, 0, 0, 1)
 
-# ==== FrogU_k0.txt ====
-name = 'FrogU_k0'
+# ==== FishU_k0.txt ====
+name = 'FishU_k0'
     smallness_parameters = ['t1']
     internal_lines = [['0', [1, 3]], ['0', [1, 5]], ['0', [2, 6]], ['0', [2, 5]], ['0', [3, 6]], ['0', [6, 4]], ['0', [4, 5]]]
     external_lines = [['p1', 1], ['p2', 2], ['p3', 3], ['p4', 4], ['p5', 5]]
@@ -2500,8 +2500,8 @@ FRI region 31: [H, H, C_4, H, C_4, C_4, C_4]  ->  scaling vector (0, 0, -1, 0, -
 FRI region 32: [H, H, H, H, H, C_4, C_4]  ->  scaling vector (0, 0, 0, 0, 0, -1, -1, 1)
 FRI region 33: [H, H, H, H, H, H, H]  ->  scaling vector (0, 0, 0, 0, 0, 0, 0, 1)
 
-# ==== FrogU_k1.txt ====
-name = 'FrogU_k1'
+# ==== FishU_k1.txt ====
+name = 'FishU_k1'
     smallness_parameters = ['t1']
     internal_lines = [['0', [1, 3]], ['0', [1, 5]], ['0', [2, 6]], ['0', [2, 5]], ['0', [3, 6]], ['0', [6, 4]], ['0', [4, 5]]]
     external_lines = [['p1', 1], ['p2', 2], ['p3', 3], ['p4', 4], ['p5', 5]]
@@ -2565,8 +2565,8 @@ FRI region 13: [H, H, C_2, C_2, C_2, C_2, H]  ->  scaling vector (0, 0, -1, -1, 
 FRI region 14: [H, H, C_2, C_2, H, H, H]  ->  scaling vector (0, 0, -1, -1, 0, 0, 0, 1)
 FRI region 15: [H, H, H, H, H, H, H]  ->  scaling vector (0, 0, 0, 0, 0, 0, 0, 1)
 
-# ==== FrogU_k2.txt ====
-name = 'FrogU_k2'
+# ==== FishU_k2.txt ====
+name = 'FishU_k2'
     smallness_parameters = ['t1']
     internal_lines = [['0', [1, 3]], ['0', [1, 5]], ['0', [2, 6]], ['0', [2, 5]], ['0', [3, 6]], ['0', [6, 4]], ['0', [4, 5]]]
     external_lines = [['p1', 1], ['p2', 2], ['p3', 3], ['p4', 4], ['p5', 5]]
@@ -2612,8 +2612,8 @@ FRI region  4: [H, H, C_2, C_2, C_2, C_2, H]  ->  scaling vector (0, 0, -1, -1, 
 FRI region  5: [H, H, C_2, C_2, H, H, H]  ->  scaling vector (0, 0, -1, -1, 0, 0, 0, 1)
 FRI region  6: [H, H, H, H, H, H, H]  ->  scaling vector (0, 0, 0, 0, 0, 0, 0, 1)
 
-# ==== FrogU_k3.txt ====
-name = 'FrogU_k3'
+# ==== FishU_k3.txt ====
+name = 'FishU_k3'
     smallness_parameters = ['t1']
     internal_lines = [['0', [1, 3]], ['0', [1, 5]], ['0', [2, 6]], ['0', [2, 5]], ['0', [3, 6]], ['0', [6, 4]], ['0', [4, 5]]]
     external_lines = [['p1', 1], ['p2', 2], ['p3', 3], ['p4', 4], ['p5', 5]]
@@ -2659,8 +2659,8 @@ FRI region  4: [H, H, C_2^2, C_2^2, C_2^2, C_2^2, H]  ->  scaling vector (0, 0, 
 FRI region  5: [H, H, C_2^2, C_2^2, H, H, H]  ->  scaling vector (0, 0, -2, -2, 0, 0, 0, 1)
 FRI region  6: [H, H, H, H, H, H, H]  ->  scaling vector (0, 0, 0, 0, 0, 0, 0, 1)
 
-# ==== FrogUU_k0.txt ====
-name = 'FrogUU_k0'
+# ==== FishUU_k0.txt ====
+name = 'FishUU_k0'
     smallness_parameters = ['t1']
     internal_lines = [['0', [1, 3]], ['0', [1, 7]], ['0', [2, 6]], ['0', [2, 5]], ['0', [3, 6]], ['0', [5, 7]], ['0', [4, 6]], ['0', [4, 7]]]
     external_lines = [['p1', 1], ['p2', 2], ['p3', 3], ['p4', 4], ['p5', 5]]
@@ -2804,8 +2804,8 @@ FRI region 53: [H, H, H, C_5, H, C_5, H, H]  ->  scaling vector (0, 0, 0, -1, 0,
 FRI region 54: [H, H, H, H, H, H, C_4, C_4]  ->  scaling vector (0, 0, 0, 0, 0, 0, -1, -1, 1)
 FRI region 55: [H, H, H, H, H, H, H, H]  ->  scaling vector (0, 0, 0, 0, 0, 0, 0, 0, 1)
 
-# ==== FrogUU_k1.txt ====
-name = 'FrogUU_k1'
+# ==== FishUU_k1.txt ====
+name = 'FishUU_k1'
     smallness_parameters = ['t1']
     internal_lines = [['0', [1, 3]], ['0', [1, 7]], ['0', [2, 6]], ['0', [2, 5]], ['0', [3, 6]], ['0', [5, 7]], ['0', [4, 6]], ['0', [4, 7]]]
     external_lines = [['p1', 1], ['p2', 2], ['p3', 3], ['p4', 4], ['p5', 5]]
@@ -2875,8 +2875,8 @@ FRI region 16: [H, H, C_2, C_2, C_2, H, C_2, H]  ->  scaling vector (0, 0, -1, -
 FRI region 17: [H, H, C_2, C_2, H, H, H, H]  ->  scaling vector (0, 0, -1, -1, 0, 0, 0, 0, 1)
 FRI region 18: [H, H, H, H, H, H, H, H]  ->  scaling vector (0, 0, 0, 0, 0, 0, 0, 0, 1)
 
-# ==== FrogUU_k2.txt ====
-name = 'FrogUU_k2'
+# ==== FishUU_k2.txt ====
+name = 'FishUU_k2'
     smallness_parameters = ['t1']
     internal_lines = [['0', [1, 3]], ['0', [1, 7]], ['0', [2, 6]], ['0', [2, 5]], ['0', [3, 6]], ['0', [5, 7]], ['0', [4, 6]], ['0', [4, 7]]]
     external_lines = [['p1', 1], ['p2', 2], ['p3', 3], ['p4', 4], ['p5', 5]]
@@ -2926,8 +2926,8 @@ FRI region  6: [H, H, C_2, C_2, C_2, H, C_2, H]  ->  scaling vector (0, 0, -1, -
 FRI region  7: [H, H, C_2, C_2, H, H, H, H]  ->  scaling vector (0, 0, -1, -1, 0, 0, 0, 0, 1)
 FRI region  8: [H, H, H, H, H, H, H, H]  ->  scaling vector (0, 0, 0, 0, 0, 0, 0, 0, 1)
 
-# ==== FrogUU_k3.txt ====
-name = 'FrogUU_k3'
+# ==== FishUU_k3.txt ====
+name = 'FishUU_k3'
     smallness_parameters = ['t1']
     internal_lines = [['0', [1, 3]], ['0', [1, 7]], ['0', [2, 6]], ['0', [2, 5]], ['0', [3, 6]], ['0', [5, 7]], ['0', [4, 6]], ['0', [4, 7]]]
     external_lines = [['p1', 1], ['p2', 2], ['p3', 3], ['p4', 4], ['p5', 5]]
@@ -2977,8 +2977,8 @@ FRI region  6: [H, H, C_2^2, C_2^2, C_2^2, H, C_2^2, H]  ->  scaling vector (0, 
 FRI region  7: [H, H, C_2^2, C_2^2, H, H, H, H]  ->  scaling vector (0, 0, -2, -2, 0, 0, 0, 0, 1)
 FRI region  8: [H, H, H, H, H, H, H, H]  ->  scaling vector (0, 0, 0, 0, 0, 0, 0, 0, 1)
 
-# ==== FrogV_k0.txt ====
-name = 'FrogV_k0'
+# ==== FishV_k0.txt ====
+name = 'FishV_k0'
     smallness_parameters = ['t1']
     internal_lines = [['0', [1, 3]], ['0', [1, 5]], ['0', [3, 5]], ['0', [2, 4]], ['0', [2, 6]], ['0', [4, 6]], ['0', [5, 6]]]
     external_lines = [['p1',1],['p2',2],['p3',3],['p4',4],['p5',5]]
@@ -3009,8 +3009,8 @@ name = 'FrogV_k0'
                               ]
     )
 
-# ==== FrogV_k1.txt ====
-name = 'FrogV_k1'
+# ==== FishV_k1.txt ====
+name = 'FishV_k1'
     smallness_parameters = ['t1']
     internal_lines = [['0', [1, 3]], ['0', [1, 5]], ['0', [3, 5]], ['0', [2, 4]], ['0', [2, 6]], ['0', [4, 6]], ['0', [5, 6]]]
     external_lines = [['p1',1],['p2',2],['p3',3],['p4',4],['p5',5]]
@@ -3041,8 +3041,8 @@ name = 'FrogV_k1'
                               ]
     )
 
-# ==== FrogV_k2.txt ====
-name = 'FrogV_k2'
+# ==== FishV_k2.txt ====
+name = 'FishV_k2'
     smallness_parameters = ['t1']
     internal_lines = [['0', [1, 3]], ['0', [1, 5]], ['0', [3, 5]], ['0', [2, 4]], ['0', [2, 6]], ['0', [4, 6]], ['0', [5, 6]]]
     external_lines = [['p1',1],['p2',2],['p3',3],['p4',4],['p5',5]]
@@ -3073,8 +3073,8 @@ name = 'FrogV_k2'
                               ]
     )
 
-# ==== FrogV_k3.txt ====
-name = 'FrogV_k3'
+# ==== FishV_k3.txt ====
+name = 'FishV_k3'
     smallness_parameters = ['t1']
     internal_lines = [['0', [1, 3]], ['0', [1, 5]], ['0', [3, 5]], ['0', [2, 4]], ['0', [2, 6]], ['0', [4, 6]], ['0', [5, 6]]]
     external_lines = [['p1',1],['p2',2],['p3',3],['p4',4],['p5',5]]

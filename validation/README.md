@@ -12,8 +12,6 @@ Companion records for section 8 of *"All-order prescription for facet regions in
 | 5 legs (in 4 chosen kinematics) | 397 graphs (a 5th leg attached to some 4-leg topologies) | 1,000 (3-loop) + 700 (4-loop) + 300 (5-loop) graphs |
 | soft emission | 470 configurations (the soft-emission families) | --- |
 
-<!-- At posting: fill in the FRI commit hash for v0.1.0 below. -->
-
 ## Contents
 
 - [`graphs/`](graphs/) --- the exact graph lists for every family and batch in the scope table.
@@ -24,7 +22,7 @@ Companion records for section 8 of *"All-order prescription for facet regions in
 
 ## Versions
 
-- FRI: v0.1.0 (commit `...`)  <!-- fill in at posting time -->
+- FRI: v0.1.0
 - pySecDec: 1.6.6
 
 ## Reproducing -- for the user's curiosity
