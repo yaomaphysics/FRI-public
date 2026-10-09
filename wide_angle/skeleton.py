@@ -1,71 +1,51 @@
 #!/usr/bin/env python3
-"""skeleton.py — skeleton-based cut enumeration & pruning for wide-angle FRI
-(formalized 2026-09-18; development history + intermediate rules in
-private/skeleton_rules_history.md).
+r"""
+skeleton.py — skeleton-based cut enumeration & pruning for wide-angle FRI.
 
-Conditions (settled):
-  * H connected (enumerated explicitly);
-  * for every C_i^m-type external (mode (0,n,i), n>=1) whose root is not in H:
-    a path P_i from the root that touches H (inside V\\H, avoiding other
-    p/q attachment vertices; soft (l, m>=1) attachment vertices are NOT
-    restricted — 2026-09-20); paths of different externals pairwise
-    disjoint;
-  * base cut (largest chain level, paired with the least-soft cut) ⊇ P_i;
-    chain levels S_1 ⊇ S_2 ⊇ ... : each connected containing root, within its
-    own per-level allowed set, inside V\\H; partial chains (prefix nonempty);
-  * combination -> (vm, em) via cut meets; same check chain as the enumerator.
+Constructing the skeleton.
+  * Enumerated explicitly a set of vertices whose induced subgraph is connected; this is H (no cuts touch it).
+  * For every C_i^m-type external momentum that does not directly enter H: a path P_i from the root that touches H, such that
+      it avoids vertices where other large-component momenta (p_j with j\neq i or q) enter; paths of different externals pairwise disjoint.
 
-* route-exclusivity: no leg's cut layers may touch another leg's route
-  (S_k^(i) ∩ P_j = ∅ for i≠j) — default ON;
-* overlap (C_i^m legs, layer n<m): either option (1) a vertex shared by
-  this cut and the same-sigma (sigma = n) S^{n'}C_j^{n-n'} cuts (n'=0..n;
-  n'=0 reduces to C_j^n) of >=2 other directions j, or (2) soft support —
-  an external of soft power exactly n (S^nC_j^k / S^n) whose incident
-  vertex is contained in this layer — unless the layer coincides with a
-  deeper same-leg C_i^N cut (N > n) [exemption relaxed 2026-09-20].
-  Default ON (overlap_strong=True since 2026-09-18 evening; pass
-  overlap_strong=False for the old shared-vertex-only form, e.g. A/B
-  runs).  [(1) relaxed + exemption: 2026-09-20]
-* soft externals (S^mC^n / S^m, m>=1; 2026-09-20): nested cut chains
-  S^mC_i^1..S^mC_i^N (N = n for finite n, κ−m for n=∞; a single S^m cut
-  when n=0), confined to V∖H and avoiding ALL route paths P_j; no root->H
-  path requirement (2026-09-17).
-* k0 (all externals C_i^1 or H): enumerated via the union construction —
-  H + P_i = connected touch-H sets; every vertex of V∖(H∪P's) must lie
-  in >=2 cuts; corner closure.  Region-identical to the old path
-  (validated 2026-09-18).
+Constructing cuts associated with each P_i. They are a nested set of cuts in the p_i channel, such that:
+    the modes of the cuts are C_i, C_i^2, ..., C_i^{n_i}, with n_i = m if m is finite, otherwise n_i = \kappa;
+    the C_i cut contains the C_i^2 cut, which contains the C_i^3 cut, etc.;
+    the C_i cut ⊇ P_i;
+    the C_i, C_i^2, ..., C_i^{n_i} cuts do not contain vertices in H or other paths P_j.
 
-Validated domain: p_i q_j externals (2026-09-18); soft externals
-(S^mC^n / S^m, m>=1) via the 2026-09-20 extended spec — validated against
-the soft corpora (464/464 files; see verify_soft_full.py).
-* 2026-09-22 fast path (ported from the regge skeleton): cut sets carry
-  bitmasks alongside the sets; cut-dedup keys, route and overlap checks are
-  mask-based (per-graph memoization; fixed-slot int arrays).  Semantically
-  identical — verified by old-vs-new A/B (region sets + per-case counters
-  byte-identical, 2026-09-22).
-* enumeration: depth-first over legs; partial assignments are pruned as soon
-  as some overlap requirement is provably unsatisfiable for all completions
-  (route violations prune at the offending leg) — regions identical to the
-  full product enumeration, far fewer combos visited.
-  [A/B escape: FRI_NO_PRUNE=1]
+Soft cuts. Around each S^mC^n-mode soft external momentum (m>=1), nested cuts S^mC_i^1, ..., S^mC_i^N (N = n for finite n, otherwise N = \kappa − m) or a single S^m cut when n=0, such that
+    the S^mC_i^1 cut contains the S^mC_i^2 cut, which contains the S^mC_i^3 cut, etc.;
+    these cuts avoid all the vertices in the aforementioned paths P_i or H.
 
-(v1/v2/v3/v3.2 development history preserved in
-private/skeleton_rules_history.md.)
+In the absence of soft momenta (all external modes are H or C): every vertex of V∖(H∪P's) must lie in >=2 cuts.
+
+Further pruning: overlap constraint.
+* For each C_i^n-mode cut with n<m, either
+    (1) a vertex shared by this cut and the same-sigma (sigma = n) S^{n'}C_j^{n-n'} cuts (n'=0..n; n'=0 reduces to C_j^n) of >=2 other directions j;
+    (2) soft support — an external of soft power exactly n (S^nC_j^k / S^n) whose incident vertex is contained in this cut.
+* Exemption from the requirements above: the C_i^n cut coincides with a C_i^N cut with N > n.
+
+Tips for acceleration.
+  * mask: cut sets carry bitmasks alongside the vertex sets; dedup keys and the route/overlap tests are fixed-slot bit operations.
+  * chain-completion memoisation: the nested-chain superset recursion is memoised per (layer, innermost set), turning the recursion tree into a DAG (directed acyclic graph).
+  * layer compression: cuts are enumerated only on the usable layers — dead layers are dropped, higher towers collapse to lower chain counts.
+  * cut-set / vm dedup: repeated cut assignments are skipped by fixed-slot keys; repeated vertex modes are skipped outright (every check depends only on vm).
+  * DFS (depth-first search) early pruning: a subtree is pruned as soon as some overlap requirement (or route exclusion) is provably unsatisfiable for all of its completions.
 """
 import sys, os, time, itertools
 from collections import defaultdict
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
-from primitives import Graph, vee, eq, harder_or_eq, meet, norm
-from read_graph import mode_str, INF
+from primitives import Graph, vee, eq, harder_or_eq, meet, norm, is_connected, mode_str, INF
 from region_checker import (jet_connected_ok, hard_jet_mojetic_ok, check_fc, momentum_ok, ir_ok)
 from usable_modes import derive_usable_modes, usable_layers
 
 H = (0, 0, 0)
 
 
-# ---------------- cut basics ----------------
+# ===================== CUT & CHAIN CONSTRUCTION =====================
+
 # One unitarity cut: a connected vertex set with a MODE; for external p_i with maximal degree n there are cuts C_i..C_i^n.
 class Cut:
     def __init__(self, name, root, mode, ext=None):
@@ -75,8 +55,7 @@ class Cut:
         self.ext = ext  # owning external name
 
 
-# Softest-mode S-power (paper corollary: no cascading modes): kappa = max{m+n} over the modes of ALL partial sums of the externals with nonzero virtuality (mode != H, n != +inf).
-# (Per draft-v16 eq:partial_sum_external_momenta_mode; 2026-08-13 fixed from 'single external only' — e.g. {C_i^inf, SC^inf} gives partial-sum {H, C_i}.)
+# Softest-mode S-power (paper corollary: no cascading modes): kappa = max{m+n} over the modes of ALL partial sums of the externals with nonzero virtuality.
 def kappa_of(ext_mode):
     best = 0
     names = list(ext_mode)
@@ -85,54 +64,38 @@ def kappa_of(ext_mode):
             acc = vee([ext_mode[n] for n in sub])
             m, n, i = acc
             if acc == H or n >= INF:
-                continue  # zero virtuality or massless (n = +inf)
+                continue  # zero virtuality or massless (n = +\infty)
             s = m + n
             if s > best:
                 best = s
     return best if best > 0 else 1
 
 
-def connected_sets(verts, edges, root, allowed=None, maxsize=None):
-    adj = defaultdict(set)
-    for a, b in edges:
-        adj[a].add(b); adj[b].add(a)
-    if allowed is None:
-        allowed = set(verts)
-    if maxsize is None:
-        maxsize = len(verts)
+# All connected subsets containing root, within allowed.
+def connected_sets(root, allowed, adj):
     out = set()
     def dfs(cur, frontier):
         out.add(frozenset(cur))
-        if len(cur) >= maxsize:
-            return
         for w in list(frontier):
             dfs(cur | {w}, (frontier | (adj[w] & allowed)) - (cur | {w}))
     dfs({root}, set(adj[root]) & allowed)
     return out
 
 
-# All connected vertex sets containing base (base connected, nonempty).
-def connected_supersets(verts, edges, base, allowed=None, maxsize=None):
-    adj = defaultdict(set)
-    for a, b in edges:
-        adj[a].add(b); adj[b].add(a)
-    if allowed is None:
-        allowed = set(verts)
-    if maxsize is None:
-        maxsize = len(verts)
+# All connected supersets of the connected base, within allowed.
+def connected_supersets(base, allowed, adj):
     out = set()
     base = frozenset(base)
     frontier = {w for v in base for w in adj[v] if w not in base and w in allowed}
     def dfs(cur, fr):
         out.add(frozenset(cur))
-        if len(cur) >= maxsize:
-            return
         for w in list(fr):
             dfs(cur | {w}, (fr | (adj[w] & allowed)) - (cur | {w}))
     dfs(set(base), frontier)
     return out
 
 
+# Vertices allowed in a cut of leg `k_name`: unattached vertices, the leg's own root, and vertices carrying an external no harder than the cut's mode.
 def cut_allowed_vertices(verts, edges, ext_attach, ext_mode, k_name, k_md):
     allowed = set()
     for v in verts:
@@ -149,42 +112,35 @@ def cut_allowed_vertices(verts, edges, ext_attach, ext_mode, k_name, k_md):
     return allowed
 
 
-# The nested cuts for external `name`: S^mC_i, S^mC_i^2, ..., S^mC_i^N.
-# m = soft power kept as a prefix (an SC/S external's cut inherits its soft feature); N = md[1] if finite else kappa (rule (2)); pure collinear (m=0) reduces to C_i..C_i^N.
-# (SC case: 2026-08-11 conjecture; see the top block for its validation.)
-# With `layers` (compressed reachable layers, ascending) only those n are used — skipped layers collapse, same regions.
+# The nested cuts of one external: S^mC_i, S^mC_i^2, ..., S^mC_i^N (N = md[1] if finite, else kappa).
 def cuts_for_external(name, root, md, kappa, layers=None):
     m, n, i = md
+    # m = soft power kept as a prefix (an SC/S external's cut inherits its soft feature; m = 0 reduces to C_i..C_i^N)
     if n == 0 and m >= 1:
-        # Pure soft external S^m: one S^m cut (mode (m,0,0)) — the soft blob itself, no collinear direction (2026-08-12).
+        # Pure soft external S^m: one S^m cut (mode (m,0,0)) — the soft blob itself, no collinear direction.
         return [Cut(f'{name}_S{m}', root, (m, 0, 0), ext=name)]
     if layers is not None:
-        # The SC cut S^mC_i^k has sigma = m+k, and no-cascading bounds every region mode by S^kappa (sigma <= kappa) -> k <= kappa - m (2026-08-13).
-        # (kappa-m = 0: an SC external already softer than S^kappa — no usable cuts, legitimately empty.)
+        # only the compressed reachable layers; sigma = m+k <= kappa caps k <= kappa - m (empty when kappa - m = 0)
         n_max = (kappa - m) if n >= INF else (n if n >= 1 else 1)
         ns = [k for k in layers if 1 <= k <= n_max]
         if not ns:
-            # compressed layers empty — fall back to the full 1..n_max range
+            # (compressed layers empty — fall back to the full range)
             ns = list(range(1, n_max + 1))
         return [Cut(f'{name}_S{m}C{i}^{k}', root, (m, k, i), ext=name) for k in ns]
     if n >= INF:
-        n_max = kappa - m   # sigma(m,k) = m+k <= kappa (2026-08-13)
+        n_max = kappa - m   # sigma(m,k) = m+k <= kappa
     else:
         n_max = n if n >= 1 else 1
     return [Cut(f'{name}_S{m}C{i}^{k}', root, (m, k, i), ext=name) for k in range(1, n_max + 1)]
 
 
-# All nested chains (S_1, ..., S_n), S_1 ⊇ ... ⊇ S_n, each S_k a connected set containing root or empty.
-# Partial chains allowed: first k entries nonempty, rest empty (a jet may use only some softer layers, e.g. C_i without C_i^2).
-# allowed_list = PER-LAYER allowed sets: each layer lies in ITS OWN cut mode's allowed set — e.g. an SC4 external vertex is allowed in the C1 cut but not C1^2 (SC4 <= C1, SC4/C1^2 overlap).
-# (One innermost-only allowed set was a bug, 2026-08-11: it silently dropped regions like the paper's 5pt6loop Ciregion1, where l1=SC4 attaches inside the C1 jet.)
-# Optimisation (2026-08-09): memoise completions per (j, S) — the superset recursion becomes a DAG traversal (hypercrown-scale: 10^7+ chains otherwise); identical output.
-def nested_chains(verts, edges, root, n, allowed_list):
+# All nested chains (S_1 ⊇ ... ⊇ S_n) of one external, with per-layer allowed sets; partial chains allowed.
+def nested_chains(root, n, allowed_list, adj):
     chains = []
     if n < 1:
         chains.append(())
         return chains
-    # memo: (k, frozenset S_j) -> list of completions (tuples of frozensets)
+    # memoised completions per (layer, innermost set) — the recursion becomes a DAG traversal
     memo = {}
     # all nested supersets (S_j, ..., S_1) with S_k = S (innermost given)
     def completions(k, S):
@@ -196,7 +152,7 @@ def nested_chains(verts, edges, root, n, allowed_list):
             return memo[key]
         out = []
         # the next-outer layer S_{k-1} must be within ITS OWN allowed set
-        for S_up in connected_supersets(verts, edges, S, allowed_list[k-2]):
+        for S_up in connected_supersets(S, allowed_list[k-2], adj):
             for tail in completions(k - 1, S_up):
                 out.append(tail + (frozenset(S),))
         memo[key] = out
@@ -206,36 +162,18 @@ def nested_chains(verts, edges, root, n, allowed_list):
         if k == 0:
             chains.append(tuple(frozenset() for _ in range(n)))
             continue
-        # The innermost NONEMPTY layer is S_k — it must lie in the k-th layer's OWN allowed set (for k < n this is NOT the innermost cut's allowed set; 2026-08-11 partial-chain fix).
-        for S_k in connected_sets(verts, edges, root, allowed_list[k-1]):
+        # the innermost nonempty layer S_k lies in its OWN layer's allowed set (essential for partial chains)
+        for S_k in connected_sets(root, allowed_list[k-1], adj):
             for comp in completions(k, S_k):
-                # comp = (S_1, ..., S_k) outer-first (S_1 outermost/largest); store outer-first + trailing empty layers (nonempty layers first).
-                # (2026-08-09 fix: `reversed(comp)` swapped the layer order, pairing the innermost soft cut with the LARGEST vertex set -> wrong vertex modes; 4pt3loop lost 2 regions, 81 -> 79.)
+                # store outer-first + trailing empty layers (S_1 outermost/largest; the pairing order matters)
                 chain = tuple(comp) + tuple(frozenset() for _ in range(tail_empty))
                 chains.append(chain)
     return chains
 
 
-def _is_connected(S, adj):
-    if not S:
-        return True
-    S = set(S)
-    st = [next(iter(S))]
-    seen = set()
-    while st:
-        u = st.pop()
-        if u in seen:
-            continue
-        seen.add(u)
-        for w in adj[u]:
-            if w in S and w not in seen:
-                st.append(w)
-    return seen == S
+# ======================== GRAPH & MASK HELPERS ========================
 
-
-# Bitmask helper (2026-09-22 fast path, ported from the regge skeleton): frozenset -> int mask, cached per graph (bit i <-> verts[i], injective).
-# Mask equality == vertex-set equality (coincidence/exemption); mask & mask == shared vertices (overlap/route).
-# Empty set -> 0; masks are never negative, so -1 in dedup keys safely means "cut absent".
+# Bitmask helper: frozenset -> int mask, cached per graph (bit i <-> verts[i], injective; equal masks == equal sets, & == shared vertices).
 def _make_mk(verts):
     bidx = {v: 1 << i for i, v in enumerate(verts)}
     cache = {}
@@ -252,32 +190,7 @@ def _make_mk(verts):
     return mk
 
 
-# Connected subsets containing root, within allowed (incl. {root}).
-def _conn_sets(root, allowed, adj):
-    if root not in allowed:
-        return []
-    rest = sorted(set(allowed) - {root})
-    out = []
-    for r in range(len(rest) + 1):
-        for sub in itertools.combinations(rest, r):
-            S = frozenset({root} | set(sub))
-            if _is_connected(S, adj):
-                out.append(S)
-    return out
-
-
-# Connected supersets of base within allowed.
-def _conn_supersets(base, allowed, adj):
-    rest = sorted(set(allowed) - set(base))
-    out = []
-    for r in range(len(rest) + 1):
-        for sub in itertools.combinations(rest, r):
-            S = frozenset(set(base) | set(sub))
-            if _is_connected(S, adj):
-                out.append(S)
-    return out
-
-
+# All simple root->H paths within allowed, each as its vertex set.
 def _paths_to_H(root, Hset, allowed, adj):
     sets = set()
     st = [(root, frozenset({root}))]
@@ -291,12 +204,33 @@ def _paths_to_H(root, Hset, allowed, adj):
     return list(sets)
 
 
-# Copy of the enumerator's check chain (Step1 / FC / jet / mojetic / IR).
-# seen_vm: optional set for vm-level dedup (2026-09-18) — every check depends only on (vm, em = meet of endpoint modes), i.e. on vm alone; a repeated vm is skipped outright.
+# Connected components of the subgraph induced on `sub`.
+def _comps(sub, adj):
+    sub = set(sub); seen = set(); out = []
+    for s in sorted(sub):
+        if s in seen:
+            continue
+        stack = [s]; comp = set()
+        while stack:
+            u = stack.pop()
+            if u in comp:
+                continue
+            comp.add(u)
+            for w in adj[u]:
+                if w in sub and w not in comp:
+                    stack.append(w)
+        seen |= comp
+        out.append(comp)
+    return out
+
+
+# ============================ CHECK CHAIN ============================
+
+# Run the check chain (Step1 / FC / jet / mojetic / IR) on one cut assignment; returns (vm, em) or None.
 def _check_combo(verts, edges_t, g, ext_attach, ext_mode, combo, seen_vm=None):
     vm = {}
     for v in verts:
-        # Combo entries: (cut, set, mask); tolerant unpack keeps older dev callers (cut, set) working.
+        # combo entries: (cut, set, mask); bare (cut, set) entries are tolerated
         incuts = [cut.mode for cut, S, *_rest in combo if v in S]
         if not incuts:
             vm[v] = H
@@ -306,7 +240,7 @@ def _check_combo(verts, edges_t, g, ext_attach, ext_mode, combo, seen_vm=None):
                 acc = meet(acc, md)
             vm[v] = norm(acc)
     if seen_vm is not None:
-        # Key = vm mapping in fixed vertex order (tuple builds/hashes cheaper than a frozenset of pairs; 2026-09-22).
+        # vm-level dedup: every check depends only on vm; key = the vm mapping in fixed vertex order
         key_m = tuple([vm[v] for v in verts])
         if key_m in seen_vm:
             return None
@@ -336,28 +270,10 @@ def _check_combo(verts, edges_t, g, ext_attach, ext_mode, combo, seen_vm=None):
     return vm, em
 
 
-# Connected components of the induced subgraph on `sub`.
-def _comps(sub, adj):
-    sub = set(sub); seen = set(); out = []
-    for s in sorted(sub):
-        if s in seen:
-            continue
-        stack = [s]; comp = set()
-        while stack:
-            u = stack.pop()
-            if u in comp:
-                continue
-            comp.add(u)
-            for w in adj[u]:
-                if w in sub and w not in comp:
-                    stack.append(w)
-        seen |= comp
-        out.append(comp)
-    return out
+# ================== ONLY H AND C: OVERLAP RESTRICTION ==================
 
-
-# k0: every external is H or C_i^1 (no soft, no refined C_i^m).
-def _k0_union_domain(ext_mode):
+# True when every external mode is H or C_i^1 — the domain of the union construction.
+def _all_H_or_C(ext_mode):
     for md in ext_mode.values():
         if md[0] != 0:
             return False
@@ -366,15 +282,9 @@ def _k0_union_domain(ext_mode):
     return True
 
 
-# k0 enumeration — union construction + the ">=2 cuts" rule (2026-09-18); port of dev_wa_skel0.py (validated region-identical to the old path).
-# Returns None outside this sub-domain (the old path handles it).
-#   * H connected; corner closure (no NON-root v∉H with all edges into H);
-#   * per leg: P_i = connected set ⊆ V∖H, containing root_i, touching H; P_i = ∅ iff root_i ∈ H; P_i pairwise disjoint;
-#   * every component of V∖(H∪P's) adjacent to >=2 P's (startpoints counted in their P);
-#   * C_i = connected ⊇ P_i within (V∖H) ∩ allowed − (other P's); every remaining vertex must lie in >=2 cuts;
-#   * combo -> (vm, em) -> unchanged check chain (vm-level dedup).
-def _run_k0_union(verts, edges, ext_attach, ext_mode, verbose=True, vm_dedup=True):
-    if not _k0_union_domain(ext_mode):
+# Union construction for the only-H-and-C case + the ">=2 cuts" rule; returns None outside this domain.
+def _run_union_construction(verts, edges, ext_attach, ext_mode, verbose=True, vm_dedup=True):
+    if not _all_H_or_C(ext_mode):
         return None
     V = sorted(verts); Vset = set(V)
     mk = _make_mk(V)                  # (set, mask) pairs built once, below
@@ -398,12 +308,13 @@ def _run_k0_union(verts, edges, ext_attach, ext_mode, verbose=True, vm_dedup=Tru
     legs = sorted(ext_cuts.keys())
     for n in legs:
         if len(ext_cuts[n]) != 1:
-            return None          # not plain single-level C_i^1 -> old path
+            return None          # not plain single-level C_i^1 -> general path
     SLOTS0 = sorted(ext_cuts[n][0].name for n in legs)
     SIDX0 = {nm: k for k, nm in enumerate(SLOTS0)}
-    Hs = [frozenset(S) for r in range(1, len(V) + 1) for S in itertools.combinations(V, r) if _is_connected(S, adj)]
+    Hs = [frozenset(S) for r in range(1, len(V) + 1) for S in itertools.combinations(V, r) if is_connected(S, adj)]
     n_corner = 0
     Hs2 = []
+    # corner closure: drop H containing a non-root v ∉ H whose edges all go into H
     for H0 in Hs:
         bad = False
         for v in V:
@@ -427,13 +338,14 @@ def _run_k0_union(verts, edges, ext_attach, ext_mode, verbose=True, vm_dedup=Tru
         alw = {n: set(allowed_by_cut[n][0]) & (Vset - Hset) for n in legs}
         pops = {}
         okH = True
+        # P_i: connected set ⊆ V∖H containing root_i and touching H (pairwise disjointness checked below)
         for n in legs:
             root = ext_attach[n]
             if root in Hset:
                 pops[n] = [frozenset()]
                 continue
             allowed = {w for w in Vset if w not in Hset and (w == root or w not in extv)}
-            opts = [S for S in _conn_sets(root, allowed, adj) if any(adj[u] & Hset for u in S) and set(S) <= alw[n]]
+            opts = [S for S in connected_sets(root, allowed, adj) if any(adj[u] & Hset for u in S) and set(S) <= alw[n]]
             if not opts:
                 okH = False
                 break
@@ -453,6 +365,7 @@ def _run_k0_union(verts, edges, ext_attach, ext_mode, verbose=True, vm_dedup=Tru
             Pmap = dict(zip(legs, Ps))
             lf = (Vset - u) - Hset
             groups = [(n, Pmap[n]) for n in legs if Pmap[n]]
+            # every component of V∖(H∪P's) must be adjacent to >= 2 paths (startpoints count in their own path)
             if len(groups) >= 2:
                 gg = []
                 for n, P in groups:
@@ -477,7 +390,8 @@ def _run_k0_union(verts, edges, ext_attach, ext_mode, verbose=True, vm_dedup=Tru
                     Csets[n] = [(frozenset(), 0)]      # empty set -> mask 0
                     continue
                 dom = alw[n] - (u - set(P))
-                opts = _conn_supersets(P, dom, adj)
+                # C_i: connected superset of P_i within (V∖H) ∩ allowed minus the other paths
+                opts = connected_supersets(P, dom, adj)
                 if not opts:
                     okc = False
                     break
@@ -486,6 +400,7 @@ def _run_k0_union(verts, edges, ext_attach, ext_mode, verbose=True, vm_dedup=Tru
             if not okc:
                 continue
             for Ccomb in itertools.product(*[Csets[n] for n in legs]):
+                # every remaining vertex must lie in >= 2 cuts
                 if lf:
                     viol = False
                     for v in lf:
@@ -511,24 +426,26 @@ def _run_k0_union(verts, edges, ext_attach, ext_mode, verbose=True, vm_dedup=Tru
                 if r is None:
                     continue
                 vm, em = r
-                # fixed-order tuple key (2026-09-22; same dedup semantics)
+                # fixed-order tuple key (same dedup semantics)
                 key = tuple([vm[v] for v in V])
                 if key not in regions:
                     regions[key] = (vm, em)
     dt = time.time() - t0
     if verbose:
-        print('skeleton k0-union: candidates %d (dup %d, leftover-filter %d, >=2-cut killed %d, corner-skipped H %d, vm-unique %d), regions %d, %.1fs' % (n_cand, n_dup, n_left_kill, n_rule_kill, n_corner, len(seen_vm) if seen_vm is not None else 0, len(regions), dt))
+        print('skeleton union (only H and C): candidates %d (dup %d, leftover-filter %d, >=2-cut killed %d, corner-skipped H %d, vm-unique %d), regions %d, %.1fs' % (n_cand, n_dup, n_left_kill, n_rule_kill, n_corner, len(seen_vm) if seen_vm is not None else 0, len(regions), dt))
     return list(regions.values()), n_cand, dt
 
 
+# ========================= MAIN ENUMERATION =========================
+
+# Main entry: enumerate skeleton candidates for all H blocks; returns (regions, candidates, dt).
 def run(verts, edges, ext_attach, ext_mode, verbose=True, use_overlap=True, use_route=True, overlap_strict=True, overlap_strong=True, overlap_level=True, cfg_out=None, allow_soft=True, vm_dedup=True):
     t0 = time.time()
     _DBG_OVL = bool(os.environ.get('FRI_DEBUG_OVL'))
     _DBG_ROUTE = bool(os.environ.get('FRI_DEBUG_ROUTE'))
     _no_prune = bool(os.environ.get('FRI_NO_PRUNE'))   # [A/B escape: disable the early pruning]
-    # Soft externals: supported since the 2026-09-20 spec; validated against the soft corpora (464/464); allow_soft kept for backward compatibility (no-op).
-    # k0: always the union construction (single-path route removed 2026-09-20).
-    r = _run_k0_union(verts, edges, ext_attach, ext_mode, verbose=verbose, vm_dedup=vm_dedup)
+    # soft externals supported (validated against the soft corpora; allow_soft is a compatibility no-op); the only-H-and-C case takes the union construction first
+    r = _run_union_construction(verts, edges, ext_attach, ext_mode, verbose=verbose, vm_dedup=vm_dedup)
     if r is not None:
         return r
     kappa = kappa_of(ext_mode)
@@ -542,24 +459,22 @@ def run(verts, edges, ext_attach, ext_mode, verbose=True, use_overlap=True, use_
         adj[a].add(b); adj[b].add(a)
     edges_t = [tuple(sorted(e, key=str)) for e in edges]
     extv = set(ext_attach.values())
-    # Routes avoid OTHER p/q attachment vertices (m=0; 2026-09-20); soft (l, m>=1) attachment vertices are NOT restricted.
+    # Routes avoid OTHER p/q attachment vertices (m=0); soft (l, m>=1) attachment vertices are NOT restricted.
     hard_extv = {ext_attach[n] for n in ext_mode if ext_mode[n][0] == 0}
     g = Graph(V, edges_t, ext_attach)
 
     def _overlap(S1, S2):
+        # shared vertex; in non-strict mode an edge between the two cuts also counts
         if S1 & S2:
             return True
         if overlap_strict:
-            # Strengthened semantics (2026-09-17): require a shared vertex — the edge-overlap branch (edge with endpoints in the two cuts) is dropped.
-            # Now the default (193-case sweep, zero mis-kills; pass overlap_strict=False for the old form).
             return False
         for u in S1:
             if adj[u] & S2:
                 return True
         return False
 
-    # Layer compression (usable_modes, 2026-08-12 module; wired in 2026-09-17): enumerate cuts only on the usable layers — dead layers below n0 are dropped.
-    # k4/k5-type towers collapse to k2 chain counts (e.g. DivingBeetle k4: 73/273/273/308 -> 13/73/73/88).
+    # layer compression: only the usable layers are enumerated (towers collapse, e.g. DivingBeetle k4: 73/273/273/308 -> 13/73/73/88)
     usable = derive_usable_modes(ext_mode, kappa)
     layers_by_ext = usable_layers(ext_mode, kappa, usable)
     ext_cuts = {}
@@ -574,8 +489,7 @@ def run(verts, edges, ext_attach, ext_mode, verbose=True, use_overlap=True, use_
     # Fixed slot order for cut-dedup keys: a candidate's key is the int array arr[SIDX[cut.name]] = cut mask (-1 = cut absent).
     SLOTS = sorted({c.name for n in ext_cuts for c in ext_cuts[n]})
     SIDX = {nm: k for k, nm in enumerate(SLOTS)}
-    # A C_i^a cut may not contain the incident vertex of a soft leg (S^mC_j^n / S^m, m>=1) when a > m (paths may; cuts may not; 2026-09-20).
-    # [A/B escape: FRI_NO_SOFTCUT_RESTRICTION=1]
+    # a C_i^a cut may not use the incident vertex of a soft leg when a > m (paths may; cuts may not)  [escape: FRI_NO_SOFTCUT_RESTRICTION=1]
     if not os.environ.get('FRI_NO_SOFTCUT_RESTRICTION'):
         for name in allowed_by_cut:
             md0 = ext_mode[name]
@@ -591,9 +505,7 @@ def run(verts, edges, ext_attach, ext_mode, verbose=True, use_overlap=True, use_
                         allowed_by_cut[name][idx].discard(ext_attach[ln_])
     ctype = [n for n in ext_cuts if ext_mode[n][0] == 0]
     stype = [n for n in ext_cuts if ext_mode[n][0] != 0]   # S^mC^n / S^m, m>=1
-    # Check plan for early pruning: per checked cut (C-type leg, layer n < m) —
-    # partner slot pairs (same sigma = n, other directions; SC slots included)
-    # + soft-support slots (soft power == n).
+    # check plan for early pruning: per checked cut — partner slot pairs (same sigma, other directions; SC slots included) + soft-support slots
     _legnames = sorted(ext_cuts.keys())
     _legpos = {_n: _i for _i, _n in enumerate(_legnames)}
     _nslots = [len(ext_cuts.get(_n, [])) for _n in _legnames]
@@ -629,7 +541,7 @@ def run(verts, edges, ext_attach, ext_mode, verbose=True, use_overlap=True, use_
     if verbose:
         print('kappa=%d externals: %s | C-type: %s | soft: %s' % (kappa, {n: mode_str(ext_mode[n]) for n in ext_mode}, ctype, stype))
 
-    Hs = [frozenset(S) for r in range(1, len(V) + 1) for S in itertools.combinations(V, r) if _is_connected(S, adj)]
+    Hs = [frozenset(S) for r in range(1, len(V) + 1) for S in itertools.combinations(V, r) if is_connected(S, adj)]
     if verbose:
         print('connected H blocks: %d' % len(Hs))
 
@@ -686,14 +598,13 @@ def run(verts, edges, ext_attach, ext_mode, verbose=True, use_overlap=True, use_
                     continue
                 alw = [set(a) & (Vset - Hset) for a in allowed_by_cut[n]]
                 if ext_mode[n][0] != 0:
-                    # S^mC^n / S^m (m>=1): nested cut chains confined to V\H and avoiding ALL routes P_j (2026-09-20) — the soft cuts touch neither H nor any P-path vertex.
-                    # No root->H path requirement (2026-09-17).
+                    # S^mC^n / S^m: nested cut chains confined to V\H, avoiding all routes P_j (no root->H path requirement)
                     blocked = set()
                     for P in path_assign.values():
                         blocked |= P
                     alw = [a - blocked for a in alw]
                     # chain elements carry (set, mask) — built once, reused
-                    chain_opts[n] = [tuple((S, mk(S)) for S in ch) for ch in nested_chains(verts, edges, root, len(cs), alw)]
+                    chain_opts[n] = [tuple((S, mk(S)) for S in ch) for ch in nested_chains(root, len(cs), alw, adj)]
                     continue
                 # C_i^m-type: base cut must contain a root->H path.
                 P = path_assign[n]
@@ -701,7 +612,7 @@ def run(verts, edges, ext_attach, ext_mode, verbose=True, use_overlap=True, use_
                 if not (P <= alw[0]):
                     okc = False
                     break
-                S1s = _conn_supersets(P, alw[0], adj)
+                S1s = connected_supersets(P, alw[0], adj)
                 if not S1s:
                     okc = False
                     break
@@ -712,7 +623,7 @@ def run(verts, edges, ext_attach, ext_mode, verbose=True, use_overlap=True, use_
                         if j >= N:
                             return
                         allowed_j = alw[j] & set(prev)
-                        for S in _conn_sets(root, allowed_j, adj):
+                        for S in connected_sets(root, allowed_j, adj):
                             rec2(j + 1, S, acc + (S,))
                     rec2(1, S1, (S1,))
                 if not chains:
@@ -736,9 +647,7 @@ def run(verts, edges, ext_attach, ext_mode, verbose=True, use_overlap=True, use_
                                and _legnames == leglist)
             # route masks: P_j as a bitmask (route test:  m & pmask[jn])
             pmask = {jn: mk(P) for jn, P in path_assign.items()}
-            # Enumeration: depth-first over legs; a subtree is pruned as soon as the overlap
-            # requirements (or route exclusion) are provably unsatisfiable for all completions —
-            # regions identical to a full product enumeration, just far fewer combos visited.
+            # depth-first over legs; a subtree is pruned once the overlap requirements (or route exclusion) are provably unsatisfiable for all completions
             _opts = [chain_opts[n] for n in leglist]
             _nleg = len(leglist)
             # visit legs owning overlap checks first (they unlock early pruning), the rest after
@@ -849,9 +758,7 @@ def run(verts, edges, ext_attach, ext_mode, verbose=True, use_overlap=True, use_
                     arr[SIDX[c.name]] = m
                 ck = tuple(arr)
                 if use_overlap:
-                    # Every C_i^n cut with n < m must have nonempty overlap with some cut from another direction j (2026-09-17),
-                    # UNLESS it coincides (as a vertex set) with the C_i^m cut of the same leg (which cannot happen when m = inf).
-                    # Overlap = a shared vertex, or an edge with endpoints in the two cuts respectively.
+                    # overlap requirement: every C_i^n cut (n < m) needs a partner from another direction — unless it coincides with a deeper same-leg cut
                     ok_ov = True
                     _deep = {}
                     for _c2, _S2, _m2 in assign:
@@ -866,12 +773,9 @@ def run(verts, edges, ext_attach, ext_mode, verbose=True, use_overlap=True, use_
                         if cut.mode[1] < md[1]:  # n < m
                             if _deep.get((nm, m), -1) > cut.mode[1]:
                                 continue      # coincides with a deeper
-                                # Same-leg C_i^N cut (N > n) — 2026-09-20 (the former rule used only the m-level cut, impossible for m = inf).
+                                # Same-leg C_i^N cut (N > n) — for m = inf the m-level cut does not exist.
                             if overlap_strong:
-                                # "Strong overlap" (2026-09-17): the layer must contain a vertex shared with cuts from at least TWO other directions (triple-sharing; takes precedence over the shared-vertex rule).
-                                # 2026-09-18: overlap_level tightens to "two other C^n cuts" — the other directions' cuts must have the SAME level n as this layer.
-                                # (Default ON; pass False for the older any-level form.)
-                                # 2026-09-20 relaxed (1): shares a vertex with same-level partners of the form S^{n'}C_j^{n-n'} (sigma = n; n'=0 gives C_j^n) from >= 2 other directions j.
+                                # strong overlap: a vertex shared with same-sigma partners (S^{n'}C_j^{n-n'}) from >= 2 other directions (overlap_level: partners must have the same level n)
                                 sig = cut.mode[0] + cut.mode[1]
                                 by_dir = {}
                                 for c2, S2, m2 in assign:
@@ -894,7 +798,7 @@ def run(verts, edges, ext_attach, ext_mode, verbose=True, use_overlap=True, use_
                                 if m & pair_or:
                                     ok_st = True
                                 if not ok_st:
-                                    # (2) 2026-09-20 (amended 14:52): soft support — an external of soft power exactly n (S^nC_j^k or S^n) whose incident vertex lies in this layer.
+                                    # (2) soft support — an external of soft power exactly n (S^nC_j^k or S^n) whose incident vertex lies in this layer.
                                     n_lv = cut.mode[1]
                                     for ln_ in ext_mode:
                                         md2 = ext_mode[ln_]
@@ -917,9 +821,8 @@ def run(verts, edges, ext_attach, ext_mode, verbose=True, use_overlap=True, use_
                         n_ov_kill += 1
                         continue
                 if use_route:
-                    # S_k^(i) ∩ P_j = ∅ for i != j — no leg's cut layers may touch another leg's route P_j (2026-09-17 18:02).
+                    # route exclusivity: no cut layer may touch another leg's route P_j (mask test: m & pmask[jn] == 0)
                     ok_rt = True
-                    # mask test: route-exclusive cuts have  m & pmask[jn] == 0
                     for cut, S, m in assign:
                         for jn in path_assign:
                             if jn != cut.ext and (m & pmask[jn]):
@@ -932,8 +835,7 @@ def run(verts, edges, ext_attach, ext_mode, verbose=True, use_overlap=True, use_
                         if _DBG_ROUTE:
                             print('ROUTE-KILL H=%s assign=%s paths=%s' % (sorted(Hset), [(c.name, sorted(S)) for c, S, _m in assign], {n: sorted(P) for n, P in path_assign.items()}), flush=True)
                         continue
-                # Dedup AFTER the filters: the same cut-assignment can be reached under several path choices, and passing the route check may depend on that choice.
-                # Dedup must not block the good-path variant (2026-09-17 fix).
+                # dedup after the filters: the same cut-assignment can be reached under several path choices (dedup must not block the good-path variant)
                 if ck in seen_ck:
                     n_skip += 1
                     continue
@@ -943,7 +845,7 @@ def run(verts, edges, ext_attach, ext_mode, verbose=True, use_overlap=True, use_
                 if r is None:
                     continue
                 vm, em = r
-                # fixed-order tuple key (2026-09-22; same dedup semantics)
+                # fixed-order tuple key (same dedup semantics)
                 key = tuple([vm[v] for v in V])
                 if cfg_out is not None:
                     got = cfg_out.setdefault(key, [])

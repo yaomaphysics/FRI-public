@@ -5,15 +5,15 @@ region_checker.py).
 Contents:
   - mode algebra on (m, n, i) tuples [S^m C_i^n; H = (0,0,0)]: V, norm, eq, harder_or_eq, join, meet, marginally_softer, vee;
   - mode scaling: scaling_of (v_e = -V);
-  - mode-string parsing: parse_mode (single implementation in read_graph.py; re-exported);
+  - mode-string parsing: parse_mode, mode_str;
   - graph helpers: Graph (vertex_mode); spanning_tree; find_1vi_blocks (Tarjan; used by the 1VI checks).
 
-Used by: skeleton.py (enumeration), region_checker.py (judgment), usable_modes.py, scaleless_diagnosis.py, indep_loops.py.
+Used by: skeleton.py (enumeration), region_checker.py (judgment), usable_modes.py, scaleless_diagnosis.py, indep_loops.py, read_graph.py (input).
 """
 
+import re
 from collections import defaultdict
 from functools import lru_cache # lru: least recently used (cache eviction policy)
-from read_graph import parse_mode  # re-export; single implementation
 
 INF = 100   # a large value representing \infty.
 H = (0, 0, 0)
@@ -108,7 +108,48 @@ def scaling_of(md):
 
 
 # =========================== MODE-STRING PARSING ==========================
-# (parse_mode is re-exported from read_graph — see the import at the top.)
+
+# Parse a mode string into (m, n, i) [S^m C_i^n; H = (0,0,0); C_i^inf -> n = INF]; accepts 'inf'/'infty'/'∞'/'\\infty' and the SC_i shorthand.
+def parse_mode(s):
+    s = s.strip().replace(' ', '')
+    if s in ('H', 'h'):
+        return (0, 0, 0)
+    if s == 'S':
+        return (1, 0, 0)
+    m = re.fullmatch(r'S\^(\d+)', s)
+    if m:
+        return (int(m.group(1)), 0, 0)
+    m = re.fullmatch(r'S\^?(\d+)?C_?(\d+)\^?(\d+|inf|infty|∞|\\infty)?', s)
+    if m:
+        ms, i, ns = m.group(1), int(m.group(2)), m.group(3)
+        mval = int(ms) if ms else 1
+        nval = INF if ns in ('inf', 'infty', '∞', '\\infty') else (int(ns) if ns else 1)
+        return (mval, nval, i)
+    m = re.fullmatch(r'SC_?(\d+)\^?(\d+|inf|infty|∞|\\infty)?', s)
+    if m:
+        i, ns = int(m.group(1)), m.group(2)
+        nval = INF if ns in ('inf', 'infty', '∞', '\\infty') else (int(ns) if ns else 1)
+        return (1, nval, i)
+    m = re.fullmatch(r'C_?(\d+)\^?(\d+|inf|infty|∞|\\infty)?', s)
+    if m:
+        i, ns = int(m.group(1)), m.group(2)
+        nval = INF if ns in ('inf', 'infty', '∞', '\\infty') else (int(ns) if ns else 1)
+        return (0, nval, i)
+    raise ValueError(f"cannot parse mode: {s!r} (use e.g. C2^inf, C2^\\infty, SC4, S^2, H)")
+
+
+# Internal tuple back to a readable string (for verification echo).
+def mode_str(md):
+    m, n, i = md
+    if m == 0 and n == 0:
+        return 'H'
+    if n == 0:
+        return 'S' if m == 1 else f'S^{m}'
+    if m == 0:
+        if n >= INF:
+            return f'C_{i}^∞'
+        return f'C_{i}' if n == 1 else f'C_{i}^{n}'
+    return f'S^{m}C_{i}^{n}'
 
 
 # ============================= GRAPH HELPERS ==============================
@@ -123,6 +164,23 @@ class Graph:
         for ei, (u, v) in enumerate(self.edges):
             self.incident[u].append(ei)
             self.incident[v].append(ei)
+
+
+# Connectivity of the subgraph induced on verts (adj = full adjacency; edges leaving verts are ignored).
+def is_connected(verts, adj):
+    if not verts:
+        return True
+    verts = set(verts)
+    seen = {next(iter(verts))}
+    st = list(seen)
+    while st:
+        u = st.pop()
+        for w in adj.get(u, ()):
+            if w in verts and w not in seen:
+                seen.add(w)
+                st.append(w)
+    return len(seen) == len(verts)
+
 
 # Vertex mode: join of the vertex's non-None incident edge modes and its attached external modes; None if there is nothing to join.
 def vertex_mode(g, edge_modes, v, EXTMODE):

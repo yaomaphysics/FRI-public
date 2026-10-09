@@ -1,44 +1,33 @@
 #!/usr/bin/env python3
 r"""power_report.py — per-region derivation report for the scalar power counting.
 
-For a chosen list of regions, expand \lambda^{A-B} into a checkable
-step-by-step derivation: the independent loop momenta (per mode block), the
-integration-measure power
-
+For a chosen list of regions, expand \lambda^{A-B} into a checkable step-by-step derivation: the independent loop momenta (per mode block), the integration-measure power
     A = (2-\epsilon) * sum_X r_X * V(X),
+the denominator power B = sum V(em), and (optionally) a numerator polynomial in the edge momenta K_i: its power N is the min over terms of the sum of their factor powers, so power = A - B + N.
+The result is rendered as a multi-page monospace PDF.
 
-the denominator power B = sum V(em), and (optionally) a numerator polynomial
-in the edge momenta K_i: its power N is the min over terms of the sum of
-their factor powers, so power = A - B + N.  The result is rendered as a
-multi-page monospace PDF (same PIL stack as the demo tooling).
-
-Called from the interactive browser after "Group these regions by their power";
-can also be used standalone for quick snapshots:
-
-    python3 power_report.py 21          # default example graph, region R21
-    python3 power_report.py 1-3,21      # a selection
+Called from the interactive browser after "Group these regions by their power".
 """
 
-import os, sys, time
+import os, time
 from PIL import Image, ImageDraw, ImageFont
 
-from power_counting import (measure_power, integrand_power, fmt_power, region_context, term_breakdown,
-                            parse_numerator, fmt_ast)
+from power_counting import (measure_power, integrand_power, fmt_power, region_context, term_breakdown)
 from indep_loops import indep_loops, edge_momenta
-from read_graph import mode_str
+from primitives import mode_str
 
-# Page geometry (A4 at 150 dpi), same as the demo capture tooling.
+# Page geometry: A4 at 150 dpi.
 W, H = 1240, 1754
 MARGIN = 64
 LH = 21
 BG, FG, GRAY = (255, 255, 255), (17, 17, 17), (140, 140, 140)
 
 
-# ---------------------------------------------------------------- helpers
+# ================================ HELPERS ================================
+
 # Display name for a mode tuple ('∅' when missing).
 def _ms(md):
     return mode_str(md) if md is not None else '∅'
-
 
 # 'a0 + a1\epsilon' / 'a0 - a1\epsilon' / 'a0': exponent body without the \lambda^.
 def _exp_body(a0, a1):
@@ -48,8 +37,8 @@ def _exp_body(a0, a1):
         return f'{a0} + {a1}\\epsilon'
     return f'{a0} - {-a1}\\epsilon'
 
+# ============================ DERIVATION TEXT ============================
 
-# ---------------------------------------------------------------- derivation text
 # One region's derivation block, as a list of lines.
 def region_lines(edges, vm, em, ext_attach, extmode, i, numerator=None):
     out = []
@@ -111,8 +100,8 @@ def region_lines(edges, vm, em, ext_attach, extmode, i, numerator=None):
         out.append(f'  power = A - B = {_exp_body(a0 - b, a1)}')
     return out
 
+# =============================== RENDERER ================================
 
-# ---------------------------------------------------------------- renderer
 # Render a list of text lines as a multi-page monospace PDF (+ first-page PNG).
 def render_pdf(lines, outpath, title, subtitle, preview=None):
     font = ImageFont.truetype('/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf', 15)
@@ -154,8 +143,8 @@ def render_pdf(lines, outpath, title, subtitle, preview=None):
     imgs[0].save(outpath, 'PDF', save_all=True, append_images=imgs[1:], resolution=150.0)
     return outpath
 
+# =============================== TOP LEVEL ===============================
 
-# ---------------------------------------------------------------- top level
 # Build the report for the selected regions (1-based indices) and render it; returns (pdf, preview, lines).
 def build_report(edges, regs, sel, ext_attach, internal_lines, externals, extmode=None, numerator=None):
     lines = []
@@ -179,32 +168,3 @@ def build_report(edges, regs, sel, ext_attach, internal_lines, externals, extmod
     render_pdf(lines, pdf, 'FRI power-counting derivation report',
                'scalar integrals — per-region derivation of \\lambda^{A-B}', preview=prev)
     return pdf, prev, lines
-
-
-# ---------------------------------------------------------------- standalone snapshot
-# Quick snapshot from the command line (default example graph from arXiv:2601.22144 Sec. 7.1).
-if __name__ == '__main__':
-    from facet_regions_interactive import enumerate_regions, DEFAULT_EDGES, parse_edge_list, parse_region_select
-    from read_graph import parse_mode
-    edges = [tuple(sorted((a, b))) for (a, b) in parse_edge_list(DEFAULT_EDGES)]
-    exts = {'p1': (1, 'C1'), 'p2': (2, 'C2^2'), 'p3': (3, 'C3^inf'), 'p4': (4, 'C4^inf')}
-    ext_attach = {n: v for n, (v, s) in exts.items()}
-    extmode = {n: parse_mode(s) for n, (v, s) in exts.items()}
-    verts = sorted({v for e in edges for v in e} | set(ext_attach.values()))
-    regs = enumerate_regions(verts, edges, ext_attach, extmode)
-    arg = sys.argv[1] if len(sys.argv) > 1 else '21'
-    sel = parse_region_select(arg, len(regs))
-    num = None
-    if len(sys.argv) > 2 and sys.argv[2].strip() not in ('', '1'):
-        text = sys.argv[2]
-        if os.path.exists(text):
-            text = open(text).read()
-        ast, warns = parse_numerator(text, len(edges), set(extmode))
-        for w in warns:
-            print('! note:', w)
-        num = None if ast is None else (ast, fmt_ast(ast))
-    pdf, prev, lines = build_report(edges, regs, sel, ext_attach, edges, {k: [vv[0], vv[1]] for k, vv in exts.items()}, extmode=extmode, numerator=num)
-    print('\n'.join(lines))
-    print()
-    print('saved:', pdf)
-    print('preview:', prev)

@@ -24,7 +24,7 @@ the beginning.
 Results are saved to fri_out/<timestamp>.txt after each graph.
 
 Usage: python3 facet_regions_interactive.py [-v]
-  Example graph (the built-in Frog): 1-3,1-5,2-3,2-5,3-4,4-5
+  Example graph (the built-in Fish): 1-3,1-5,2-3,2-5,3-4,4-5
 """
 import os
 import re
@@ -376,7 +376,7 @@ def main():
     print('=' * 72)
     print('collinear 2->3 FRI region enumerator (k0..k4)')
     print('external momenta: p1@1, p2@2, p3@3, p4@4, p5@5')
-    print('type an edge list, e.g. 1-3,1-5,2-3,2-5,3-4,4-5 (the Frog)')
+    print('type an edge list, e.g. 1-3,1-5,2-3,2-5,3-4,4-5 (the Fish)')
     print("at the edge prompt: 'kin k3' switches kinematics, 'q'/'b' quits")
     print('=' * 72)
     kin_name = choose_kinematics()

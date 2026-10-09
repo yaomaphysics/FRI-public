@@ -1,8 +1,6 @@
 """
 indep_loops.py — independent loop momenta per region (Regge).
 
-Port of the wide-angle indep_loops machinery to the Regge framework, with the semihard fix:
-
   * lattice modes (H, C13/C24, refinements, S^m, SC, S^2C, ...): the contracted X-subgraph gamma~_X (V_X ∪ aux, all non-X endpoints -> aux);
     r_X = cycle rank of gamma~_X = sum over its 1VI blocks of (|E| - |V| + 1); basis = per block, complement of a spanning tree (contracted self-loops are always basis lines).
     The 1VI blocks are exactly primitives.mode_components().
@@ -24,10 +22,10 @@ from primitives import mode_components, find_1vi_blocks, ext_m
 UNION = 'sH∪G'        # combined semihard unit: gamma_sH ∪ gamma_G
 
 
-# ---------------------------------------------------------------- graph tools
+# ============================= GRAPH TOOLS =============================
 
 
-# Spanning tree of a connected block (aux included); returns (tree_edge_indices, basis_edge_indices) — basis = deleted edges.
+# Spanning tree of a connected block (aux included); basis = the deleted edges.
 def _basis_of_block(block_verts, block_edges, edges2, skip=None):
     parent = {}
 
@@ -59,7 +57,7 @@ def _basis_of_block(block_verts, block_edges, edges2, skip=None):
     return tree, basis
 
 
-# ------------------------------------------------------------- per-unit blocks
+# =========================== PER-UNIT BLOCKS ===========================
 # 1VI blocks of gamma~_mode as (bv, contracted_edges, original_idxs).
 def _lattice_blocks(mode, vm, em, edges, verts):
     out = []
@@ -84,8 +82,7 @@ def _rank_of(blocks):
     return sum(len(idxs) - len(bv) + 1 for (bv, be, idxs) in blocks)
 
 
-# Yield (unit_label, blocks) in canonical order.  If sH is present, ONE unit 'sH∪G' is yielded (G not repeated);
-# otherwise every mode appearing in em/vm is a unit (G included, standard rule).
+# Yield (unit_label, blocks) in canonical order; with sH present, one combined 'sH∪G' unit is yielded instead of G.
 def _iter_units(em, vm, edges, verts):
     modes = sorted(set(em) | set(vm.values()))
     if any(m == 'sH' for m in modes):
@@ -98,7 +95,7 @@ def _iter_units(em, vm, edges, verts):
             yield mode, _lattice_blocks(mode, vm, em, edges, verts)
 
 
-# ------------------------------------------------------------------ the count
+# ======================= INDEPENDENT LOOP MOMENTA =======================
 # Per-unit independent loop momenta of a region: rank r_X and basis blocks per unit.
 def indep_loops(edges, em, vm):
     verts = sorted({v for e in edges for v in e})
@@ -117,9 +114,7 @@ def indep_loops(edges, em, vm):
     return results, total, L
 
 
-# Forced-line feasibility over the per-unit 1VI blocks: every forced line must be able to sit in its own block's
-# basis (the block must still span without it); completion picks each block's remaining basis lines as usual, with
-# the forced lines pinned.  Returns (basis, reason) — basis = original edge indices; reason = None when feasible.
+# Forced-line feasibility over the per-unit 1VI blocks: every forced line must be able to sit in its own block's basis; returns (basis, reason).
 def forced_basis(edges, em, vm, F):
     verts = sorted({v for e in edges for v in e})
     Fset = set(F)
@@ -139,8 +134,8 @@ def forced_basis(edges, em, vm, F):
             basis_all += [idxs[j] for j in basis]
     return basis_all, None
 
-# ------------------------------------------- physical momentum parameterization
-# Spanning tree of (verts, edge_list) avoiding the skip set; None if no such tree exists (bridge / disconnection).
+# ==================== PHYSICAL MOMENTUM PARAMETERIZATION ====================
+# Spanning tree of (verts, edge_list) avoiding the skip set; None if no such tree exists.
 def _spanning_tree(verts, edge_list, skip):
     parent = {v: v for v in verts}
 
@@ -187,8 +182,7 @@ def edge_momenta(edges, em, vm, carriers, ext_attach):
     if tree is None:
         return False, ('the remaining lines do not connect (a forced line is a bridge and cannot carry a loop momentum)'), None, None
     chords = [i for i in range(E) if i not in tree]
-    # k-numbering: forced lines first (input order), then remaining chords
-    # in edge order
+    # k-numbering: forced lines first (input order), then the remaining chords in edge order
     order = sorted(F) + [i for i in chords if i not in F]
     kname = {ei: f'k{order.index(ei) + 1}' for ei in order}
     orient = {i: (a, b) if a < b else (b, a) for i, (a, b) in enumerate(edges)}
@@ -303,7 +297,7 @@ def show_edge_momenta(edges, em, vm, carriers, ext_attach, forced=False):
     print('  These line momenta can form a loop-momentum basis.')
 
 
-# ------------------------------------------------------------------ display
+# ============================ BASIS DISPLAY ============================
 # A concrete basis: default per-unit 1VI-block algebraic basis, or forced lines F (physical tree+chords parameterization); then every line's momentum in terms of k1..kL and the externals.
 def show_basis(edges, em, vm, F=None, ext_attach=None):
     if F:

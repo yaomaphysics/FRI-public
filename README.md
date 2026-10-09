@@ -149,7 +149,7 @@ Every implementation has been cross-checked against the region finder of [pySecD
 <tr><th colspan="2">class</th><th>hand-built</th><th>random</th></tr>
 <tr><td rowspan="4"><b>wide-angle</b></td><td><b>4 legs</b><br><span style="font-size: 90%; white-space: nowrap;">(with&nbsp;6&nbsp;kinematics)</span></td><td>52 topologies (3–5 loops)</td><td>1,200 (4-loop) + 200 (5-loop) graphs (on top of ~19,000 earlier random cases)</td></tr>
 <tr><td><b>5 legs</b><br><span style="font-size: 90%; white-space: nowrap;">(with&nbsp;4&nbsp;kinematics)</span></td><td>397 graphs (a 5th leg attached to some 4-leg topologies)</td><td>1,000 (3-loop) + 700 (4-loop) + 300 (5-loop)</td></tr>
-<tr><td><b>soft emission</b></td><td>470 configurations: the soft-emission families (Crown*ASE, v5-ASE, Frog soft-leg) plus CheesePizza</td><td>—</td></tr>
+<tr><td><b>soft emission</b></td><td>470 configurations: the soft-emission families (Crown*ASE, v5-ASE, Fish soft-leg) plus CheesePizza</td><td>—</td></tr>
 <tr><td><b>other topologies</b></td><td>2 configurations: MTest1</td><td>—</td></tr>
 <tr><td colspan="2"><b>collinear: 2→3</b> (p2 ∥ p3)<br><span style="font-size: 90%; white-space: nowrap;">(with&nbsp;5&nbsp;kinematics)</span></td><td>397 graphs (a 5th leg attached to some 4-leg topologies)</td><td>1,000 (3-loop) + 700 (4-loop) + 300 (5-loop) graphs</td></tr>
 <tr><td colspan="2"><b>collinear: 2→2 (Regge)</b> (p1 ∥ p3, p2 ∥ p4)<br><span style="font-size: 90%; white-space: nowrap;">(with&nbsp;6&nbsp;kinematics)</span></td><td>region files of 56 graphs</td><td>1,000 (3-loop) + 700 (4-loop) + 300 (5-loop) graphs</td></tr>

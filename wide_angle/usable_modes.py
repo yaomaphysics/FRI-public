@@ -23,8 +23,7 @@ The dead-layer: levels below n0 are never generated (S^m with m < n0 fails R4, s
 The result is the set containing all possible modes.
 """
 
-from primitives import norm, join, meet
-from read_graph import INF  # pipeline INF = 100 (C^inf/SC^inf marker)
+from primitives import norm, join, meet, INF  # pipeline INF = 100 (C^inf/SC^inf marker)
 
 
 # 'Level' of an external mode: the minimal softness index it anchors (level(C_i^n)=n, C_i^inf=kappa, S^m C_i^n=m, S^m=m; H -> None).

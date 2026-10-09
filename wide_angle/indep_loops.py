@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-This script is the core of the module of choosing independent loop momenta of a given region (in wide-angle kinematics). It is based on §3.2 of 2601.22144.
+indep_loops.py — independent loop momenta of a region (wide-angle kinematics), based on §3.2 of 2601.22144.
 
 Given a region, for every mode X:
 
@@ -26,9 +26,10 @@ to force lines into the basis) and its display helpers, used by the interactive 
 """
 from collections import defaultdict
 
-from primitives import spanning_tree
-from read_graph import mode_str
+from primitives import spanning_tree, mode_str
 
+
+# ===================== INDEPENDENT LOOP MOMENTA =====================
 
 # 1VI components of a subgraph.
 def find_1vi_blocks(verts, edges):
@@ -87,7 +88,7 @@ def find_1vi_blocks(verts, edges):
     return out
 
 
-# spanning tree of a connected block (aux included); returns (tree_edge_indices, basis_edge_indices). That is, basis = deleted edges.
+# Spanning tree of a connected block (aux included); basis = the deleted edges.
 def _basis_of_block(block_verts, block_edges, edges2, skip=None):
     parent = {}
     def find(a):
@@ -116,9 +117,7 @@ def _basis_of_block(block_verts, block_edges, edges2, skip=None):
     return tree, basis
 
 
-# Per-mode independent loop momenta of a region: rank r_X and basis blocks per mode.
-# Inputs: edges = (u, v) lines (order = index space); em = edge modes (None/(0,0,0) = H); vm = {vertex: join-mode tuple}.
-# Returns (results, total_rank, L); results = per-mode {'mode', 'rank', 'blocks'} entries.
+# Per-mode independent loop momenta of a region: rank r_X and basis blocks per mode; returns (results, total_rank, L).
 def indep_loops(edges, em, vm):
     from primitives import eq
     H = (0, 0, 0)
@@ -170,9 +169,7 @@ def indep_loops(edges, em, vm):
     L = len(edges) - len({v for e in edges for v in e}) + 1
     return results, total_rank, L
 
-# Forced-line feasibility over the per-mode 1VI blocks: every forced line must be able to sit in its own block's
-# basis (the block must still span without it); completion picks each block's remaining basis lines as usual, with
-# the forced lines pinned.  Returns (basis, reason) — basis = original edge indices; reason = None when feasible.
+# Forced-line feasibility over the per-mode 1VI blocks: every forced line must be able to sit in its own block's basis; returns (basis, reason).
 def forced_basis(edges, em, vm, F):
     from primitives import eq
     H = (0, 0, 0)
@@ -195,14 +192,12 @@ def forced_basis(edges, em, vm, F):
                 r = len(be) - len(bv) + 1
                 u, v = edges[ex[min(skip)]]
                 if r == 0:
-                    return None, (f'forced line ({u}, {v}) cannot carry a loop momentum: '
-                                  f'its {_ms(X)} block has no loop (r = 0)')
-                return None, (f'the forced lines in the {_ms(X)} block cannot all carry a loop momentum '
-                              f'(block r = {r})')
+                    return None, (f'forced line ({u}, {v}) cannot carry a loop momentum: its {_ms(X)} block has no loop (r = 0)')
+                return None, (f'the forced lines in the {_ms(X)} block cannot all carry a loop momentum (block r = {r})')
             basis_all += [ex[j] for j in basis]
     return basis_all, None
 
-# ---------------------------------------------------------------- line-momentum parameterization
+# ===================== LINE-MOMENTUM PARAMETERIZATION =====================
 
 # Express line momenta as linear combinations of the loop and external momenta.
 def edge_momenta(edges, em, vm, carriers, ext_attach):
@@ -334,7 +329,7 @@ def show_edge_momenta(edges, em, vm, carriers, ext_attach, forced=False):
     print('  These line momenta can form a loop-momentum basis.')
 
 
-# ---------------------------------------------------------------- basis display
+# ========================= BASIS DISPLAY =========================
 
 # Display name for a mode tuple ('∅' when missing).
 def _ms(md):

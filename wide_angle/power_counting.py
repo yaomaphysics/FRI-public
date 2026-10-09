@@ -25,7 +25,7 @@ from indep_loops import indep_loops, edge_momenta
 
 # ============================== INTEGRATION MEASURE & INTEGRAND ==============================
 
-# A: each S^m C_i^n-mode loop momentum contributes \lambda^{(2m+n) \cdot (2-eps)} to the integration measure; Returned as (a0, a1) for \lambda^{a0 + a1*eps}.
+# A: each S^m C_i^n-mode loop momentum contributes \lambda^{(2m+n) \cdot (2-eps)} to the integration measure; returned as (a0, a1) for \lambda^{a0 + a1*eps}.
 def measure_power(results):
     p = sum(r['rank'] * V(r['mode']) for r in results)
     return 2 * p, -p
@@ -255,9 +255,7 @@ def fmt_ast(node):
 
 
 # ---------------------------------------------------------------- per-region evaluation
-# Per-region context for the numerator expansion: modes of the independent loop momenta (k_modes),
-# modes of the externals (p_modes), and each K_i expressed in k1, k2, ... / p_j (K_terms),
-# following this region's own loop-momentum decomposition.
+# Per-region context for the numerator expansion: the loop-momentum and external modes, and each K_i expressed in k1, k2, ... / p_j.
 def region_context(edges, em, vm, ext_attach, extmode):
     results, _total, _L = indep_loops(edges, em, vm)
     basis_all = [j for r in results for b in r['blocks'] for j in b['basis']]
@@ -320,37 +318,3 @@ def term_breakdown(ast, ctx):
     terms = ast[1] if ast[0] == 'add' else [ast]
     powers = [(fmt_ast(t), numerator_power(t, ctx)) for t in terms]
     return powers, min(p for _t, p in powers)
-
-
-# ---------------------------------------------------------------- snapshot CLI
-# Quick check on the default example graph: parse a file path OR a literal expression, print N per region.
-if __name__ == '__main__':
-    import os, sys
-    from facet_regions_interactive import enumerate_regions, DEFAULT_EDGES, parse_edge_list, parse_region_select
-    from read_graph import parse_mode
-
-    edges = [tuple(sorted((a, b))) for (a, b) in parse_edge_list(DEFAULT_EDGES)]
-    exts = {'p1': (1, 'C1'), 'p2': (2, 'C2^2'), 'p3': (3, 'C3^inf'), 'p4': (4, 'C4^inf')}
-    ext_attach = {n: v for n, (v, s) in exts.items()}
-    extmode = {n: parse_mode(s) for n, (v, s) in exts.items()}
-    verts = sorted({v for e in edges for v in e} | set(ext_attach.values()))
-    regs = enumerate_regions(verts, edges, ext_attach, extmode)
-
-    if len(sys.argv) > 1:
-        arg = sys.argv[1]
-        text = open(arg).read() if os.path.exists(arg) else arg
-    else:
-        text = r'(p1\cdot K_1)(K_2\cdot K_3)'
-    sel = parse_region_select(sys.argv[2], len(regs)) if len(sys.argv) > 2 else [1, 21, 81]
-    ast, warns = parse_numerator(text, len(edges), set(extmode))
-    for w in warns:
-        print('! note:', w)
-    print('numerator =', fmt_ast(ast) if ast else '1 (scalar)')
-    for i in sel:
-        vm, em = regs[i - 1]
-        ctx = region_context(edges, em, vm, ext_attach, extmode)
-        results, _t, _L = indep_loops(edges, em, vm)
-        a0, a1 = measure_power(results)
-        b = integrand_power(em)
-        n = numerator_power(ast, ctx) if ast else 0
-        print(f'R{i}: A-B = {fmt_power(a0 - b, a1)} | N = {n} | power = {fmt_power(a0 - b + n, a1)}')

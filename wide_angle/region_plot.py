@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """region_plot.py — render wide-angle FRI regions as PNG figures with per-mode colors.
 
-Style spec (final, 2026-09-15) — wide-angle edition:
+Style spec (final) — wide-angle edition:
 
   colors  (directions: C_1 -> 1, C_2 -> 2, C_3 -> 3, C_4 -> 4)
       H                                           Blue
@@ -35,8 +35,7 @@ import time
 
 BASE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, BASE)
-from read_graph import mode_str as mode_name
-from primitives import scaling_of
+from primitives import scaling_of, mode_str as mode_name
 
 EDGE_T = '0.0055'
 R_VERT = '0.010'
@@ -46,6 +45,8 @@ EXT_LABEL_BLUE = 'RGBColor[0.02, 0.25, 0.7]'
 COLOR_ORDER = ['Blue', 'Green', 'DarkGreen', 'D12', 'D6', 'Magenta', 'Orange', 'Red', 'Pink', 'DarkYellow', 'DarkRed']
 DISPLAY_NAME = {'D12': 'Teal', 'D6': 'Olive', 'Green': 'LightGreen'}   # caption words ("Teal" and "Olive" for display only; figures keep their real colors)
 
+
+# ========================== FIGURE RENDERING ==========================
 
 # (color-name, wl-directive) for one wide-angle mode tuple (m, n, i).
 def mode_color(x):
@@ -215,7 +216,7 @@ def render_individual_pngs(edges, verts, items, ext_mode=None, ext_attach=None, 
     return paths
 
 
-# ---------------------------------------------------------------- PDF atlas
+# ============================= PDF ATLAS =============================
 # Region atlas: A4 portrait, `nrows` rows/page; each row shows the region figure on the left and, on the right, "R{n} v = (...)" plus one line per mode, listing the edges and vertices.
 
 ATLAS_FONT = 'Utopia'
@@ -274,6 +275,7 @@ def ts_mode(md, font=None):
     return 'Row[{%s, %s}]' % (mpart, cpart)
 
 
+# Fold a caption line to the atlas width.
 def fold_lines(s, width=ATLAS_FOLD):
     out, cur = [], ''
     for piece in s.split(', '):
@@ -292,6 +294,7 @@ def fold_lines(s, width=ATLAS_FOLD):
     return out
 
 
+# Sort key for the mode lines of an atlas row (C family, then S carriers, then H).
 def atlas_mode_key(m):
     m0, n, i = m if m is not None else (0, 0, 0)
     if (m0, n, i) == (0, 0, 0):

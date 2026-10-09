@@ -1,52 +1,42 @@
 #!/usr/bin/env python3
-"""scaleless_diagnosis.py — why is a momentum-mode assignment not a region?
+r"""scaleless_diagnosis.py — why is a momentum-mode assignment not a region?
 
-This is the counterpart of the region browser: instead of telling MORE
-about a region, it explains why a NON-region is scaleless.  The user
-inputs an assignment of momentum modes to the edges of a graph (vertex
-modes are derived: 𝒳(v) = ∨ of the incident edge modes ∪ attached
-externals).  FRI then runs its region checks in order:
+This is the counterpart of the region browser: instead of telling MORE about a region, it explains why a NON-region is scaleless.
+The user inputs an assignment of momentum modes to the edges of a graph (vertex modes are derived: 𝒳(v) = ∨ of the incident edge modes ∪ attached externals).
 
+FRI then runs its region checks in order:
   1. momentum conservation at every vertex,
   2. jet connectivity (Coleman--Norton interpretation),
   3. mojetic (H∪J∖J_i),
   4. First Connectivity,
   5. IR compatibility (fixed-point confirmation flow),
+and stops at the FIRST failure.
 
-and stops at the FIRST failure.  If the assignment is a region, the
-answer is simply that.  If not, the expanded integral is scaleless, and
-the failing check identifies the responsible subgraph together with the
-physical mechanism:
-
+If the assignment is a region, the answer is simply that.
+If not, the expanded integral is scaleless, and the failing check identifies the responsible subgraph together with the physical mechanism:
   - momentum violation        -> the specific vertex,
   - jet disconnected          -> the specific jet (Coleman--Norton),
   - mojetic                   -> hard-jet interaction,
-  - First Connectivity        -> the non-H subgraph harder than its
-                                 neighbours,
-  - IR-compat deadlock        -> the union of the non-confirmed
-                                 subgraphs.
+  - First Connectivity        -> the non-H subgraph harder than its neighbours,
+  - IR-compat deadlock        -> the union of the non-confirmed subgraphs.
 
 Usage: python3 scaleless_diagnosis.py
   internal_lines: edge list, e.g. "1-5,1-8,..." (Python lists like [[1,5],[1,8],...] work too)
   externals: prompted one by one (vertex, name, mode) — the example uses p1 = [1,'C1'], p2 = [2,'C2^2'],
   p3 = [3,'C3^inf'], p4 = [4,'C4^inf']
   edge_modes     = ['C1','C1','C1','H','H','C1','H','H','C1','C1']
-  (one mode per edge, in input edge order; built-in example = 4pt3loop
-  region 8, a genuine region)
+  (one mode per edge, in input edge order; built-in example = 4pt3loop region 8, a genuine region)
 
-Mode syntax: H / S / S^m / C_i / C_i^n / C_i^inf / C_i^\\infty / SC_i /
-SC_i^n / S^mC_i^n  (C_i without n means n=1; i is the direction index).
+Mode syntax: H / S / S^m / C_i / C_i^n / C_i^inf / C_i^\infty / SC_i / SC_i^n / S^mC_i^n  (C_i without n means n=1; i is the direction index).
 """
 import sys, os, itertools, re, signal
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from read_graph import parse_mode, INF
-from primitives import Graph, vertex_mode, vee, eq, V
+from primitives import Graph, vertex_mode, vee, eq, V, parse_mode, INF
 from region_checker import (hard_jet_mojetic_ok, confirm_all, mode_components)
 
 H = (0, 0, 0)
 
-
-# ---------------------------------------------------------------- diagnostics
+# ========================= DIAGNOSTICS =========================
 # First vertex where momentum conservation fails (same logic as primitives.momentum_ok, but reports the vertex).
 def momentum_fail_vertex(g, em, extmode):
     for v in g.vertices:
@@ -115,7 +105,7 @@ def disconnected_jet(vm, em, edges_in):
     return None
 
 
-# First First-Connectivity failure: the isolated component (verts + edges) of ∪_{𝒱≤n} Γ_X — the "non-H subgraph harder than its neighbours"; returns (verts, edges) or None.
+# First Connectivity failure: the isolated component (verts + edges) of ∪_{𝒱≤n} Γ_X — the "non-H subgraph harder than its neighbours"; returns (verts, edges) or None.
 def fc_fail_subgraph(g, em, extmode):
     eVs = [V(m) if m is not None else INF for m in em]
     vVs = []
@@ -161,7 +151,7 @@ def fc_fail_subgraph(g, em, extmode):
     return None
 
 
-# IR-compatibility fixed-point flow (2026-08-21: components are 1VI blocks from mode_components, not connected components; 2026-09-26: shared confirm_all core); returns (ok, stuck_components).
+# IR-compatibility fixed-point flow over the 1VI blocks from mode_components; returns (ok, stuck_components).
 def ir_compat_fail(vm, em, edges_in, ext_attach, extmode):
     e3 = [(a, b, md) for (a, b), md in zip(edges_in, em) if md is not None]
     all_comps = mode_components(edges_in, [md for (_, _, md) in e3], ext_attach, extmode)
@@ -182,7 +172,7 @@ def _fmt_set(items):
     return '{' + ', '.join(parts) + '}'
 
 
-# ---------------------------------------------------------------- the chain
+# =========================== CHECK CHAIN ===========================
 # Run the FRI check chain; stop at the first failure; returns (is_region, message).
 def diagnose(edges, em, ext_attach, extmode):
     verts = sorted({v for e in edges for v in e})
@@ -198,8 +188,6 @@ def diagnose(edges, em, ext_attach, extmode):
     j = disconnected_jet(vm, em, edges)
     if j is not None:
         return False, (f'the Coleman--Norton interpretation is violated because jet C_{j} is disconnected')
-
-    # (contracted-1VI check removed — superseded by third_port; mode components are 1VI blocks from mode_components — see ir_ok.)
 
     # 3. mojetic (H∪J∖J_i)
     ok, _ = hard_jet_mojetic_ok(edges, em, ext_attach, extmode)
@@ -224,10 +212,9 @@ def diagnose(edges, em, ext_attach, extmode):
     return True, 'this mode assignment IS a region'
 
 
-# ---------------------------------------------------------------- interactive
+# ========================== INTERACTIVE ==========================
 DEFAULT_EDGES = '1-5,1-8,2-5,2-7,3-6,3-8,4-6,4-7,5-6,7-8'
 DEFAULT_MODES = "['C1','C1','C1','H','H','C1','H','H','C1','C1']"
-
 
 # Ask a y/n question (empty = n); any other input re-asks.
 def ask_yn(prompt):
@@ -238,6 +225,7 @@ def ask_yn(prompt):
         print('  ! answer y or n (empty = n)')
 
 
+# Ask for one value, evaluated as an expression ('q'/'b' = quit, empty = default when given).
 def ask(label, default=None):
     print(f'{label}:' + (f'  (default: {default})' if default else ''))
     line = input('> ').strip()
@@ -317,6 +305,7 @@ def ask_externals():
     return out
 
 
+# Interactive loop: collect topology, externals and edge modes, then run the diagnosis.
 def main():
     print('=== scaleless diagnosis ===')
     print('Input: graph + external kinematics + an edge-mode assignment.')

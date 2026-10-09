@@ -21,10 +21,7 @@ the shared base layer (mode algebra, graph and component machinery) is in primit
 
 from collections import defaultdict, deque
 from itertools import combinations
-from primitives import (V, eq, harder_or_eq, join, meet, marginally_softer, find_1vi_blocks, vee, vertex_mode, H)
-
-INF = 100   # a large value representing the positive infinity.
-
+from primitives import (V, eq, harder_or_eq, join, meet, marginally_softer, find_1vi_blocks, is_connected, vee, vertex_mode, INF, H)
 
 # ================== BASIC GRAPH & MODE CONSTRUCTIONS ==================
 
@@ -65,17 +62,8 @@ def _is_connected_aux(verts, edges, aux_conn=None):
         for i in range(1, len(ac)):
             adj[ac[0]].add(ac[i])
             adj[ac[i]].add(ac[0])
-    # check connectivity: starting from a vertex to see whether other vertices are all reachable
-    start = next(iter(verts))
-    seen = {start}
-    st = [start]
-    while st:
-        x = st.pop()
-        for y in adj[x]:
-            if y not in seen:
-                seen.add(y)
-                st.append(y)
-    return len(seen) == len(verts)
+    # connectivity check (all verts reachable; shared helper)
+    return is_connected(verts, adj)
 
 
 # Construction of mode components. (An X component is defined as the union of those elements (edges and vertices) contributing to a 1VI component of the contracted X subgraph.)
@@ -310,8 +298,7 @@ def hard_jet_mojetic_ok(edges_in, em, ext_attach, ext_mode=None):
         J_all |= set(es)
     ext_names = list(ext_attach)
     failures = []
-    # Note that the index i in H∪J∖J_i runs over ALL external-momentum directions — including directions with J_i EMPTY.
-    # (Then ∖J_i removes no edges, and only the external momentum p_i is excluded.)
+    # Note that the index i in H∪J∖J_i runs over ALL external-momentum directions — including directions with J_i EMPTY (then ∖J_i removes no edges, only the external momentum p_i).
     if ext_mode is None:
         dirs = sorted({ext_attach[n] for n in ext_names})
     else:
@@ -546,7 +533,7 @@ def cond1_confirms(g, confirmed, verts, edges, all_comps, attach, extmode):
 def find_messenger(g, all_comps, verts, edges, attach, extmode, confirmed=(), kernel=None, kernel_blocks=None):
     m = g['mode'][0]
     if g['mode'][1] != 0 or g['mode'][2] != 0: return None
-    # Default kernel: the single block g (2026-08-14 connected-kernel semantics); a passed kernel is the whole connected S^m cloud (rule 1, 2026-09-04).
+    # Default kernel: the single block g (connected-kernel semantics); a passed kernel is the whole connected S^m cloud.
     if kernel is None:
         kernel = {'mode': g['mode'], 'V': set(g['V']), 'E': set(g['E'])}
         kernel_blocks = [g]
@@ -741,7 +728,7 @@ def check_conditions(g, confirmed, verts, edges, all_comps, attach, extmode, sta
     res = find_messenger(g, all_comps, verts, edges, attach, extmode, confirmed, kernel=kern, kernel_blocks=kbs or None)
     if res is not None:
         G, special, kbs = res
-        # Type-2 special (m_i=0): the kernel is fed by its own attached S^m C_i^{n'} external — no relevance to a confirmed subgraph required (2026-08-12).
+        # Special case (m_i=0): the kernel is fed by its own attached S^m C_i^{n'} external — in this case, no relevance to a confirmed subgraph required.
         if special:
             return 2, kbs
         for g0 in confirmed:

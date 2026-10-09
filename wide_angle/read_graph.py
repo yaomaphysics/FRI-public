@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""read_graph.py — interactive graph + external-momenta reader for the
-Facet Region Interpreter (unitarity-cut approach).
+"""read_graph.py — interactive graph + external-momenta reader for the Facet Region Interpreter (unitarity-cut approach).
 
 Step 1: ask for the edges.
     Format:  [a,b],[c,d],...     e.g. [1,2],[1,3],[2,3] for a triangle graph
@@ -10,62 +9,15 @@ Step 2: ask for the external momenta.
     Format:  ['p1',1,C1],['p2',2,C2^2],['p3',3,C3^\\infty],['p4',4,C4^\\infty]
     Each entry: [name, vertex, mode].
 
-The program echoes a canonical summary (vertices, sorted edges, degrees,
-external attachments, parsed modes) and asks for confirmation, so the user
-can verify that the graph was read correctly.
+The program echoes a canonical summary (vertices, sorted edges, degrees, external attachments, parsed modes) and asks for confirmation, so the user can verify that the graph was read correctly.
 
-Usage:
-    python3 read_graph.py
+Usage: python3 read_graph.py
 """
 import re
 import sys
 from collections import defaultdict
 
-INF = 100   # sentinel for C_i^inf (infty); one value for the whole wide-angle tree (2026-09-24)
-
-# ---------------- mode parsing ----------------
-# Parse a mode string into (m, n, i) [S^m C_i^n; H = (0,0,0); C_i^inf -> n = INF]; accepts 'inf'/'infty'/'∞'/'\\infty' and the SC_i shorthand.
-# (Single implementation for the WA tree; primitives re-exports it — merged here 2026-09-24.)
-def parse_mode(s):
-    s = s.strip().replace(' ', '')
-    if s in ('H', 'h'):
-        return (0, 0, 0)
-    if s == 'S':
-        return (1, 0, 0)
-    m = re.fullmatch(r'S\^(\d+)', s)
-    if m:
-        return (int(m.group(1)), 0, 0)
-    m = re.fullmatch(r'S\^?(\d+)?C_?(\d+)\^?(\d+|inf|infty|∞|\\infty)?', s)
-    if m:
-        ms, i, ns = m.group(1), int(m.group(2)), m.group(3)
-        mval = int(ms) if ms else 1
-        nval = INF if ns in ('inf', 'infty', '∞', '\\infty') else (int(ns) if ns else 1)
-        return (mval, nval, i)
-    m = re.fullmatch(r'SC_?(\d+)\^?(\d+|inf|infty|∞|\\infty)?', s)
-    if m:
-        i, ns = int(m.group(1)), m.group(2)
-        nval = INF if ns in ('inf', 'infty', '∞', '\\infty') else (int(ns) if ns else 1)
-        return (1, nval, i)
-    m = re.fullmatch(r'C_?(\d+)\^?(\d+|inf|infty|∞|\\infty)?', s)
-    if m:
-        i, ns = int(m.group(1)), m.group(2)
-        nval = INF if ns in ('inf', 'infty', '∞', '\\infty') else (int(ns) if ns else 1)
-        return (0, nval, i)
-    raise ValueError(f"cannot parse mode: {s!r} (use e.g. C2^inf, C2^\\infty, SC4, S^2, H)")
-
-# Internal tuple back to a readable string (for verification echo).
-def mode_str(md):
-    m, n, i = md
-    if m == 0 and n == 0:
-        return 'H'
-    if n == 0:
-        return 'S' if m == 1 else f'S^{m}'
-    if m == 0:
-        if n >= INF:
-            return f'C_{i}^∞'
-        return f'C_{i}' if n == 1 else f'C_{i}^{n}'
-    return f'S^{m}C_{i}^{n}'
-
+from primitives import INF, parse_mode, mode_str   # mode parsing lives in the base layer
 
 # ---------------- mode classes & short labels ----------------
 # Short label: (1,1)->SC, (1,2)->SC^2, (2,1)->S^2C, (m,0)->S^m.

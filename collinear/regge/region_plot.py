@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """region_plot.py — render FRI regions of a graph as PNG figures with per-mode colours.
 
-Style spec (final, 2026-09-15):
+Style spec (final):
 
   colours
       H                                         Blue
@@ -74,6 +74,8 @@ COLOR_ORDER = ['Blue', 'Green', 'DarkGreen', 'D12', 'D6', 'Magenta', 'Orange', '
 DISPLAY_NAME = {'D12': 'Teal', 'D6': 'Olive', 'Green': 'LightGreen'}   # caption words (display only; figures keep their colours)
 
 
+# ========================== FIGURE RENDERING ==========================
+
 # (color-name, wl-directive) for one mode string (regge vocabulary).
 def mode_color(m):
     if m == 'H':
@@ -113,9 +115,7 @@ def vertex_directive(m):
     return mode_color(m)[1], 'None'
 
 
-# Caption block: one line per colour, listing all modes it covers. Returns lines; each line is a list of (word, wl-
-# colour, modes-text) parts. The word is the display name (cf. DISPLAY_NAME), printed bold and in the colour of its
-# modes.
+# Caption block: one line per colour, listing all modes it covers (word = display name, cf. DISPLAY_NAME).
 def make_caption_lines(em, vm):
     by = {}
     dirs = {}
@@ -141,9 +141,7 @@ def make_caption_lines(em, vm):
     return lines
 
 
-# Escape a literal string for inclusion in WL source. Backslashes and quotes are escaped; non-ASCII characters are
-# converted to WL unicode escapes (\:hhhh) — raw non-ASCII bytes in .wls files are mis-decoded by this pipeline
-# (mojibake, e.g. the mode infinity '∞').
+# Escape a literal string for WL source (backslash/quote escaped; non-ASCII as \:hhhh — raw non-ASCII bytes get mis-decoded).
 def _esc(s):
     s = s.replace('\\', '\\\\').replace('"', '\\"')
     return ''.join(ch if ord(ch) < 128 else '\\:%04x' % ord(ch) for ch in s)
@@ -252,7 +250,7 @@ def render_individual_pngs(edges, verts, items, ext_mode=None, ext_attach=None, 
     return paths
 
 
-# ---------------------------------------------------------------- PDF atlas
+# ============================= PDF ATLAS =============================
 # Region atlas: A4 portrait, `nrows` rows/page; each row shows the region
 # figure on the left and, on the right, "R{n} v = (...)" plus one line per
 # mode ("<typeset mode>: v{...} e{...}").  Pages are exported one by one
@@ -290,8 +288,7 @@ def ts(s, font=None, italic=False, bold=False):
 _MODE_TOK = re.compile('S(?:\\^\\d+)?|C\\d+(?:\\^INF|\\^\\d+|\u221e)?')
 
 
-# WL typeset expression for a regge mode string (LaTeX-style): 'C13' -> C_13, 'C1^2C13' -> C_1^2 C_13, 'S^2C24' ->
-# S^2 C_24, 'C1∞C13' -> C_1^∞ C_13; G / sH / H italic.
+# WL typeset expression for a regge mode string, LaTeX-style ('C1^2C13' -> C_1^2 C_13, 'S^2C24' -> S^2 C_24; G/sH/H italic).
 def _ts_str(m, font=None):
     font = font or ATLAS_FONT
 
@@ -332,6 +329,7 @@ def ts_mode(m, font=None):
     return _ts_str(m, font)
 
 
+# Fold a caption line to the atlas width.
 def fold_lines(s, width=ATLAS_FOLD):
     out, cur = [], ''
     for piece in s.split(', '):
@@ -353,8 +351,7 @@ def fold_lines(s, width=ATLAS_FOLD):
 _ATLAS_MODE_ORDER = {'Green': 0, 'DarkGreen': 1, 'Magenta': 2, 'Red': 3, 'Orange': 4, 'Pink': 5, 'D12': 6, 'D6': 7, 'Black': 8, 'DarkYellow': 9, 'DarkRed': 10, 'Blue': 11}
 
 
-# Order of the per-mode lines: the module's colour groups first (C13 family, C24 family, soft), H last; the name
-# breaks ties.
+# Order of the per-mode lines: the module's colour groups first (C13 family, C24 family, soft), H last; the name breaks ties.
 def atlas_mode_key(m):
     return (_ATLAS_MODE_ORDER.get(mode_color(m)[0], 99), m)
 
@@ -406,9 +403,7 @@ def atlas_row_exprs(k, r, edges, font=None):
     return out
 
 
-# WL Graphics[...] for one atlas page (A4). The mini figure is placed by its content bounding box (computed in WL as
-# bcx/bcy/bbw/bbh/scF): the drawn content is scaled by scF and its box centre aligned to the row centre, so only the
-# drawn region (not the empty canvas margins) defines the visual spacing.
+# WL Graphics[...] for one atlas page (A4); the mini figure is placed by its content bounding box (bcx/bcy/bbw/bbh/scF).
 def atlas_page_expr(page_no, npages, rows, first, last, edges, ext_attach, ext_mode, nrows, font, title):
     W, H = ATLAS_PAGE
     marg, top = ATLAS_MARG, ATLAS_TOP
@@ -430,9 +425,7 @@ def atlas_page_expr(page_no, npages, rows, first, last, edges, ext_attach, ext_m
     return ('Graphics[{%s}, PlotRange -> {{0, %d}, {0, %d}}, ImageSize -> 826, AspectRatio -> %d/%d]' % (', '.join(it), W, H, H, W))
 
 
-# Guard against broken font encodings: render a small probe in the fonts/styles the atlas uses and verify that
-# pdftotext extracts exactly the input characters. (Broken example: 'Nimbus Roman' renders with a constant -34 shift
-# — H -> &, S -> 1, C -> !.) Raises RuntimeError on mismatch; returns the extracted text.
+# Guard against broken font encodings: render a probe and check that pdftotext extracts exactly the input characters; raises on mismatch.
 def check_font_fidelity(font=None, workdir=None):
     font = font or ATLAS_FONT
     if workdir is None:
@@ -468,9 +461,7 @@ def check_font_fidelity(font=None, workdir=None):
     return ext_n
 
 
-# One light wolframscript pass to compute the content bbox, then pick the number of rows/page (in ATLAS_ROWS_AUTO) so
-# that the drawn figures fill each row without leaving big empty bands (wide/flat graphs get more rows). Falls back
-# to ATLAS_ROWS on any failure.
+# Pick rows/page (within ATLAS_ROWS_AUTO) from one light wolframscript content-bbox pass; falls back to ATLAS_ROWS.
 def _layout_rows(edges, verts, ext_attach, items, outdir):
     wl = wls_preamble(edges, verts, ext_attach)
     wl.append('padG = 0.022;')
@@ -494,8 +485,7 @@ def _layout_rows(edges, verts, ext_attach, items, outdir):
     return max(lo, min(hi, rows))
 
 
-# Render [(label, region), ...] as a single PDF atlas (A4, nrows/page; nrows=None -> auto by content aspect); returns
-# the merged PDF path. Runs a font fidelity check first.
+# Render [(label, region), ...] as a single PDF atlas (A4, auto rows/page; runs the font check); returns the PDF path.
 def render_combined_pdf(edges, verts, items, ext_mode=None, ext_attach=None, outdir=None, nrows=None, font=None, title='collinear 2->2', verbose=False):
     font = font or ATLAS_FONT
     if ext_attach is None:

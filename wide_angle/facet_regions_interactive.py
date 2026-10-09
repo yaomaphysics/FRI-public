@@ -31,11 +31,10 @@ Mode syntax: H / S / S^m / C_i / C_i^n / C_i^inf / C_i^\\infty / SC_i / SC_i^n /
 import sys, re, os, time, warnings, signal
 warnings.filterwarnings('ignore', category=SyntaxWarning)
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from read_graph import (mode_str, parse_mode, sc_short, type_order, group_by_type)
-from primitives import scaling_of
+from read_graph import (sc_short, type_order, group_by_type)
+from primitives import scaling_of, mode_str, parse_mode
 from indep_loops import indep_loops, show_basis
-from power_counting import (show_power_counting, measure_power, integrand_power, fmt_power,
-                            parse_numerator, fmt_ast, region_context, numerator_power)
+from power_counting import (show_power_counting, measure_power, integrand_power, fmt_power, parse_numerator, fmt_ast, region_context, numerator_power)
 from power_report import build_report
 from skeleton import run as skeleton_run, kappa_of
 H = (0, 0, 0)
