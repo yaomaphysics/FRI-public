@@ -3,12 +3,14 @@
 
 Style spec (final) — wide-angle edition:
 
-  colors  (directions: C_1 -> 1, C_2 -> 2, C_3 -> 3, C_4 -> 4)
+  colors  (jet colors go to the distinct directions present, in ascending order)
       H                                           Blue
-      direction 1    (C_1, C_1^2, ...)            Green
-      direction 2    (C_2, C_2^2, ...)            DarkGreen
-      direction 3    (C_3, C_3^2, ...)            D12 = Hue[11/24, 0.92, 0.60] -> I call it "Teal"
-      direction 4    (C_4, C_4^2, ...)            D6  = Hue[ 5/24, 0.92, 0.60] -> I call it "Olive"
+      1st direction  (C_i, C_i^2, ...)            Green
+      2nd direction  (C_j, C_j^2, ...)            DarkGreen
+      3rd direction  (C_k, C_k^2, ...)            D12 = Hue[11/24, 0.92, 0.60] -> I call it "Teal"
+      4th direction  (C_l, C_l^2, ...)            D6  = Hue[ 5/24, 0.92, 0.60] -> I call it "Olive"
+      5th direction  (C_m, C_m^2, ...)            Hue[ 9/24, 0.92, 0.60] -> I call it "ForestGreen"
+      6th direction  (C_n, C_n^2, ...)            Hue[12/24, 0.92, 0.60] -> I call it "BlueGreen"
       S              Magenta
       S^2            Red
       S^k x carrier  (S^k C_i^n, k>=1, n>=1)      Orange (k = 1) / Pink (k >= 2) -- they are direction-blind (otherwise too many colors)
@@ -39,14 +41,22 @@ from primitives import scaling_of, mode_str as mode_name
 
 EDGE_T = '0.0055'
 R_VERT = '0.010'
+PAR_BEND = 0.30              # curvature for parallel edges (offset at unit bend = PAR_BEND * edge length; 0 disables)
+LEG_FAN = 0.20               # angular fan between external legs sharing a vertex (radians; 0 disables)
 DEFAULT_EXT = {'p1': 1, 'p2': 2, 'p3': 3, 'p4': 4}
 EXT_LEG_BLUE = 'RGBColor[0.05, 0.35, 0.8]'
 EXT_LABEL_BLUE = 'RGBColor[0.02, 0.25, 0.7]'
-COLOR_ORDER = ['Blue', 'Green', 'DarkGreen', 'D12', 'D6', 'Magenta', 'Orange', 'Red', 'Pink', 'DarkYellow', 'DarkRed']
+COLOR_ORDER = ['Blue', 'Green', 'DarkGreen', 'D12', 'D6', 'ForestGreen', 'BlueGreen', 'Magenta', 'Orange', 'Red', 'Pink', 'DarkYellow', 'DarkRed']
 DISPLAY_NAME = {'D12': 'Teal', 'D6': 'Olive', 'Green': 'LightGreen'}   # caption words ("Teal" and "Olive" for display only; figures keep their real colors)
 
 
 # ========================== FIGURE RENDERING ==========================
+
+# The jet colors, assigned to the distinct directions present (ascending); see assign_direction_colors.
+JET_COLORS = [('Green', 'Green'), ('DarkGreen', 'DarkGreen'), ('D12', 'Hue[11/24., 0.92, 0.60]'), ('D6', 'Hue[5/24., 0.92, 0.60]'),
+              ('ForestGreen', 'Hue[9/24., 0.92, 0.60]'), ('BlueGreen', 'Hue[12/24., 0.92, 0.60]')]
+DIR_SLOT = {1: 0, 2: 1, 3: 2, 4: 3}
+
 
 # (color-name, wl-directive) for one wide-angle mode tuple (m, n, i).
 def mode_color(x):
@@ -59,21 +69,56 @@ def mode_color(x):
         return ('Magenta', 'Magenta') if m == 1 else ('Red', 'Red')
     if m >= 1:                     # S^k x carrier — direction-blind
         return ('Orange', 'Orange') if m == 1 else ('Pink', 'Pink')
-    # C_i^n — colored by direction
-    if i == 1:
-        return 'Green', 'Green'
-    if i == 2:
-        return 'DarkGreen', 'DarkGreen'
-    if i == 3:
-        return 'D12', 'Hue[11/24., 0.92, 0.60]'
-    if i == 4:
-        return 'D6', 'Hue[5/24., 0.92, 0.60]'
+    # C_i^n — jet colors in the order of the distinct directions present (see assign_direction_colors)
+    slot = DIR_SLOT.get(i)
+    if slot is not None and slot < len(JET_COLORS):
+        return JET_COLORS[slot]
     return 'Black', 'Black'
+
+
+# Reassign the four jet colors to the distinct directions present, in ascending order (called by the render entry points).
+def assign_direction_colors(items, ext_mode):
+    modes = []
+    for _lab, (vm, em) in items:
+        modes += [m for m in em if m is not None] + [m for m in vm.values() if m is not None]
+    if ext_mode:
+        modes += [m for m in ext_mode.values() if m is not None]
+    global DIR_SLOT
+    DIR_SLOT = {d: k for k, d in enumerate(sorted({m[2] for m in modes if m[2] >= 1}))}
 
 
 # (style, thickness) for one edge — all wide-angle edges are solid.
 def edge_directive(x):
     return mode_color(x)[1], EDGE_T
+
+
+# Bends for parallel edges: single edges 0; a group of k gets symmetric offsets (k=2: -1, +1; k=3: -1, 0, +1).
+def edge_bends(edges):
+    groups = {}
+    for i, (a, b) in enumerate(edges):
+        groups.setdefault((a, b) if a <= b else (b, a), []).append(i)
+    bends = [0.0] * len(edges)
+    for idxs in groups.values():
+        k = len(idxs)
+        if k == 1:
+            continue
+        for j, i in enumerate(idxs):
+            t = (j - (k - 1) / 2.0) / ((k - 1) / 2.0)
+            a, b = edges[i]
+            bends[i] = -t if a > b else t
+    return bends
+
+# Fan angles for external legs sharing a vertex: a group of k fans out by LEG_FAN steps; single legs stay 0.
+def leg_fans(ext_attach):
+    groups = {}
+    for name, v in sorted(ext_attach.items()):
+        groups.setdefault(v, []).append(name)
+    fans = {}
+    for names in groups.values():
+        k = len(names)
+        for j, n in enumerate(names):
+            fans[n] = (j - (k - 1) / 2.0) * LEG_FAN if k > 1 else 0.0
+    return fans
 
 
 # (fill, edgeform) for one vertex — plain fill, no outline.
@@ -82,12 +127,15 @@ def vertex_directive(x):
 
 
 # Caption block: one line per color, listing all modes it covers; each line is a list of (word, wl-color, modes-text) parts (the word = display name, cf. DISPLAY_NAME).
-def make_caption_lines(em, vm):
+def make_caption_lines(em, vm, ext_mode=None):
     def _nm(m):
         return mode_name(m if m is not None else (0, 0, 0))
     by = {}
     dirs = {}
-    for m in sorted(set(em) | set(vm.values()), key=_nm):
+    modes = set(em) | set(vm.values())
+    if ext_mode:
+        modes |= {m for m in ext_mode.values() if m is not None}
+    for m in sorted(modes, key=_nm):
         c, d = mode_color(m)
         by.setdefault(c, []).append(m)
         dirs.setdefault(c, d)
@@ -148,6 +196,9 @@ def wls_preamble(edges, verts, ext_attach):
     wl.append('cx = Mean[Table[ncoord[v][[1]], {v, allV}]];')
     wl.append('cy = Mean[Table[ncoord[v][[2]], {v, allV}]];')
     wl.append('stub[v_] := ncoord[v] + Normalize[ncoord[v] - {cx, cy} + {1.*^-6, 0}] (rvert + 0.095);')
+    wl.append('arcseg[pa_, pb_, s_] := Module[{d = pb - pa}, BezierCurve[{pa, (pa + pb)/2 + s*{-(d[[2]]), d[[1]]}, pb}]];')
+    wl.append('rotdir[v_, t_] := Module[{u = Normalize[ncoord[v] - {cx, cy} + {1.*^-6, 0}]}, {u[[1]] Cos[t] - u[[2]] Sin[t], u[[1]] Sin[t] + u[[2]] Cos[t]}];')
+    wl.append('legpt[v_, t_] := ncoord[v] + (rvert + 0.095)*rotdir[v, t];')
     return wl
 
 
@@ -155,15 +206,24 @@ def wls_preamble(edges, verts, ext_attach):
 def panel_lines(pos, label, vec, em, vm, edges, outpath, ext_attach, ext_mode=None, image_size=720):
     verts = sorted({v for e in edges for v in e})
     items = []
+    bends = edge_bends(edges)
+    fans = leg_fans(ext_attach)
     for i, (a, b) in enumerate(edges):
         style, th = edge_directive(em[i])
-        items.append('{%s, Thickness[%s], Line[{ncoord[%d], ncoord[%d]}]}' % (style, th, a, b))
+        if bends[i]:
+            items.append('{%s, Thickness[%s], arcseg[ncoord[%d], ncoord[%d], %.4f]}' % (style, th, a, b, bends[i] * PAR_BEND))
+        else:
+            items.append('{%s, Thickness[%s], Line[{ncoord[%d], ncoord[%d]}]}' % (style, th, a, b))
     for legname, vertex in sorted(ext_attach.items()):
         if ext_mode and legname in ext_mode:
             _, wlcol = mode_color(ext_mode[legname])
         else:
             wlcol = EXT_LEG_BLUE
-        items.append('{%s, Thickness[0.0045], Line[{ncoord[%d], stub[%d]}]}' % (wlcol, vertex, vertex))
+        t = fans[legname]
+        if t:
+            items.append('{%s, Thickness[0.0045], Line[{ncoord[%d], legpt[%d, %.4f]}]}' % (wlcol, vertex, vertex, t))
+        else:
+            items.append('{%s, Thickness[0.0045], Line[{ncoord[%d], stub[%d]}]}' % (wlcol, vertex, vertex))
     for v in verts:
         face, ef = vertex_directive(vm[v])
         items.append('{EdgeForm[%s], %s, Disk[ncoord[%d], rvert]}' % (ef, face, v))
@@ -174,9 +234,13 @@ def panel_lines(pos, label, vec, em, vm, edges, outpath, ext_attach, ext_mode=No
             _, wlcol = mode_color(ext_mode[legname])
         else:
             wlcol = EXT_LABEL_BLUE
-        items.append('{%s, Text[Style["%s", Bold, FontSize -> 12], stub[%d] + Normalize[stub[%d] - ncoord[%d]] 0.030]}' % (wlcol, legname, vertex, vertex, vertex))
+        t = fans[legname]
+        if t:
+            items.append('{%s, Text[Style["%s", Bold, FontSize -> 12], legpt[%d, %.4f] + rotdir[%d, %.4f]*0.030]}' % (wlcol, legname, vertex, t, vertex, t))
+        else:
+            items.append('{%s, Text[Style["%s", Bold, FontSize -> 12], stub[%d] + Normalize[stub[%d] - ncoord[%d]] 0.030]}' % (wlcol, legname, vertex, vertex, vertex))
     cap1 = 'R%d:  v = (%s)' % (label, ', '.join(str(x) for x in vec))
-    caplines = make_caption_lines(em, vm)
+    caplines = make_caption_lines(em, vm, ext_mode)
     items.append('{GrayLevel[0.1], Text[Style["%s", FontSize -> 11.5], {0.020, 0.105}, {-1, 0}]}' % _esc(cap1))
     for j, ln in enumerate(caplines[:3]):
         pieces = []
@@ -195,6 +259,7 @@ def render_individual_pngs(edges, verts, items, ext_mode=None, ext_attach=None, 
     if outdir is None:
         outdir = os.path.join(BASE, 'fri_out', time.strftime('regions_%Y%m%d-%H%M%S'))
     os.makedirs(outdir, exist_ok=True)
+    assign_direction_colors(items, ext_mode)
     wl = wls_preamble(edges, verts, ext_attach)
     paths = []
     for pos, (label, region) in enumerate(items, 1):
@@ -307,15 +372,24 @@ def atlas_mode_key(m):
 # Wolfram-Language Graphics[...] for one row's mini figure (all fonts absolute pt).
 def mini_fig_expr(vm, em, edges, ext_attach, ext_mode):
     items = []
+    bends = edge_bends(edges)
+    fans = leg_fans(ext_attach)
     for i, (a, b) in enumerate(edges):
         style, th = edge_directive(em[i])
-        items.append('{%s, Thickness[%s], Line[{ncoord[%d], ncoord[%d]}]}' % (style, MINI['edge_t'], a, b))
+        if bends[i]:
+            items.append('{%s, Thickness[%s], arcseg[ncoord[%d], ncoord[%d], %.4f]}' % (style, MINI['edge_t'], a, b, bends[i] * PAR_BEND))
+        else:
+            items.append('{%s, Thickness[%s], Line[{ncoord[%d], ncoord[%d]}]}' % (style, MINI['edge_t'], a, b))
     for legname, v in sorted(ext_attach.items()):
         if ext_mode and legname in ext_mode:
             _, col = mode_color(ext_mode[legname])
         else:
             col = EXT_LEG_BLUE
-        items.append('{%s, Thickness[%s], Line[{ncoord[%d], stub[%d]}]}' % (col, MINI['leg_t'], v, v))
+        t = fans[legname]
+        if t:
+            items.append('{%s, Thickness[%s], Line[{ncoord[%d], legpt[%d, %.4f]}]}' % (col, MINI['leg_t'], v, v, t))
+        else:
+            items.append('{%s, Thickness[%s], Line[{ncoord[%d], stub[%d]}]}' % (col, MINI['leg_t'], v, v))
     for v in sorted(vm):
         face, ef = vertex_directive(vm[v])
         items.append('{EdgeForm[%s], %s, Disk[ncoord[%d], %s]}' % (ef, face, v, MINI['rv']))
@@ -326,7 +400,11 @@ def mini_fig_expr(vm, em, edges, ext_attach, ext_mode):
             _, col = mode_color(ext_mode[legname])
         else:
             col = EXT_LABEL_BLUE
-        items.append('{%s, Text[Style["%s", Bold, FontSize -> %s], stub[%d] + Normalize[stub[%d] - ncoord[%d]] %s]}' % (col, legname, MINI['fz_leg'], v, v, v, MINI['loff']))
+        t = fans[legname]
+        if t:
+            items.append('{%s, Text[Style["%s", Bold, FontSize -> %s], legpt[%d, %.4f] + rotdir[%d, %.4f]*%s]}' % (col, legname, MINI['fz_leg'], v, t, v, t, MINI['loff']))
+        else:
+            items.append('{%s, Text[Style["%s", Bold, FontSize -> %s], stub[%d] + Normalize[stub[%d] - ncoord[%d]] %s]}' % (col, legname, MINI['fz_leg'], v, v, v, MINI['loff']))
     return 'Graphics[{%s}, PlotRange -> {{0, 1}, {0, 1}}]' % ', '.join(items)
 
 
@@ -420,6 +498,7 @@ def render_combined_pdf(edges, verts, items, ext_mode=None, ext_attach=None, out
     if outdir is None:
         outdir = os.path.join(BASE, 'fri_out', time.strftime('regions_%Y%m%d-%H%M%S'))
     os.makedirs(outdir, exist_ok=True)
+    assign_direction_colors(items, ext_mode)
     check_font_fidelity(font, workdir=os.path.join(outdir, '_font_check')) # font fidelity check
     npages = (len(items) + nrows - 1) // nrows
     wl = wls_preamble(edges, verts, ext_attach)

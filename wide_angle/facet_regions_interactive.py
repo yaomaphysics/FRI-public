@@ -23,8 +23,7 @@ Script:
 Usage: python3 facet_regions_interactive.py [-v]
   (hidden debug switch: 'v' at the edge prompt / -v at startup toggles the enumeration statistics.)
   internal_lines: edge list, e.g. "1-5,1-8,..." (a Python list also works); empty line = built-in example CrownST (the example in Sec. 7.1 of arXiv:2601.22144).
-  externals: prompted one by one (vertex, name, mode) — the example uses p1 = [1,'C1'], p2 = [2,'C2^2'],
-  p3 = [3,'C3^inf'], p4 = [4,'C4^inf'] (81 regions in total).
+  externals: prompted one by one (vertex, name, mode) — the example uses p1 = [1,'C1'], p2 = [2,'C2^2'], p3 = [3,'C3^inf'], p4 = [4,'C4^inf'] (81 regions in total).
 
 Mode syntax: H / S / S^m / C_i / C_i^n / C_i^inf / C_i^\\infty / SC_i / SC_i^n / S^mC_i^n  (C_i without n means n=1; SC_i without n means n=1; i is the direction index from 1).
 """
@@ -32,7 +31,7 @@ import sys, re, os, time, warnings, signal
 warnings.filterwarnings('ignore', category=SyntaxWarning)
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from read_graph import (sc_short, type_order, group_by_type)
-from primitives import scaling_of, mode_str, parse_mode
+from primitives import scaling_of, mode_str, parse_mode, vee, eq
 from indep_loops import indep_loops, show_basis
 from power_counting import (show_power_counting, measure_power, integrand_power, fmt_power, parse_numerator, fmt_ast, region_context, numerator_power)
 from power_report import build_report
@@ -89,6 +88,25 @@ def ask_edges(label, default, default_name=None):
         except ValueError as e:
             print(f'  ! {e}')
 
+# External-momentum sanity check: some partition into two nonempty sets must have equal vee on both sides; also flag all-identical modes.
+def check_ext_momenta(modes):
+    if len(modes) < 2:
+        return 'conservation'
+    full = (1 << len(modes)) - 1
+    for mask in range(1, full):
+        comp = full ^ mask
+        if not comp:
+            continue
+        if eq(vee([modes[i] for i in range(len(modes)) if mask >> i & 1]),
+              vee([modes[i] for i in range(len(modes)) if comp >> i & 1])):
+            break
+    else:
+        return 'conservation'
+    if len(set(modes)) == 1:
+        return 'same'
+    return None
+
+
 # Ask for the external momenta one by one (vertex, name, mode) until the user no longer wants to add another.
 def ask_externals():
     print('Externals: add them one by one (vertex, name, mode; q/b = quit).')
@@ -109,7 +127,10 @@ def ask_externals():
                 return None
             if nm and nm not in out:
                 break
-            print('  ! the name must be non-empty and not yet used: ' + (', '.join(out) if out else '(no names so far)'))
+            if not nm:
+                print('  ! the name must be non-empty')
+            else:
+                print(f'  ! the name "{nm}" is already used — please enter a different name')
         while True:
             s = input(f'  external {i}: mode? (form S^mC_i^n, e.g. S^2C1^3; also allowed: H, S^m, C_i^n) > ').strip()
             if s.lower() in ('q', 'quit', 'exit', 'b', 'back'):
@@ -121,6 +142,15 @@ def ask_externals():
         out[nm] = [vtx, s]
         print(f'  added: {nm} = [vertex {vtx}, mode {s}]')
         if not ask_yn('  Add another external? (y/n) [n] > '):
+            print('  Checking the external momenta...')
+            issue = check_ext_momenta([parse_mode(v[1]) for v in out.values()])
+            if issue == 'conservation':
+                print('  Error: momentum conservation not satisfied — please continue entering the external momenta.')
+                continue
+            if issue == 'same':
+                print('  Error: all the external modes are the same; no expansions — please continue entering the external momenta.')
+                continue
+            print('  Momentum checking fine. Now working on the region list...')
             break
     print(f'  externals = {out}')
     return out
@@ -425,7 +455,6 @@ def main():
     print('Input: graph topology + external momenta only.')
     while True:
         internal_lines = ask_edges('internal_lines (topology, edge list; q/b = back)', DEFAULT_EDGES, 'CrownST')
-        # Hidden debug switch: 'v' toggles the enumeration statistics.
         if internal_lines is TOGGLE_VERBOSE:
             verbose = not verbose
             print(f'-> enumeration statistics {"ON" if verbose else "OFF"}')

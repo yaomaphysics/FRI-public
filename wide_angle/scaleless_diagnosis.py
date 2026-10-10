@@ -268,6 +268,25 @@ def ask_edges(label, default, default_name=None):
         except ValueError as e:
             print(f'  ! {e}')
 
+# External-momentum sanity check: some partition into two nonempty sets must have equal vee on both sides; also flag all-identical modes.
+def check_ext_momenta(modes):
+    if len(modes) < 2:
+        return 'conservation'
+    full = (1 << len(modes)) - 1
+    for mask in range(1, full):
+        comp = full ^ mask
+        if not comp:
+            continue
+        if eq(vee([modes[i] for i in range(len(modes)) if mask >> i & 1]),
+              vee([modes[i] for i in range(len(modes)) if comp >> i & 1])):
+            break
+    else:
+        return 'conservation'
+    if len(set(modes)) == 1:
+        return 'same'
+    return None
+
+
 # Ask for the external momenta one by one (vertex, name, mode); asks whether to add another.
 def ask_externals():
     print('Externals: add them one by one (vertex, name, mode; q/b = quit).')
@@ -288,7 +307,10 @@ def ask_externals():
                 return None
             if nm and nm not in out:
                 break
-            print('  ! the name must be non-empty and not yet used: ' + (', '.join(out) if out else '(no names so far)'))
+            if not nm:
+                print('  ! the name must be non-empty')
+            else:
+                print(f'  ! the name "{nm}" is already used — please enter a different name')
         while True:
             s = input(f'  external {i}: mode? (form S^mC_i^n, e.g. S^2C1^3; also allowed: H, S^m, C_i^n) > ').strip()
             if s.lower() in ('q', 'quit', 'exit', 'b', 'back'):
@@ -300,6 +322,15 @@ def ask_externals():
         out[nm] = [vtx, s]
         print(f'  added: {nm} = [vertex {vtx}, mode {s}]')
         if not ask_yn('  Add another external? (y/n) [n] > '):
+            print('  Checking the external momenta...')
+            issue = check_ext_momenta([parse_mode(v[1]) for v in out.values()])
+            if issue == 'conservation':
+                print('  Error: momentum conservation not satisfied — please continue entering the external momenta.')
+                continue
+            if issue == 'same':
+                print('  Error: all the external modes are the same; no expansions — please continue entering the external momenta.')
+                continue
+            print('  Momentum checking fine.')
             break
     print(f'  externals = {out}')
     return out
