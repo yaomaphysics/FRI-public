@@ -107,9 +107,16 @@ def check_ext_momenta(modes):
     return None
 
 
+# Wide-angle scope: whether md shares a collinear direction C_i with any of the previously entered modes.
+def shares_direction(md, modes):
+    if md[1] < 1:
+        return False
+    return any(m[1] >= 1 and m[2] == md[2] for m in modes)
+
+
 # Ask for the external momenta one by one (vertex, name, mode) until the user no longer wants to add another.
 def ask_externals():
-    print('Externals: add them one by one (vertex, name, mode; q/b = quit).')
+    print('Externals: add them one by one (vertex, name, mode; q/b = quit, except at the name prompt).')
     out = {}
     while True:
         i = len(out) + 1
@@ -122,9 +129,8 @@ def ask_externals():
             except ValueError:
                 print('  ! enter an integer vertex label, e.g. 1')
         while True:
+            # free text: no q/b quit tokens here, so a name like "q" is accepted
             nm = input(f'  external {i}: name? (e.g. p{i}) > ').strip()
-            if nm.lower() in ('q', 'quit', 'exit', 'b', 'back'):
-                return None
             if nm and nm not in out:
                 break
             if not nm:
@@ -136,9 +142,14 @@ def ask_externals():
             if s.lower() in ('q', 'quit', 'exit', 'b', 'back'):
                 return None
             try:
-                parse_mode(s); break
+                md = parse_mode(s)
             except ValueError as e:
                 print(f'  ! {e}')
+                continue
+            if shares_direction(md, [parse_mode(v[1]) for v in out.values()]):
+                print('  ! this mode combination is not allowed in the wide-angle kinematics scope — please enter a different mode')
+                continue
+            break
         out[nm] = [vtx, s]
         print(f'  added: {nm} = [vertex {vtx}, mode {s}]')
         if not ask_yn('  Add another external? (y/n) [n] > '):

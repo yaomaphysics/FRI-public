@@ -146,7 +146,7 @@ def render_pdf(lines, outpath, title, subtitle, preview=None):
 # =============================== TOP LEVEL ===============================
 
 # Build the report for the selected regions (1-based indices) and render it; returns (pdf, preview, lines).
-def build_report(edges, regs, sel, ext_attach, internal_lines, externals, extmode=None, numerator=None):
+def build_report(edges, regs, sel, ext_attach, internal_lines, externals, extmode=None, numerator=None, outdir=None):
     lines = []
     lines.append(f'internal lines: {internal_lines}')
     lines.append(f'externals: {externals}')
@@ -159,8 +159,8 @@ def build_report(edges, regs, sel, ext_attach, internal_lines, externals, extmod
         vm, em = regs[i - 1]
         lines += region_lines(edges, vm, em, ext_attach, extmode, i, numerator=numerator)
         lines.append('')
-    # Output: fri_out/power_derivation_<timestamp>.pdf (+ first-page PNG preview).
-    fdir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'fri_out')
+    # Output: <outdir>/power_derivation_<timestamp>.pdf (+ first-page PNG preview); outdir=None -> fri_out/.
+    fdir = outdir or os.path.join(os.path.dirname(os.path.abspath(__file__)), 'fri_out')
     os.makedirs(fdir, exist_ok=True)
     ts = time.strftime('%Y%m%d-%H%M%S')
     pdf = os.path.join(fdir, f'power_derivation_{ts}.pdf')
