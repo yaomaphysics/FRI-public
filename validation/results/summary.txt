@@ -13,4 +13,14 @@
   rand200_4l                1200   1194      6      0
   rand200_5l                1200   1197      3      0
 
-total: 16400 cases, 16346 OK, 54 scaleless, 0 mismatch
+soft emission, 1 additional (k0-k9):
+  rand1000_3l_1soft_no2v  10000  9914  86  0   (10000 of 10000 cases recorded)
+  rand700_4l_1soft_no2v  7000  6982  18  0   (7000 of 7000 cases recorded)
+  rand300_5l_1soft_no2v  2193  2183  10  0   (2193 of 3000 cases recorded)
+
+soft emission, 2 additional (k0-k1):
+  rand1000_3l_2soft_no2v  2000  1972  28  0   (2000 of 2000 cases recorded)
+  rand500_4l_2soft_no2v  1000  995  5  0   (1000 of 1000 cases recorded)
+
+total (recorded cases): 38593 cases, 38392 OK, 201 scaleless, 0 mismatch
+note: the 5-loop 1-soft batch is partially recorded (2,193 of its 3,000 cases).

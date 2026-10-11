@@ -10,7 +10,8 @@ Companion records for section 8 of *"All-order prescription for facet regions in
 |-------|------------|--------|
 | 4 legs (in 6 chosen kinematics) | 52 topologies (3--5 loops) | 1,200 (4-loop) + 200 (5-loop) graphs |
 | 5 legs (in 4 chosen kinematics) | 397 graphs (a 5th leg attached to some 4-leg topologies) | 1,000 (3-loop) + 700 (4-loop) + 300 (5-loop) graphs |
-| soft emission | 470 configurations (the soft-emission families) | --- |
+| 1 additional soft emission (in 10 chosen kinematics) | 470 configurations (the soft-emission families) | 1,000 (3-loop) + 700 (4-loop) + 300 (5-loop) graphs |
+| 2 additional soft emissions (in 2 chosen kinematics so far) | --- | 1,000 (3-loop) + 500 (4-loop) graphs |
 
 ## Contents
 

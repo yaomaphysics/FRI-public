@@ -44,6 +44,11 @@ from usable_modes import derive_usable_modes, usable_layers
 H = (0, 0, 0)
 
 
+# Per-run memo for the per-leg cut-chain families, keyed by (leg, allowed sets, ...): the same
+# context recurs across H blocks / path assignments.
+_CHAIN_MEMO = {}
+_CHAIN_STAT = {}
+
 # ===================== CUT & CHAIN CONSTRUCTION =====================
 
 # One unitarity cut: a connected vertex set with a MODE; for external p_i with maximal degree n there are cuts C_i..C_i^n.
@@ -96,6 +101,14 @@ def connected_supersets(base, allowed, adj):
 
 
 # Vertices allowed in a cut of leg `k_name`: unattached vertices, the leg's own root, and vertices carrying an external no harder than the cut's mode.
+# All connected sets containing the whole seed set, within allowed (joint soft-leg cut).
+def connected_sets_seeded(seeds, allowed, adj):
+    seeds = frozenset(seeds)
+    if not (seeds <= set(allowed)):
+        return set()
+    return {S for S in connected_supersets(seeds, allowed, adj) if is_connected(S, adj)}
+
+
 def cut_allowed_vertices(verts, edges, ext_attach, ext_mode, k_name, k_md):
     allowed = set()
     for v in verts:
@@ -135,7 +148,7 @@ def cuts_for_external(name, root, md, kappa, layers=None):
 
 
 # All nested chains (S_1 ⊇ ... ⊇ S_n) of one external, with per-layer allowed sets; partial chains allowed.
-def nested_chains(root, n, allowed_list, adj):
+def nested_chains(root, n, allowed_list, adj, seeds_by_k=None):
     chains = []
     if n < 1:
         chains.append(())
@@ -163,7 +176,9 @@ def nested_chains(root, n, allowed_list, adj):
             chains.append(tuple(frozenset() for _ in range(n)))
             continue
         # the innermost nonempty layer S_k lies in its OWN layer's allowed set (essential for partial chains)
-        for S_k in connected_sets(root, allowed_list[k-1], adj):
+        _seed = (seeds_by_k or {}).get(k)
+        for S_k in (connected_sets_seeded(_seed, allowed_list[k-1], adj) if _seed
+                    else connected_sets(root, allowed_list[k-1], adj)):
             for comp in completions(k, S_k):
                 # store outer-first + trailing empty layers (S_1 outermost/largest; the pairing order matters)
                 chain = tuple(comp) + tuple(frozenset() for _ in range(tail_empty))
@@ -229,16 +244,25 @@ def _comps(sub, adj):
 # Run the check chain (Step1 / FC / jet / mojetic / IR) on one cut assignment; returns (vm, em) or None.
 def _check_combo(verts, edges_t, g, ext_attach, ext_mode, combo, seen_vm=None):
     vm = {}
-    for v in verts:
-        # combo entries: (cut, set, mask); bare (cut, set) entries are tolerated
-        incuts = [cut.mode for cut, S, *_rest in combo if v in S]
-        if not incuts:
-            vm[v] = H
-        else:
-            acc = incuts[0]
-            for md in incuts[1:]:
-                acc = meet(acc, md)
-            vm[v] = norm(acc)
+    if all(len(_e) > 2 for _e in combo):
+        # fast path: every entry carries its vertex mask -> integer bit tests, no set lookups
+        for _i, v in enumerate(verts):
+            _b = 1 << _i
+            _acc = None
+            for _c, _Sx, _mx in combo:
+                if _mx & _b:
+                    _acc = _c.mode if _acc is None else meet(_acc, _c.mode)
+            vm[v] = H if _acc is None else norm(_acc)
+    else:
+        for v in verts:
+            incuts = [cut.mode for cut, S, *_rest in combo if v in S]
+            if not incuts:
+                vm[v] = H
+            else:
+                acc = incuts[0]
+                for md in incuts[1:]:
+                    acc = meet(acc, md)
+                vm[v] = norm(acc)
     if seen_vm is not None:
         # vm-level dedup: every check depends only on vm; key = the vm mapping in fixed vertex order
         key_m = tuple([vm[v] for v in verts])
@@ -448,6 +472,8 @@ def run(verts, edges, ext_attach, ext_mode, verbose=True, use_overlap=True, use_
     r = _run_union_construction(verts, edges, ext_attach, ext_mode, verbose=verbose, vm_dedup=vm_dedup)
     if r is not None:
         return r
+    _CHAIN_MEMO.clear()
+    _CHAIN_STAT.clear()
     kappa = kappa_of(ext_mode)
     V = sorted(verts)
     Vset = set(V)
@@ -483,6 +509,25 @@ def run(verts, edges, ext_attach, ext_mode, verbose=True, use_overlap=True, use_
         if md == H:
             continue
         ext_cuts[name] = cuts_for_external(name, ext_attach[name], md, kappa, layers_by_ext.get(name))
+    # Two soft externals with overlapping modes: in this case, add one extra cut of mode vee(md_i, md_j) whose set holds both soft vertices, avoiding the skeleton.
+    _soft_names = sorted(n for n in ext_mode if ext_mode[n][0] >= 1)
+    _joint_seeds = {}
+    _same_mode_pairs = []
+    for _ai in range(len(_soft_names)):
+        for _bi in range(_ai + 1, len(_soft_names)):
+            _na, _nb = _soft_names[_ai], _soft_names[_bi]
+            _ma, _mb = ext_mode[_na], ext_mode[_nb]
+            if _ma == _mb:
+                # equal soft modes X: in this special case, the two X cuts must be either (a) two disjoint separate blobs, or (b) one blob holding both incident points
+                _same_mode_pairs.append(('%s_S%d' % (_na, _ma[0]), '%s_S%d' % (_nb, _mb[0])))
+                continue
+            if harder_or_eq(_ma, _mb) or harder_or_eq(_mb, _ma):
+                continue                      # comparable (equal modes are handled above) -> no joint cut
+            _mdj = vee([_ma, _mb])
+            if _mdj == H:
+                continue
+            ext_cuts[_na].append(Cut('%s_%s_vee' % (_na, _nb), ext_attach[_na], _mdj, ext=_na))
+            _joint_seeds.setdefault(_na, {})[len(ext_cuts[_na])] = {ext_attach[_na], ext_attach[_nb]}
     allowed_by_cut = {}
     for name, cs in ext_cuts.items():
         allowed_by_cut[name] = [cut_allowed_vertices(verts, edges, ext_attach, ext_mode, name, c.mode) for c in cs]
@@ -545,9 +590,19 @@ def run(verts, edges, ext_attach, ext_mode, verbose=True, use_overlap=True, use_
     if verbose:
         print('connected H blocks: %d' % len(Hs))
 
+    # vertices whose attached externals join (vee) to H must belong to the hard block
+    _req = set()
+    for _v in Vset:
+        _ex = [ext_mode[_n] for _n in ext_mode if ext_attach[_n] == _v]
+        if _ex and eq(vee(_ex), H):
+            _req.add(_v)
+    Hs = [S for S in Hs if _req <= set(S)]
+    if verbose:
+        print('required-hard vertices: %s -> H blocks %d' % (sorted(_req), len(Hs)))
     regions = {}
     n_cand = 0
     n_skip = 0
+    n_dich_kill = 0
     n_ov_kill = 0
     n_route_kill = 0
     n_prune = 0
@@ -604,7 +659,18 @@ def run(verts, edges, ext_attach, ext_mode, verbose=True, use_overlap=True, use_
                         blocked |= P
                     alw = [a - blocked for a in alw]
                     # chain elements carry (set, mask) — built once, reused
-                    chain_opts[n] = [tuple((S, mk(S)) for S in ch) for ch in nested_chains(root, len(cs), alw, adj)]
+                    _sd = _joint_seeds.get(n)
+                    _key = (n, len(cs), tuple(frozenset(a) for a in alw),
+                            None if not _sd else tuple(sorted((_k, tuple(sorted(_v))) for _k, _v in _sd.items())))
+                    _got = _CHAIN_MEMO.get(_key)
+                    if _got is None:
+                        _CHAIN_STAT["miss"] = _CHAIN_STAT.get("miss", 0) + 1
+                        _got = tuple(tuple((S, mk(S)) for S in ch) for ch in
+                                     nested_chains(root, len(cs), alw, adj, seeds_by_k=_sd))
+                        _CHAIN_MEMO[_key] = _got
+                    else:
+                        _CHAIN_STAT["hit"] = _CHAIN_STAT.get("hit", 0) + 1
+                    chain_opts[n] = _got
                     continue
                 # C_i^m-type: base cut must contain a root->H path.
                 P = path_assign[n]
@@ -612,6 +678,12 @@ def run(verts, edges, ext_attach, ext_mode, verbose=True, use_overlap=True, use_
                 if not (P <= alw[0]):
                     okc = False
                     break
+                _key = (n, root, P, N, tuple(frozenset(a) for a in alw))
+                _got = _CHAIN_MEMO.get(_key)
+                if _got is not None:
+                    _CHAIN_STAT["hit"] = _CHAIN_STAT.get("hit", 0) + 1
+                    chain_opts[n] = _got
+                    continue
                 S1s = connected_supersets(P, alw[0], adj)
                 if not S1s:
                     okc = False
@@ -630,7 +702,10 @@ def run(verts, edges, ext_attach, ext_mode, verbose=True, use_overlap=True, use_
                     okc = False
                     break
                 # chain elements carry (set, mask) — inner loops stay mask-only
-                chain_opts[n] = [tuple((S, mk(S)) for S in ch) for ch in chains]
+                _CHAIN_STAT["miss"] = _CHAIN_STAT.get("miss", 0) + 1
+                _got = tuple(tuple((S, mk(S)) for S in ch) for ch in chains)
+                _CHAIN_MEMO[_key] = _got
+                chain_opts[n] = _got
             if not okc:
                 continue
             leglist = sorted(chain_opts.keys())
@@ -649,6 +724,31 @@ def run(verts, edges, ext_attach, ext_mode, verbose=True, use_overlap=True, use_
             pmask = {jn: mk(P) for jn, P in path_assign.items()}
             # depth-first over legs; a subtree is pruned once the overlap requirements (or route exclusion) are provably unsatisfiable for all completions
             _opts = [chain_opts[n] for n in leglist]
+            # precomputed per-option masks (never rebuild the slot tuple / OR per DFS node)
+            _optsm = []
+            for _n in leglist:
+                _ns = _nslots[_legpos[_n]]
+                _lst = []
+                for _ch in chain_opts[_n]:
+                    _mt = tuple(_ch[_c][1] if _c < len(_ch) else 0 for _c in range(_ns))
+                    _am = 0
+                    for _m3 in _mt:
+                        _am |= _m3
+                    _lst.append((_mt, _am, _ch))
+                _optsm.append(_lst)
+            # same-mode soft pairs -> slot coordinates + edge bit tests for the in-DFS prune
+            _dich_slots = []
+            for (_ca, _cb) in _same_mode_pairs:
+                _pa = _sb = None
+                for _n in leglist:
+                    for _i, _c in enumerate(ext_cuts[_n]):
+                        if _c.name == _ca:
+                            _pa = (_legpos[_n], _i)
+                        if _c.name == _cb:
+                            _sb = (_legpos[_n], _i)
+                if _pa is not None and _sb is not None:
+                    _dich_slots.append((_pa[0], _pa[1], _sb[0], _sb[1]))
+            _edge_bits = [(mk(frozenset((u,))), mk(frozenset((v,)))) for (u, v) in edges_t] if _dich_slots else []
             _nleg = len(leglist)
             # visit legs owning overlap checks first (they unlock early pruning), the rest after
             _haschk = [False] * len(leglist)
@@ -712,7 +812,7 @@ def run(verts, edges, ext_attach, ext_mode, verbose=True, use_overlap=True, use_
                         return True
                 return False
 
-            _stack = [(0, iter(_opts[_dord[0]]))]
+            _stack = [(0, iter(_optsm[_dord[0]]))]
             while _stack:
                 _d, _it = _stack[-1]
                 _nx = next(_it, None)
@@ -723,9 +823,8 @@ def run(verts, edges, ext_attach, ext_mode, verbose=True, use_overlap=True, use_
                     _curall[_dord[_d]] = 0
                     continue
                 _li = _dord[_d]
-                _cur[_li] = tuple(_nx[_c][1] if _c < len(_nx) else 0
-                                  for _c in range(_nslots[_li]))
-                _chc[_li] = _nx
+                _cur[_li], _allm, _chc[_li] = _nx
+                _curall[_li] = _allm
                 _allm = 0
                 for _mm in _cur[_li]:
                     _allm |= _mm
@@ -733,17 +832,43 @@ def run(verts, edges, ext_attach, ext_mode, verbose=True, use_overlap=True, use_
                 if not _no_prune and (_allm & _forb[_li]):
                     _sk = 1
                     for _dd in range(_d + 1, _nleg):
-                        _sk *= len(_opts[_dord[_dd]])
+                        _sk *= len(_optsm[_dord[_dd]])
                     n_prune_rt += _sk
                     continue
+                if _dich_slots:
+                    _viol = False
+                    for (_pa, _sa, _pb, _sb) in _dich_slots:
+                        _va = _cur[_pa]
+                        _vb = _cur[_pb]
+                        if _va is None or _vb is None:
+                            continue
+                        _ma = _va[_sa]
+                        _mb = _vb[_sb]
+                        if not _ma or not _mb:
+                            continue
+                        if _ma & _mb:
+                            _viol = True
+                            break
+                        for (_bu, _bv) in _edge_bits:
+                            if (_ma & _bu and _mb & _bv) or (_ma & _bv and _mb & _bu):
+                                _viol = True
+                                break
+                        if _viol:
+                            break
+                    if _viol:
+                        _sk = 1
+                        for _dd in range(_d + 1, _nleg):
+                            _sk *= len(_optsm[_dord[_dd]])
+                        n_dich_kill += _sk
+                        continue
                 if _d < _nleg - 1:
                     if _use_prune and not _no_prune and _prune_dead():
                         _sk = 1
                         for _dd in range(_d + 1, _nleg):
-                            _sk *= len(_opts[_dord[_dd]])
+                            _sk *= len(_optsm[_dord[_dd]])
                         n_prune += _sk
                         continue
-                    _stack.append((_d + 1, iter(_opts[_dord[_d + 1]])))
+                    _stack.append((_d + 1, iter(_optsm[_dord[_d + 1]])))
                     continue
                 combo_chains = tuple(_chc)
                 assign = []
@@ -855,5 +980,5 @@ def run(verts, edges, ext_attach, ext_mode, verbose=True, use_overlap=True, use_
                     regions[key] = (vm, em)
     dt = time.time() - t0
     if verbose:
-        print('skeleton: candidates %d (dup-skipped %d, vm-unique %d, early-pruned %d, overlap-killed %d, route-killed %d), regions %d, %.1fs' % (n_cand, n_skip, len(seen_vm), n_prune + n_prune_rt, n_ov_kill, n_route_kill, len(regions), dt))
+        print('skeleton: candidates %d (dup-skipped %d, vm-unique %d, early-pruned %d, overlap-killed %d, dich-killed %d, route-killed %d), regions %d, %.1fs' % (n_cand, n_skip, len(seen_vm), n_prune + n_prune_rt, n_ov_kill, n_dich_kill, n_route_kill, len(regions), dt))
     return list(regions.values()), n_cand, dt

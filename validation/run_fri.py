@@ -34,6 +34,11 @@ BATCHES = [
     'graphs/random/5_legs/rand700_4l_no2v.json',
     'graphs/random/5_legs/rand100_5l_no2v.json',
     'graphs/random/5_legs/rand500_5l_no2v.json',
+    'graphs/random/5_legs/rand1000_3l_1soft_no2v.json',
+    'graphs/random/5_legs/rand700_4l_1soft_no2v.json',
+    'graphs/random/5_legs/rand300_5l_1soft_no2v.json',
+    'graphs/random/5_legs/rand1000_3l_2soft_no2v.json',
+    'graphs/random/5_legs/rand500_4l_2soft_no2v.json',
 ]
 BOOKS = [
     'graphs/hand_built/lightlike_2to2.txt',
@@ -80,7 +85,10 @@ def resolve(p):
 def run_batch(path, only_graph=None, kin_filter=None, full=False):
     B = json.load(open(path))
     nlegs = B.get('nlegs', 5)
-    kin = DATA['kinematics_4'] if nlegs == 4 else DATA['kinematics_5']
+    if B.get('kin_set'):
+        kin = DATA[B['kin_set']]
+    else:
+        kin = DATA['kinematics_4'] if nlegs == 4 else DATA['kinematics_5']
     ks = kin_order(kin.keys())
     if kin_filter is not None:
         ks = [k for k in ks if int(k[1:]) in kin_filter]
@@ -190,6 +198,11 @@ RECORD_FOR = {
     'rand1000_4l_v8-10_no2v.json': 'rand1000_4l_report.txt',
     'rand200_4l_no2v_v8-10.json': 'rand200_4l_report.txt',
     'rand200_5l_v10-12_no2v.json': 'rand200_5l_report.txt',
+    'rand1000_3l_1soft_no2v.json': 'rand1000_3l_1soft_no2v_report.txt',
+    'rand700_4l_1soft_no2v.json': 'rand700_4l_1soft_no2v_report.txt',
+    'rand300_5l_1soft_no2v.json': 'rand300_5l_1soft_no2v_report.txt',
+    'rand1000_3l_2soft_no2v.json': 'rand1000_3l_2soft_no2v_report.txt',
+    'rand500_4l_2soft_no2v.json': 'rand500_4l_2soft_no2v_report.txt',
 }
 
 
