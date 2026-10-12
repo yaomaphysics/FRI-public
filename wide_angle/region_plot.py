@@ -512,7 +512,6 @@ def render_combined_pdf(edges, verts, items, ext_mode=None, ext_attach=None, out
     for p in range(npages):
         chunk = items[p * nrows:(p + 1) * nrows]
         wl.append('Export["%s/page_%02d.pdf", %s];' % (outdir, p + 1, atlas_page_expr(p + 1, npages, chunk, chunk[0][0], chunk[-1][0], edges, ext_attach, ext_mode, nrows, font, title)))
-    wl.append('Export["%s/preview_p01.png", %s];' % (outdir, atlas_page_expr(1, npages, items[:nrows], items[0][0], items[min(nrows, len(items)) - 1][0], edges, ext_attach, ext_mode, nrows, font, title)))
     wls_path = os.path.join(outdir, '_atlas.wls')
     with open(wls_path, 'w') as f:
         f.write('\n'.join(wl) + '\n')

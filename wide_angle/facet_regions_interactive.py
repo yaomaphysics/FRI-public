@@ -371,20 +371,17 @@ def show_group_by_power(regs, edges, ext_attach, extmode, numerator):
             print(f'  R{i}: {em_sequence(regs[i - 1][1])}')
 
 
-# Ask for the numerator polynomial (in K_i / externals; '1' = scalar); empty keeps the previous one; q/b cancels.
-def ask_numerator(nedge, pnames, current):
-    keep = 'scalar' if current is None else 'previous'
+# Ask for the numerator polynomial (in K_i / externals; "1" or empty = scalar); q/b cancels.
+def ask_numerator(nedge, pnames):
     while True:
-        line = input(f'Numerator ("1" = scalar; e.g. (p1\\cdot K_1)(K_2\\cdot K_3); empty = keep {keep}; q/b = cancel) > ').strip()
+        print(f'Input the numerator')
+        print(f'(e.g. (p1\\cdot K_1)(K_2\\cdot K_3) + ..., where K_i is the momentum of i-th propagator in the input; "1" or empty = scalar; q/b = cancel) ')
+        line = input('> ').strip()
         if line.lower() in ('q', 'quit', 'b', 'back'):
             return None, False
         if not line:
-            if current is None:
-                print('  numerator = 1 (scalar)')
-            else:
-                show = current[1] if len(current[1]) <= 160 else current[1][:157] + '...'
-                print(f'  numerator = {show}')
-            return current, True
+            print('  numerator = 1 (scalar)')
+            return None, True
         try:
             ast, warns = parse_numerator(line, nedge, pnames)
         except ValueError as e:
@@ -416,7 +413,6 @@ def offer_derivation_report(edges, regs, ext_attach, internal_lines, externals, 
         print(f'  ! report generation failed: {e}')
         return
     print(f'  saved derivation report to: {pdf}')
-    print(f'  first page preview: {prev}')
 
 
 # Option 5: visualize the selected regions via wolframscript (can output PDF atlas or PNGs).
@@ -512,7 +508,7 @@ def main():
             elif opt == '3':
                 show_classify(regs, edges, kappa)
             elif opt == '4':
-                num, ok = ask_numerator(len(edges), set(extmode), numerator)
+                num, ok = ask_numerator(len(edges), set(extmode))
                 if ok:
                     numerator = num
                     show_group_by_power(regs, edges, ext_attach, extmode, numerator)

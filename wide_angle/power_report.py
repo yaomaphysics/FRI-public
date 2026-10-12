@@ -45,11 +45,17 @@ def region_lines(edges, vm, em, ext_attach, extmode, i, numerator=None):
     results, _total, _L = indep_loops(edges, em, vm)
     a0, a1 = measure_power(results)
     b = integrand_power(em)
-    out.append(f'R{i}  —  power = {fmt_power(a0 - b, a1)}')
+    pairs = None
+    n = 0
+    if numerator is not None:
+        ctx = region_context(edges, em, vm, ext_attach, extmode)
+        pairs, n = term_breakdown(numerator[0], ctx)
+    out.append(f'R{i}  —  power = {fmt_power(a0 - b + n, a1) if numerator is not None else fmt_power(a0 - b, a1)}')
     out.append(f"  edge modes (input order): {', '.join(_ms(m) for m in em)}")
     vmtxt = ', '.join(f'{v}: {_ms(vm[v])}' for v in sorted(vm, key=str))
     out.append(f'  vertex modes: {{{vmtxt}}}')
     # Independent loop momenta, per mode block (+ the k_i -> line map).
+    out.append('-' * 76)
     out.append('  independent loop momenta:')
     basis_all = []
     for r in results:
@@ -67,6 +73,7 @@ def region_lines(edges, vm, em, ext_attach, extmode, i, numerator=None):
     elif not ok:
         out.append(f'    (line-momentum map unavailable: {payload})')
     # Integration measure: A = (2-eps) * sum_X r_X * V(X), term by term.
+    out.append('-' * 76)
     out.append('  integration measure ~ \\lambda^A:')
     out.append('    A = (2-\\epsilon) * Σ_X r_X·V(X)')
     terms = []
@@ -82,21 +89,21 @@ def region_lines(edges, vm, em, ext_attach, extmode, i, numerator=None):
     out.append(f'      Σ r_X·V(X) = ' + ' + '.join(str(t[5]) for t in terms) + f' = {tot}')
     out.append(f'    A = (2-\\epsilon)*{tot} = {_exp_body(a0, a1)}')
     # Denominator: B = sum V(em), edge by edge.
+    out.append('-' * 76)
     out.append('  denominator ~ \\lambda^B:')
     vs = [0 if m is None else 2 * m[0] + m[1] for m in em]
     out.append(f'    B = Σ V(em) = ' + '+'.join(map(str, vs)) + f' = {b}')
     # Numerator (optional): its power N, term by term, then the total power.
-    n = 0
     if numerator is not None:
-        ast = numerator[0]
-        ctx = region_context(edges, em, vm, ext_attach, extmode)
-        pairs, n = term_breakdown(ast, ctx)
+        out.append('-' * 76)
         out.append('  numerator ~ \\lambda^N:')
         for j, (ttext, tp) in enumerate(pairs, 1):
             out.append(f'    term {j}: {ttext}   ->  {fmt_power(tp, 0)}')
         out.append(f'    N = min = {fmt_power(n, 0)}')
+        out.append('*' * 76)
         out.append(f'  power = A - B + N = {_exp_body(a0 - b + n, a1)}')
     else:
+        out.append('*' * 76)
         out.append(f'  power = A - B = {_exp_body(a0 - b, a1)}')
     return out
 
@@ -151,12 +158,14 @@ def build_report(edges, regs, sel, ext_attach, internal_lines, externals, extmod
     lines.append(f'internal lines: {internal_lines}')
     lines.append(f'externals: {externals}')
     if numerator is not None:
-        lines.append(f'numerator: {numerator[1]}')
+        lines.append(f'numerator = {numerator[1]}')
+    lines.append('-' * 76)
     lines.append(f'generated: {time.strftime("%Y-%m-%d %H:%M:%S")}')
     lines.append('regions in this report: ' + ', '.join(f'R{i}' for i in sel))
     lines.append('')
     for i in sel:
         vm, em = regs[i - 1]
+        lines.append('=' * 78)
         lines += region_lines(edges, vm, em, ext_attach, extmode, i, numerator=numerator)
         lines.append('')
     # Output: <outdir>/power_derivation_<timestamp>.pdf (+ first-page PNG preview); outdir=None -> fri_out/.
@@ -164,7 +173,5 @@ def build_report(edges, regs, sel, ext_attach, internal_lines, externals, extmod
     os.makedirs(fdir, exist_ok=True)
     ts = time.strftime('%Y%m%d-%H%M%S')
     pdf = os.path.join(fdir, f'power_derivation_{ts}.pdf')
-    prev = os.path.join(fdir, f'power_derivation_{ts}_page1.png')
-    render_pdf(lines, pdf, 'FRI power-counting derivation report',
-               'scalar integrals — per-region derivation of \\lambda^{A-B}', preview=prev)
-    return pdf, prev, lines
+    render_pdf(lines, pdf, 'FRI power-counting derivation report', 'scalar integrals — per-region derivation of \\lambda^{A-B}')
+    return pdf, None, lines
