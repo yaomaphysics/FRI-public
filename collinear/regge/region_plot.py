@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """region_plot.py — render FRI regions of a graph as PNG figures with per-mode colours.
 
-Style spec (final):
+Style spec:
 
   colours
       H                                         Blue
@@ -78,7 +78,7 @@ DISPLAY_NAME = {'D12': 'Teal', 'D6': 'Olive', 'Green': 'LightGreen'}   # caption
 
 # ========================== FIGURE RENDERING ==========================
 
-# (color-name, wl-directive) for one mode string (regge vocabulary).
+# (color name, WL (Wolfram Language) directive) for one mode string (Regge vocabulary).
 def mode_color(m):
     if m == 'H':
         return 'Blue', 'Blue'
@@ -300,12 +300,7 @@ def render_individual_pngs(edges, verts, items, ext_mode=None, ext_attach=None, 
     return paths
 
 
-# ============================= PDF ATLAS =============================
-# Region atlas: A4 portrait, `nrows` rows/page; each row shows the region
-# figure on the left and, on the right, "R{n} v = (...)" plus one line per
-# mode ("<typeset mode>: v{...} e{...}").  Pages are exported one by one
-# and merged with ghostscript (fallback: pdfunite).  Same layout as the
-# wide-angle atlas (wide_angle/region_plot.py).
+# ============================ PDF ATLAS ============================
 
 ATLAS_FONT = 'Utopia'
 ATLAS_ROWS = 5

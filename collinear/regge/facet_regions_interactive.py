@@ -1,16 +1,12 @@
 #!/usr/bin/env python3
-"""Interactive Regge-limit FRI region enumerator.
+"""
+Interactive Regge-limit FRI region enumerator.
 
-Usage:
-    python3 facet_regions_interactive.py [-v]
+Usage: python3 facet_regions_interactive.py [-v]
 
-At startup you pick one of the 6 Regge 2->2 kinematics (k0..k5, default
-k1).  The kinematics sets the external-momentum modes (ext_mode) fed into
-the FRI pipeline (cuts -> overlay -> Glauber adjustment -> subgraph
-requirements -> IR compatibility); the definitions are shared with
-regge_graphs.py.  Enumeration runs on the pruned skeleton enumerator
-(skeleton.py); k1 uses its all-lightlike engine.
-
+At startup you pick one of the 6 Regge 2->2 kinematics (k0, ..., k5, default k1).
+The kinematics sets the external-momentum modes (ext_mode) fed into the FRI pipeline (cuts -> overlay -> Glauber adjustment -> subgraph requirements -> IR compatibility).
+Enumeration runs on the pruned skeleton enumerator (skeleton.py); k1 uses its all-lightlike engine.
   k0: p_i^2 ~ lambda for all i                -> ext modes C13/C24
   k1: all p_i lightlike (original case)       -> ext modes C1^oo C13, ...
   k2: p1^2 ~ lambda, others lightlike
@@ -18,25 +14,21 @@ regge_graphs.py.  Enumeration runs on the pruned skeleton enumerator
   k4: p1^2, p3^2 ~ lambda^2
   k5: p1^2, p2^2 ~ lambda, p3^2 = p4^2 = 0
 
-Type an edge list to enumerate (external momenta p1..p4 attach at
-vertices 1, 2, 3, 4).  At the edge prompt: 'kin k3' switches kinematics
-on the fly, 'v' toggles the enumeration statistics, 'q'/'b' quits.
-Start with -v to have the statistics on from the beginning.  After
-enumeration a menu offers:
-    1) Inspect specific regions   — per-mode subgraphs + loop numbers
-       (Σ r_X vs L), then optionally a concrete independent-loop-momentum
-       basis (default or forced lines) and the physical line momenta
-       (k1..kL + externals, momentum-conservation check),
+Type an edge list to enumerate (external momenta p1..p4 attach at vertices 1, 2, 3, 4).
+At the edge prompt: 'kin k3' switches kinematics on the fly, 'v' toggles the enumeration statistics, 'q'/'b' quits.
+Start with -v to have the statistics on from the beginning.
+After enumeration a menu offers:
+    1) Inspect specific regions — per-mode subgraphs + loop numbers (Σ r_X vs L), then optionally a concrete independent-loop-momentum basis (default or forced lines),
     2) Lee-Pomeransky parametric representation (v_i = -V, input edge order; trailing entry = expansion scale),
     3) Classification by characteristic (softest) mode.
-    4) Visualization: one PDF atlas (default) or PNG figures with the
-       per-mode colour scheme (region_plot.py; saved under fri_out/regions_*/).
-Semihard loops use the γ_sH ∪ γ_G rule (2026-09-01).  Results are
-saved to fri_out/<timestamp>.txt.
+    4) Visualization: one PDF atlas (default) or PNG figures with the per-mode colour scheme (region_plot.py; saved under fri_out/regions_*/).
+Semihard loops use the γ_sH ∪ γ_G rule.
+Results are saved to fri_out/<timestamp>.txt.
 
 Edge-list input formats (all accepted):
     "1-5,3-5,5-6,2-6,4-6,1-7,3-7,7-8,2-8,4-8"
-    "(1,5),(3,5),(5,6),..."  or  "[1,5],[3,5],[5,6],..."
+    "(1,5),(3,5),(5,6),..."
+    "[1,5],[3,5],[5,6],..."
     "1 5; 3 5; 5 6; ..."
 """
 import sys, os, time, re, signal
@@ -46,11 +38,9 @@ sys.path.insert(0, BASE)
 
 from primitives import to_scaling, mode_components
 from skeleton import skel_regions, skel_regions_k1   # pruned skeleton enumerators
-from primitives import to_mode          # mode strings are plain literals
-                                         # ('C13', 'sH', ...) everywhere
+from primitives import to_mode          # mode strings are plain literals ('C13', 'sH', ...) everywhere
 from indep_loops import show_basis     # indep loops + edge momenta
-# The 6 Regge kinematics (ext_mode + momentum-invariant scalings + notes),
-# shared with the graph/kinematics library.
+# The 6 Regge kinematics (ext_mode + momentum-invariant scalings + notes), shared with the graph/kinematics library.
 from regge_graphs import KIN
 from collections import defaultdict
 
@@ -81,13 +71,12 @@ def parse_edges(s):
         raise ValueError(f"cannot parse edge list: '{s.strip()}'")
     return [(int(dn[k]), int(dn[k + 1])) for k in range(0, len(dn), 2)]
 
-
+# Format a scaling tuple as a parenthesised comma-separated string.
 def fmt_scaling(sc):
     return '(' + ', '.join(str(x) for x in sc) + ')'
 
 
-# '3, 8--10' -> [3, 4, 8, 10] (1-based). Supports ',' separators and '--' / '-' ranges. Returns None if any number is
-# out of range.
+# '3, 8--10' -> [3, 4, 8, 10] (1-based). Supports ',' separators and '--' / '-' ranges. Returns None if any number is out of range.
 def parse_region_select(s, n):
     out = set()
     for part in s.split(','):
@@ -134,11 +123,7 @@ def _components(verts, edges):
     return n
 
 
-# Per-mode subgraphs {{V_X}, {E_X}} with loop number r_X, plus the sum check vs L = |E| - |V| + 1. r_X uses the standard
-# contracted-subgraph rule for all lattice modes (1VI blocks of gamma~_X with aux; r = |E| - |V| + 1 per block).
-# sH is an OVERLAY product: its edges collapse onto aux and the standard rule overcounts (necklace: 2 parallel sH
-# edges -> r = 2, but they are ONE bubble). Fix [2026-09-01]: semihard loops = loops of gamma_{sH} U gamma_G on the
-# ORIGINAL graph (no aux); G is acyclic, so the union's loops are exactly the semihard ones.
+# Per-mode subgraphs {V_X}, {E_X} with loop number r_X from the 1VI (one-vertex-irreducible) blocks of the contracted X subgraph (sH uses the rank of gamma_sH U gamma_G instead), plus the sum check against L.
 def show_mode_subgraphs(edges, em, vm):
     verts = sorted({v for e in edges for v in e})
     L = len(edges) - len(verts) + 1
@@ -150,8 +135,7 @@ def show_mode_subgraphs(edges, em, vm):
         Es = '{' + ', '.join(f'{i}:{edges[i]}' for i in E_idx) + '}'
         Vs = '{' + ', '.join(str(v) for v in V) + '}'
         if mode == 'sH':
-            # semihard loops = rank of gamma_{sH} U gamma_{G} (plain
-            # subgraph of the original graph, no aux contraction)
+            # semihard loops = rank of gamma_{sH} U gamma_{G} (plain subgraph of the original graph, no aux contraction)
             idx = [i for i, m in enumerate(em) if m in ('sH', 'G')]
             sub_edges = [edges[i] for i in idx]
             sub_verts = sorted({v for e in sub_edges for v in e})
@@ -170,8 +154,7 @@ def show_mode_subgraphs(edges, em, vm):
     print(f'  sum r_X = {tot}  vs  L = {L}  {flag}')
 
 
-# '[2,5],[7,8]' -> sorted edge indices (order-free endpoints). Returns None if nothing parses or an edge is unknown.
-# NB: for parallel edges, a (a,b) pair forces ALL copies (wide-angle behavior).
+# '[2,5],[7,8]' -> sorted edge indices (order-free endpoints); for parallel edges a pair forces all copies. Returns None if nothing parses or an edge is unknown.
 def parse_forced_lines(edges, line):
     pairs = re.findall(r'[\[(]\s*(\d+)\s*,\s*(\d+)\s*[\])]', line)
     if not pairs:
@@ -194,8 +177,7 @@ def parse_forced_lines(edges, line):
     return sorted(set(F))
 
 
-# Softness order for classification, softest first: lattice modes with m >= 1 by virtuality V desc (tie: m desc, n
-# desc, name), then sH (chain rank 1), then G (chain rank 2). Chain (primitives): H >- G >- sH >- every family mode.
+# Softness order for classification, softest first: lattice modes with m >= 1 by decreasing virtuality V (then m, n, name), then sH, then G.
 def _softness_key(mode):
     if mode == 'sH':
         return (1, 0, 0, 0, mode)
@@ -208,8 +190,7 @@ def _softness_key(mode):
         return (0, -99, 0, 0, mode)
 
 
-# Softest characteristic mode of a region (exclusion-style): the softest lattice mode with m >= 1 present in em/vm;
-# if none, sH; if none, G; else 'C/H'.
+# Softest characteristic mode of a region (exclusion-style): the softest lattice mode with m >= 1 present in em/vm; if none, sH; if none, G; else 'C/H'.
 def classify(vm, em):
     cands = set(em) | set(vm.values())
     soft = [m for m in cands if m not in ('sH', 'G') and to_mode(m).m >= 1]
@@ -222,8 +203,7 @@ def classify(vm, em):
     return 'C/H'
 
 
-# Option 2: Lee-Pomeransky parametric representation per region: x_i ~ \lambda^{v_i} with v_i = -V(𝒳(e)), edge order,
-# trailing 1 = λ power of the single expansion scale (pySecDec style, same as the verified region files).
+# Option 2: Lee-Pomeransky parametric representation per region: x_i ~ \lambda^{v_i} with v_i = -V(𝒳(e)), edge order.
 def show_parametric(regs):
     print('  Lee-Pomeransky parametric representation (v_i = -V, input edge order; trailing entry = expansion scale):')
     for i, (cut13, cut24, cut1, cut3, cut2, cut4, vm, em) in enumerate(regs, 1):
@@ -251,8 +231,7 @@ def show_classify(regs, edges):
     print(f'\nTOTAL: {total} regions')
 
 
-# Option 1: pick regions -> per-mode subgraphs with loop numbers, then optionally a concrete basis / forced lines /
-# line momenta.
+# Option 1: pick regions -> per-mode subgraphs with loop numbers, then optionally a concrete basis / forced lines / line momenta.
 def inspect_regions(edges, regs, ext_attach):
     n = len(regs)
     line = input('Region numbers (e.g. "3, 8--10" represents regions 3, 8, 9, and 10; empty = all; q/b = back) > ').strip()
@@ -324,7 +303,7 @@ def visualize_regions(edges, regs, ext_mode):
             return
         print(f'  saved atlas PDF to: {path}')
 
-
+# Print the six Regge 2->2 kinematics with their external modes.
 def print_kin_menu():
     print('available Regge 2->2 kinematics:')
     for k in KIN_CHOICES:
@@ -350,7 +329,7 @@ def choose_kinematics():
             return s
         print(f'  [error] unknown kinematics "{s}" — choose from {", ".join(KIN_CHOICES)} (q/b = back)')
 
-
+# Enumerate the regions of one graph under a kinematics and print them, then offer the inspection menu.
 def run_graph(edges_raw, kin_name, verbose=False):
     kin = KIN[kin_name]
     edges = [tuple(e) for e in edges_raw]
@@ -377,8 +356,6 @@ def run_graph(edges_raw, kin_name, verbose=False):
         print(f'  [error] skeleton engine could not handle this input: {e}')
         return
     dt = time.time() - t0
-    # deterministic display order (scaling, then em); same convention as the
-    # 2->3 browser after its skeleton switch (2026-09-21).
     regs = sorted(regs, key=lambda r: (to_scaling(r[7]), tuple(str(m) for m in r[7])))
     print(f'  FRI regions: {len(regs)}  ({dt:.1f}s)')
     # Enumeration statistics (hidden debug switch: 'v' at the edge prompt / -v at startup).
@@ -417,7 +394,6 @@ def run_graph(edges_raw, kin_name, verbose=False):
             visualize_regions(edges, regs, ext_mode)
         else:
             print('  ! enter 1, 2, 3, 4, or q')
-    # save
     fdir = os.path.join(BASE, 'fri_out')
     os.makedirs(fdir, exist_ok=True)
     fname = os.path.join(fdir, time.strftime('%Y%m%d-%H%M%S') + '.txt')
@@ -439,7 +415,7 @@ def run_graph(edges_raw, kin_name, verbose=False):
             f.write(f'      vm: {{{vmtxt}}}\n')
     print(f'  saved to: {fname}')
 
-
+# Entry point: interactive loop over graphs; -v/--verbose starts with the enumeration statistics on.
 def main():
     # Hidden debug switch (not shown to the user): -v/--verbose starts with the enumeration statistics on.
     verbose = any(a in ('-v', '--verbose') for a in sys.argv[1:])

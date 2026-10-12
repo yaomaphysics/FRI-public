@@ -1,36 +1,31 @@
 #!/usr/bin/env python3
-"""skeleton.py — region enumerators for the Regge 2->2 FRI: the skeleton engine (skel_regions, skel_regions_k1) and the FRI enumerators (fri_regions_full, fri_regions_onshell, fri_regions_offshell).
+"""skeleton.py — region enumerators for the Regge 2->2 FRI.
 
-Promoted from the private prototype `dev_regge_skel.py` (2026-09-22).
+Provides the skeleton engine (skel_regions, skel_regions_k1) and the FRI
+enumerators (fri_regions_full, fri_regions_onshell, fri_regions_offshell).
 
-Spec (2026-09-20):
-  §1 Γ = H∪G first: enumerate all nonempty connected Γ (induced); pair legs 1/3
-     get the Y (shared stem out of Γ, split at a junction into br1 → v1, br3 → v3);
-     pair legs 2/4 the same (br2 → v2, br4 → v4); _compat: seen from Γ backwards
-     only a common prefix, branches never meet again; the two pairs must not overlap.
-  §2 Chains: C13 ⊇ P1∪P3 (components each contain v1 or v3; domain V∖Γ∖Y24);
-     C24 ⊇ P2∪P4 symmetric. Member cuts C1C13/C3C13 = connected supersets of a
-     branch subpath with the leg vertex as one endpoint (suffix br[j:]), stem and
-     other branch excluded, free vertices of the family cut may join; C2C24/C4C24
-     likewise. Higher levels nest (refined_opts shape inside the level above).
-     Partial chains; both roots in Γ -> empty chain.
-  §3 Pruning: coverage AT GENERATION (every vertex outside Γ in some cut; enforced
-     as C24 ⊇ Y24 ∪ (V∖Γ)∖C13 given C13, so C13∪C24 ⊇ V∖Γ); identical cuts
-     skipped; strong overlap (mate at level n, cross at n−1, "two of three";
-     exemption: coincides with a deeper same-leg cut n'>n); em/vm built; repeated
-     (em,vm) skipped before the remaining checks; checks unchanged.
-     Fast path (2026-09-22): cuts carry bitmasks; legs-2/4 level-1 chain filter
-     + level-2 counting quick-kill replicate overlap's first checks (gated by
-     l2quick; A/B set-equal on the case suite).
+Flow for one graph:
+  1. block: enumerate every nonempty connected induced subgraph Γ; give the
+     leg pairs (1/3 and 2/4) a shared stem that leaves Γ and splits into the
+     two branch paths, keeping only a common prefix when read backwards from
+     Γ and forbidding the two pairs to overlap;
+  2. chains: the level-1 cuts C13 and C24 contain their pair's paths; the
+     member cuts C1C13/C3C13 (and C2C24/C4C24) are connected supersets of a
+     branch suffix with the leg vertex as one endpoint; higher levels nest;
+  3. pruning: require coverage (every vertex outside the block lies in some
+     cut), skip duplicated cuts, apply the strong-overlap rule (a mate at
+     level n and the two cross partners at level n-1, "two of three") with the
+     deeper-cut exemption, build the edge and vertex modes (em, vm), and drop
+     repeats before the remaining subgraph checks.
 
-Depth caps follow the mode-level framework (k0/k5 (0,0), k2/k3 (0,1),
-k4 (1,2); k1 is loop-count driven).  Checks: region_checker._build_region
-(stock, unchanged).  k0-k5 are all covered; k1 goes through
-skel_regions_k1 (L-gated refinements + I0/I1/I2 + Cond-1/2/3).
+The all-lightlike k1 regime is constructed separately (skel_regions_k1).
+Key constraints: the hard block and the two leg-pair stems must stay
+consistent, since the checks downstream read the resulting (em, vm); the
+refinement depth is capped at 2 (deeper towers raise an error).
 
 Usage:
-    python3 skeleton.py                 # default small-graph sweep
-    python3 skeleton.py box k5 hexagon k4    # name kin [name kin ...]
+    python3 skeleton.py                        # default small-graph sweep
+    python3 skeleton.py box k5 hexagon k4      # name kin [name kin ...]
 """
 import sys, os, time
 from itertools import combinations
@@ -40,15 +35,28 @@ sys.path.insert(0, HERE)
 import region_checker as R                                        # noqa: E402
 from regge_graphs import GRAPHS, KIN, EXT_ATTACHES            # noqa: E402
 from regge_graphs import DEFAULT_EXT_ATTACH as EXT_ATTACH     # noqa: E402
-from primitives import (conn_sets, comp_sets, components, connected, refined_opts, ext_m,
-                        possibly_softest, meet, to_scaling, clear_graph_caches)  # noqa: E402
+from primitives import (conn_sets, comp_sets, components, connected, refined_opts, Mode, to_mode, H, mode_meet, possibly_softest, to_scaling, clear_graph_caches)  # noqa: E402
 
 FS = frozenset
 
+# External-mode labels of the kinematics, as Mode objects, with their virtuality (ext_m).
+_EXT_M = {to_mode('C13'): 1, to_mode('C24'): 1,
+          to_mode('C1C13'): 2, to_mode('C3C13'): 2, to_mode('C2C24'): 2, to_mode('C4C24'): 2,
+          to_mode('C1^2C13'): 3, to_mode('C3^2C13'): 3, to_mode('C2^2C24'): 3, to_mode('C4^2C24'): 3}
 
-# ---------------------------- helpers ----------------------------
+# Boundary converter: legacy external-mode strings -> Mode objects (Mode values pass through).
+def _conv_ext(ext_mode):
+    return None if ext_mode is None else {k: (v if isinstance(v, Mode) else to_mode(v)) for k, v in ext_mode.items()}
 
+# Virtuality (m+1) of an external mode; None for the lightlike ones.
+def _ext_m(md):
+    return _EXT_M.get(md)
 
+# Refinement-mode label from possibly_softest ('S^kC13'/'S^kC24'), as a Mode.
+
+# ==================== HELPERS ====================
+
+# All vertex sequences from a start vertex that reach Γ, within the allowed set.
 def enumerate_seqs(start, Gset, adj, Vset, extv, friends):
     allowed = [w for w in Vset if w not in Gset and (w == start or w in friends or w not in extv)]
     seqs = []
@@ -62,7 +70,7 @@ def enumerate_seqs(start, Gset, adj, Vset, extv, friends):
                 st.append((w, vis | {w}, path + (w,)))
     return seqs
 
-
+# Compatible pair traversal: read backwards from Γ the two branches share only a common prefix and never rejoin.
 def compat(a, b):
     ra, rb = a[::-1], b[::-1]
     k = 0
@@ -111,8 +119,7 @@ def pair_opts_for(va, vb, Gset, adj, Vset, extv):
     return opts
 
 
-# First level of a leg chain: connected supersets of a branch suffix T = br[j:] (leg vertex as one endpoint) inside T
-# ∪ D.
+# First level of a leg chain: connected supersets of a branch suffix T = br[j:] (leg vertex as one endpoint) inside T ∪ D.
 def member_opts(br, Dcut, edges):
     out = {FS()}
     if br:
@@ -137,10 +144,10 @@ def towers(root, lvl1_opts, depth, forbid, edges):
 _MATE = {1: 3, 3: 1, 2: 4, 4: 2}
 _CROSS = {1: (2, 4), 3: (2, 4), 2: (1, 3), 4: (1, 3)}
 
-# diagnostic flag: True -> L2 quick-kill does not skip, only counts
+# diagnostic flag: when True the level-2 quick-kill counts but does not skip
 _SHADOW_L2 = False
 
-
+# One cut of a leg at a given level: level 0 is the family base cut, level lvl the lvl-th nested cut.
 def _cut_at(f13, f24, leg, lvl):
     base, lv = f13 if leg in (1, 3) else f24
     if lvl == 0:
@@ -148,9 +155,7 @@ def _cut_at(f13, f24, leg, lvl):
     return lv[leg][lvl - 1] if lvl - 1 < len(lv[leg]) else None
 
 
-# Level-1 necessary condition of overlap_ok for legs 2/4, at chain level: subject C_iC_fam needs >=2 of {mate at n=1,
-# cross-base, cross-base} hits (= cut & base); skipped when mi cuts it off, the cut is empty, or it coincides with
-# its deeper twin (exemption). chain: (frozenset, mask).
+# Level-1 necessary condition for legs 2/4: the cut must meet the family base cut unless it is empty, mi cuts it off, or a deeper twin coincides.
 def _l1_keep(chain, mbase, mi):
     if mi is not None and not (1 < mi):
         return True
@@ -164,9 +169,7 @@ def _l1_keep(chain, mbase, mi):
     return bool(Sxm & mbase)
 
 
-# Strong overlap, the regge form (2026-09-20); MASK version (2026-09-22): fam structures carry int bitmasks (0 =
-# empty) instead of frozensets. subject C_i^n C_fam (n<m): need a vertex shared with two of the three partners {mate
-# at level n, cross legs at level n−1}; exemption: coincides with a deeper same-leg cut (n'>n).
+# Strong overlap: a C_i^n C_fam cut (n < m) needs a vertex shared with two of the three {mate at level n, cross legs at level n-1} partners, unless it coincides with a deeper same-leg cut.
 def overlap_ok(fam13, fam24, m):
     for leg in (1, 2, 3, 4):
         lv = (fam13[1] if leg in (1, 3) else fam24[1])[leg]
@@ -190,7 +193,7 @@ def overlap_ok(fam13, fam24, m):
     return True
 
 
-# Bitmask helper for vertex sets (shared by both enumerators).
+# [Optimization] Bitmask helper for vertex sets (shared by both enumerators).
 def _make_mk(mcache, bidx):
     def mk(S):
         r = mcache.get(S)
@@ -203,10 +206,13 @@ def _make_mk(mcache, bidx):
     return mk
 
 
-# ---------------------------- main enumerator ----------------------------
+# ==================== MAIN ENUMERATOR ====================
+
+# Non-k1 skeleton enumerator: build the block, the pair stems and the nested cuts, prune, then run the check chain.
 def skel_regions(edges, verts, ext_attach, ext_mode):
-    clear_graph_caches() # start each case with empty graph-kernel memo tables
+    clear_graph_caches() # [Optimization] start each case with empty graph-kernel memo tables
     R.clear_adjust_caches()
+    ext_mode = _conv_ext(ext_mode)
     verts = sorted(verts)
     E = [tuple(e) for e in edges]
     adj = {v: set() for v in verts}
@@ -216,7 +222,7 @@ def skel_regions(edges, verts, ext_attach, ext_mode):
     extv = set(ext_attach.values())
     v1, v2, v3, v4 = (ext_attach['p1'], ext_attach['p2'], ext_attach['p3'], ext_attach['p4'])
     bidx = {v: 1 << i for i, v in enumerate(verts)}
-    mcache = {}
+    mcache = {}   # [Optimization] per-case vertex-set mask cache
 
     mk = _make_mk(mcache, bidx)
     vbits = [(v, bidx[v]) for v in verts]   # mask-bit per vertex (vm build below)
@@ -224,25 +230,24 @@ def skel_regions(edges, verts, ext_attach, ext_mode):
     def wrap(chs):
         return [tuple((S, mk(S)) for S in ch) for ch in chs]
 
-    # depths (mirror fri_regions_offshell)
-    ms = {n: ext_m(ext_mode.get(n)) for n in ext_attach}
+    # refinement depths per side
+    ms = {n: _ext_m(ext_mode.get(n)) for n in ext_attach}
     ms_m = {n: (None if v is None else v - 1) for n, v in ms.items()}
     m_int = {1: ms_m['p1'], 2: ms_m['p2'], 3: ms_m['p3'], 4: ms_m['p4']}
-    ps = possibly_softest(ms_m['p1'], ms_m['p2'], ms_m['p3'], ms_m['p4'])
+    ps = [to_mode(p) for p in possibly_softest(ms_m['p1'], ms_m['p2'], ms_m['p3'], ms_m['p4'])]
     if not ps:
         raise SystemExit('all-lightlike (k1): k1 engine not in this prototype')
     if len(ps) == 2:
-        d13 = d24 = int(ps[0].split('^')[1].split('C')[0])
+        d13 = d24 = ps[0].m
     else:
-        Mside = int(ps[0].split('^')[1].split('C')[0])
-        if ps[0].endswith('C13'):
+        Mside = ps[0].m
+        if ps[0].fam == 13:
             d13, d24 = Mside, Mside - 1
         else:
             d13, d24 = Mside - 1, Mside
     if max(d13, d24) > 2:
         raise SystemExit('depth > 2 not implemented')
-    # L2 quick-kill gate: residual overlap checks are exactly legs 2/4 at
-    # level 2; legs 1/3 must be silenced here (mi <= 1) and 2/4 unchecked.
+    # L2 quick-kill gate: residual overlap checks are exactly legs 2/4 at level 2; legs 1/3 must be silenced here (mi <= 1) and 2/4 unchecked.
     l2quick = (d24 == 2 and m_int[1] is not None and m_int[1] <= 1 and m_int[3] is not None and m_int[3] <= 1 and m_int[2] is None and m_int[4] is None)
 
     Gammas = [FS(S) for r in range(1, len(verts) + 1) for S in combinations(verts, r) if connected(set(S), E)]
@@ -290,7 +295,7 @@ def skel_regions(edges, verts, ext_attach, ext_mode):
                         continue
                     for C24 in C24opts:
                         mC24 = mk(C24)
-                        # ---- chains ----
+                        # ==================== CHAINS ====================
                         lv13 = {1: [], 3: []}; lv24 = {2: [], 4: []}
                         if P12:
                             D13 = set(C13) - P12
@@ -322,8 +327,7 @@ def skel_regions(edges, verts, ext_attach, ext_mode):
                         lv4_full = wrap(lv4_full)
                         lv2_full = [c for c in lv2_full if _l1_keep(c, mC13, m_int[2])]
                         lv4_full = [c for c in lv4_full if _l1_keep(c, mC13, m_int[4])]
-                        # flatten the towers once: (mask lvl1, mask lvl2, cut lvl1, cut lvl2) —
-                        # removes the per-combo len()/indexing guards from the inner loop
+                        # flatten the towers once: (mask lvl1, mask lvl2, cut lvl1, cut lvl2) — removes the per-combo len()/indexing guards from the inner loop
                         flat1 = [(t[0][1] if len(t) >= 1 else 0, t[1][1] if len(t) >= 2 else 0,
                                   t[0][0] if len(t) >= 1 else FS(), t[1][0] if len(t) >= 2 else FS()) for t in lv1_full]
                         flat3 = [(t[0][1] if len(t) >= 1 else 0, t[1][1] if len(t) >= 2 else 0,
@@ -353,12 +357,7 @@ def skel_regions(edges, verts, ext_attach, ext_mode):
                                             cnt['dup_cuts'] += 1
                                             continue
                                         seen_cuts.add(ck)
-                                        # overlap (strengthened), mask version
-                                        # fused overlap check (regge form, inline) —
-                                        # subject (leg, level n) needs >=2 of {mate@n, cross@n-1};
-                                        # the level-1 test collapses to a single AND (both cross
-                                        # partners are the family base cut); level-1 exemption =
-                                        # the level-2 cut coincides with it.
+                                        # strengthened overlap, inlined: a (leg, level n) cut needs >=2 of {mate@n, cross@n-1}; level 1 reduces to a single AND.
                                         ov = True
                                         if mc1 and (m_int[1] is None or 1 < m_int[1]) and mc1s != mc1 and not (mc1 & mC24):
                                             ov = False
@@ -381,23 +380,20 @@ def skel_regions(edges, verts, ext_attach, ext_mode):
                                         if not ov:
                                             cnt['ov_kill'] += 1
                                             continue
-                                        # pre-(em,vm) skip (mask-based cut membership:
-                                        # msk & bit == "vertex in cut", faster than a set lookup)
-                                        cut_masks = (('C13', mC13), ('C24', mC24),
-                                                     ('C1C13', mc1), ('C3C13', mc3),
-                                                     ('C2C24', mc2), ('C4C24', mc4),
-                                                     ('C1^2C13', mc1s), ('C3^2C13', mc3s),
-                                                     ('C2^2C24', mc2s), ('C4^2C24', mc4s))
+                                        # pre-(em,vm) skip (mask-based cut membership: msk & bit == "vertex in cut", faster than a set lookup)
+                                        cut_masks = ((R.C13, mC13), (R.C24, mC24),
+                                                     (R.C1C13, mc1), (R.C3C13, mc3),
+                                                     (R.C2C24, mc2), (R.C4C24, mc4),
+                                                     (R.C1SQ13, mc1s), (R.C3SQ13, mc3s),
+                                                     (R.C2SQ24, mc2s), (R.C4SQ24, mc4s))
                                         vm = {}
                                         for v, bv in vbits:
                                             acc = None
-                                            for mstr, msk in cut_masks:
+                                            for md, msk in cut_masks:
                                                 if msk & bv:
-                                                    acc = mstr if acc is None else meet(acc, mstr)
-                                            vm[v] = acc if acc is not None else 'H'
-                                        # vm-only dedup key — em is a deterministic
-                                        # function of vm, so the dedup classes are identical
-                                        # (em is not needed for anything else here).
+                                                    acc = md if acc is None else mode_meet(acc, md)
+                                            vm[v] = acc if acc is not None else H
+                                        # vm-only dedup key — em is a deterministic function of vm, so the dedup classes are identical (em is not needed for anything else here).
                                         vkey = tuple(vm.values())
                                         if vkey in seen_pre:
                                             cnt['skip_pre'] += 1
@@ -416,14 +412,13 @@ def skel_regions(edges, verts, ext_attach, ext_mode):
     return regs, cnt, (d13, d24)
 
 
-# ---------------------------- k1 enumerator ----------------------------
-# Prototype for the k1 (all-lightlike) regime: same construction with m_i = ∞, plus a structural mirror of the current
-# k1 enumerator: L = E - V + 1; L<3: main cuts only; 3<=L<5: first-power refinements, one side at a time (13 or 24);
-# L>=5: first-power both sides + S^2C branches with the coincidences (squares := level 1), one side per build.
-# Prune mirror [2026-09-20 late]: has_sc_vertex (3<=L<5), I0/I1/I2-family gates, reg3, Cond-1/2/3 branch gates carry over.
+# ==================== K1 ENUMERATOR ====================
+
+# All-lightlike k1 engine: same construction with m_i infinite; refinement depth follows the loop number L = |E| - |V| + 1.
 def skel_regions_k1(edges, verts, ext_attach, ext_mode, use_overlap=True):
-    clear_graph_caches() # start each case with empty graph-kernel memo tables
+    clear_graph_caches() # [Optimization] start each case with empty graph-kernel memo tables
     R.clear_adjust_caches()
+    ext_mode = _conv_ext(ext_mode)
     verts = sorted(verts)
     E = [tuple(e) for e in edges]
     adj = {v: set() for v in verts}
@@ -433,7 +428,7 @@ def skel_regions_k1(edges, verts, ext_attach, ext_mode, use_overlap=True):
     v1, v2, v3, v4 = (ext_attach['p1'], ext_attach['p2'], ext_attach['p3'], ext_attach['p4'])
     L = len(E) - len(verts) + 1
     bidx = {v: 1 << i for i, v in enumerate(verts)}
-    mcache = {}
+    mcache = {}   # [Optimization] per-case vertex-set mask cache
 
     mk = _make_mk(mcache, bidx)
     Gammas = [FS(S) for r in range(1, len(verts) + 1) for S in combinations(verts, r) if connected(set(S), E)]
@@ -470,15 +465,15 @@ def skel_regions_k1(edges, verts, ext_attach, ext_mode, use_overlap=True):
         if use_overlap and not overlap_ok(fam13m, fam24m, m_inf):
             cnt['ov_kill'] += 1
             return
-        cuts = (('C13', C13), ('C24', C24), ('C1C13', cut1), ('C3C13', cut3), ('C2C24', cut2), ('C4C24', cut4), ('C1^2C13', cut1sq), ('C3^2C13', cut3sq), ('C2^2C24', cut2sq), ('C4^2C24', cut4sq))
+        cuts = ((R.C13, C13), (R.C24, C24), (R.C1C13, cut1), (R.C3C13, cut3), (R.C2C24, cut2), (R.C4C24, cut4), (R.C1SQ13, cut1sq), (R.C3SQ13, cut3sq), (R.C2SQ24, cut2sq), (R.C4SQ24, cut4sq))
         vm = {}
         for v in verts:
             acc = None
-            for mstr, S in cuts:
+            for md, S in cuts:
                 if v in S:
-                    acc = mstr if acc is None else meet(acc, mstr)
-            vm[v] = acc if acc is not None else 'H'
-        em = [meet(vm[a], vm[b]) for (a, b) in E]
+                    acc = md if acc is None else mode_meet(acc, md)
+            vm[v] = acc if acc is not None else H
+        em = [mode_meet(vm[a], vm[b]) for (a, b) in E]
         pre = (tuple(em), tuple(vm.values()))
         if pre in seen_pre:
             cnt['skip_pre'] += 1
@@ -613,7 +608,7 @@ def skel_regions_k1(edges, verts, ext_attach, ext_mode, use_overlap=True):
     return regs, cnt, ('L=%d' % L,)
 
 
-# ------------------------- FRI enumerators -------------------------
+# ==================== FRI ENUMERATORS ====================
 
 # Cut representations are NOT unique: any SC region also has a representative with an SC vertex in ALL nonempty cuts
 # (same em/scaling), so combinations without such a vertex are pruned — a lifted combination gives the same region.
@@ -631,7 +626,8 @@ def has_sc_vertex(cut_sets):
 # Enumerate all regions of the Regge 2->2 kinematics; dispatches to the on/off-shell enumerator by the external modes.
 def fri_regions_full(edges, verts, ext_attach, ext_mode, M=1):
     # (M: kept for backward compatibility, unused)
-    ms = {n: ext_m(ext_mode.get(n)) for n in ext_attach}
+    ext_mode = _conv_ext(ext_mode)
+    ms = {n: _ext_m(ext_mode.get(n)) for n in ext_attach}
     # all lightlike -> on-shell enumerator (refinement depth by loop count)
     if all(m is None for m in ms.values()):
         return fri_regions_onshell(edges, verts, ext_attach, ext_mode)
@@ -641,6 +637,7 @@ def fri_regions_full(edges, verts, ext_attach, ext_mode, M=1):
 
 # k1 enumerator (all externals lightlike): refinement depth decided by the LOOP COUNT instead of possibly_softest.
 def fri_regions_onshell(edges, verts, ext_attach, ext_mode):
+    ext_mode = _conv_ext(ext_mode)
     v1, v3 = ext_attach['p1'], ext_attach['p3']
     v2, v4 = ext_attach['p2'], ext_attach['p4']
     forbid13 = {v2, v4}; forbid24 = {v1, v3}
@@ -721,10 +718,7 @@ def fri_regions_onshell(edges, verts, ext_attach, ext_mode):
                                     if key not in seen:
                                         seen.add(key)
                                         regs.append((set(cut13), set(cut24), set(cut1), set(cut3), set(cut2), set(cut4), reg[0], reg[1]))
-                                # branch 13: S²C13 target — any one of Cond 1/2/3 suffices:
-                                #   Cond 1: v ∈ I2 adjacent to an SC24 vertex;  Cond 2: v ∈ I2x4 adjacent to C2C24\C13;
-                                #   Cond 3: v ∈ I2x2 adjacent to C4C24\C13.  C1²C13 := C1C13, C3²C13 := C3C13;
-                                #   under 3-regularity the H part needs >=2 edge-connected vertices.
+                                # branch 13: S^2C13 target; any one of Cond 1/2/3 suffices (Cond 1 inline, Cond 2/3 below).
                                 if (cut1 or cut3):
                                     u13 = [u for u in inner if u in cut2 and u in cut4 and u in cut13 and u not in cut1 and u not in cut3]
                                     if u13:
@@ -745,9 +739,7 @@ def fri_regions_onshell(edges, verts, ext_attach, ext_mode):
                                                     if key not in seen:
                                                         seen.add(key)
                                                         regs.append((set(cut13), set(cut24), set(cut1), set(cut3), set(cut2), set(cut4), reg[0], reg[1]))
-                                # branch 24: S²C24 target, symmetric:
-                                #   Cond 1: v ∈ I2 adjacent to an SC13 vertex;  Cond 2: v ∈ I2x3 adjacent to C1C13\C24;
-                                #   Cond 3: v ∈ I2x1 adjacent to C3C13\C24.  C2²C24 := C2C24, C4²C24 := C4C24.
+                                # branch 24: S^2C24 target, symmetric to branch 13.
                                 if (cut2 or cut4):
                                     u24 = [u for u in inner if u in cut1 and u in cut3 and u in cut24 and u not in cut2 and u not in cut4]
                                     if u24:
@@ -785,7 +777,7 @@ def fri_regions_onshell(edges, verts, ext_attach, ext_mode):
                                 # all-empty refinement ≡ refine=0 (pure main cut, already built there)
                                 if refine != 0 and not (cut1 or cut3 or cut2 or cut4):
                                     continue
-                                if refine != 0 and not has_sc_vertex({'C13': cut13, 'C24': cut24, 'C1C13': cut1, 'C3C13': cut3, 'C2C24': cut2, 'C4C24': cut4}):
+                                if refine != 0 and not has_sc_vertex({R.C13: cut13, R.C24: cut24, R.C1C13: cut1, R.C3C13: cut3, R.C2C24: cut2, R.C4C24: cut4}):
                                     continue
                                 if cut13 | cut24 | cut1 | cut3 | cut2 | cut4 >= set(verts):
                                     continue
@@ -811,6 +803,7 @@ def _refine_towers(edges, root, base, forbid, depth):
 
 # Non-k1 enumerator: main cuts may be disconnected; refinement depth from possibly_softest (no loop-count gate).
 def fri_regions_offshell(edges, verts, ext_attach, ext_mode, ms):
+    ext_mode = _conv_ext(ext_mode)
     v1, v3 = ext_attach['p1'], ext_attach['p3']
     v2, v4 = ext_attach['p2'], ext_attach['p4']
     forbid13 = {v2, v4}
@@ -820,12 +813,12 @@ def fri_regions_offshell(edges, verts, ext_attach, ext_mode, ms):
     m1, m2, m3, m4 = ms['p1'], ms['p2'], ms['p3'], ms['p4']
 
     # depth limits: possibly_softest(m_i) decides d13/d24 (both sides -> M each; single side -> M and M-1)
-    ps = possibly_softest(m1, m2, m3, m4)
+    ps = [to_mode(p) for p in possibly_softest(m1, m2, m3, m4)]
     if len(ps) == 2:                    # S^M C13 + S^M C24 simultaneously
-        d13 = d24 = int(ps[0].split('^')[1].split('C')[0])
+        d13 = d24 = ps[0].m
     else:                               # single candidate
-        Mside = int(ps[0].split('^')[1].split('C')[0])
-        if ps[0].endswith('C13'):
+        Mside = ps[0].m
+        if ps[0].fam == 13:
             d13, d24 = Mside, Mside - 1
         else:
             d13, d24 = Mside - 1, Mside
@@ -891,7 +884,9 @@ def fri_regions_offshell(edges, verts, ext_attach, ext_mode, ms):
     return regs
 
 
-# ---------------------------- harness ----------------------------
+# ==================== HARNESS ====================
+
+# Run one graph/kinematics case: compare the FRI enumerator against the skeleton enumerator.
 def run_case(name, kin, quiet=False):
     edges = [tuple(e) for e in GRAPHS[name]]
     verts = sorted({v for e in edges for v in e})
@@ -940,7 +935,7 @@ DEFAULT = [('box', 'k0'), ('box', 'k5'),
            ('CrossLadder1', 'k4'), ('Crown', 'k4'), ('KidCrown', 'k4'),
            ('K33A', 'k4'), ('ladder', 'k4')]
 
-
+# Entry point: run the (name, kin) cases from argv, or the default sweep.
 def main():
     args = sys.argv[1:]
     cases = []

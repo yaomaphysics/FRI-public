@@ -1,11 +1,6 @@
 #!/usr/bin/env python3
-"""primitives.py — zero-judgment base layer for the Regge 2->2 framework.
-
-Mode algebra (the lattice of momentum modes S^m C_i^n C_ij, the G/sH overlay
-products, relations, virtuality, mode_meet/mode_join/vee) + the mode-string layer
-(meet/join/vee/marginally_softer on plain strings) + mode blocks and scaling +
-external-momentum helpers + graph tools.  The region checks (judgment) live in
-region_checker.py; the enumerators live in skeleton.py.
+"""
+primitives.py — fundamental tools.
 """
 
 from __future__ import annotations
@@ -14,111 +9,19 @@ import itertools
 import time
 from functools import lru_cache
 from itertools import combinations
+from operator import itemgetter
 from typing import Optional
 
-# ============================ mode algebra ============================
-#
-# Regge-limit momentum-mode algebra.
-# 
-# 2026-08-29.  Every momentum mode is one of three types:
-# 
-#     S^m C_i^n C_ij  |  G (Glauber)  |  sH (semihard)
-# 
-# The parametrised family S^m C_i^n C_ij:
-# 
-#     m >= 0 integer
-#     n in {-1, 0, 1, 2, ...} U {INF}
-#     family (pair) ij in {13, 24};  leg i in {1,3} (fam 13) or {2,4} (fam 24)
-# 
-#     n = -1 : the trailing C_ij is cancelled by C_i^{-1}  ->  pure S^m
-#              (m = 0 as well  ->  the hard mode H).  No leg, no family.
-#     n =  0 : S^m C_ij  (m = 0 -> the plain C13 / C24 cut).  Leg label absent.
-#     n = INF: the four lightlike external momenta C_i^INF C_ij (m = 0 forced).
-# 
-# Scaling, in the light-cone basis of leg i (beta_i lightlike, see the draft):
-# 
-#     k^mu = (k.betabar_i, k.beta_i, k.beta_iperp) ~ lambda^m (1, l^{n+1}, l^{(n+1)/2})
-# 
-# Virtuality (derived, not postulated: k^2 = 2(k.bb)(k.b) - k_perp^2 and both
-# terms are the same order, so there is no cancellation):
-# 
-#     V(S^m C_i^n C_ij) = 2m + n + 1          (n = -1 degenerates to 2m)
-# 
-# Order (2026-08-29): drop the trailing C_ij and compare the S^m C_i^n parts
-# by the *wide-angle* rules.  With sigma = m + n:
-# 
-#     same leg       : X1 softer than X2  <=>  m1 >= m2  and  sigma1 >= sigma2
-#     different leg  : X1 softer than X2  <=>  m1 >= sigma2
-#     different fam  : X1 softer than X2  <=>  m1 >= sigma2 + 1
-# 
-# Modes with n <= 0 carry no leg label, so inside their family they compare by
-# the same-leg rule (they are isotropic in the leg degree of freedom).  The +1
-# in the last row is the back-to-back projection: across families the minus
-# component of X2 is what shows up as the plus component in X1's frame.
-# 
-# Wedge / vee, same family (2026-08-29 19:16): strip the trailing C_ij, do
-# the wide-angle operation on S^m C_i^n (three cases), put the
-# C_ij back.  Verified equal to the glb/lub of the order above on 1872/1872
-# same-family pairs (m<=3, n<=3) -- EXCEPT when n = -1 is involved, where all
-# 112 disagreements have the strip-and-wide-angle answer failing to be a bound
-# at all.  Reason: C_i^{-1} and C_ij cancel *as a pair* (so C_ij cannot be
-# stripped alone: Regge's S^m has sigma = m-1 while wide-angle's pure soft
-# S^m = S^m C^0 has sigma = m), and more fundamentally wide-angle compares a
-# direction-free S^m to C_i^n by the DIFFERENT-direction criterion (that is
-# where  S wedge C_i^2 = SC_i  comes from) whereas the Regge S^m ~ l^m (1,1,1) is
-# genuinely isotropic -- nothing to project, so the comparison is componentwise.
-# 
-#     PATCH: pure S^m (n = -1, including H) is isotropic and
-#     combines with any same-family mode by the wide-angle SAME-direction rule,
-#     i.e. the product order on (m, sigma).  n >= 0 uses strip-and-wide-angle.
-# 
-# With that clause: 1984/1984 agreement on same-family pairs.  Counterexample it
-# fixes: C1C13 /\ S -> S (unpatched) is not a lower bound, since S ~ l(1,1,1) is
-# LARGER than C1C13 ~ (1,l^2,l) in the minus component; glb = S^1C13 (V=3),
-# which is also what the old table has.
-# 
-# Cross-family wedge/vee: still to come.  The glb/lub of the order
-# above predicts  mode_meet = (min sigma + 1, max sigma) with the label of the larger
-# sigma,  mode_join = (min m, max m - 1) with the label of the smaller m.
-# 
-# mode_meet / mode_join are computed as genuine glb / lub of this order -- no tables.
-# Consequences verified by self_test():
-#   * the order is a partial order (transitive, antisymmetric)
-#   * glb / lub exist and are unique  =>  it is a lattice
-#   * idempotence, absorption, associativity, and the virtuality identity
-#     V(X1) + V(X2) = V(X1 mode_meet X2) + V(X1 mode_join X2)  all hold identically
-#   * the 2026-08-18 hand rule "mode_meet keeps the deeper leg" is now a theorem
-# 
-# G and sH (2026-08-29)
-# --------------------------
-# Order:  H  >-  G  >-  sH  >-  every S^m C_i^n C_ij mode
-#         (">-" = harder than).  G is the necklace string, sH the pearl between
-#         two G's, so an sH vertex only ever sees sH and G neighbours.
-# 
-# They are NOT members of the lattice L = {S^m C_i^n C_ij}; they are overlay
-# products, and the separation is enforced by *ordering in time*, not by fiat:
-# 
-#   region_checker._build_region does
-#      (1) overlay construction  vm from the cuts, em[e] = mode_meet(vm[u], vm[v])  <- L only
-#      (2) glauber_adjust  assigns G and sH, then recomputes vm with vee   <- sees G/sH
-# 
-#   => mode_meet NEVER sees G or sH          (dead table entries; the correction
-#                                        MEET(G,C13)=C13 is pure cleanup)
-#   => mode_join sees G/sH only inside step (2)'s vm recomputation, but by then an sH vertex
-#      has only sH/G neighbours, so mode_join(sH, family mode) is vacuous too.
-# 
-# This is why mode_join(C13, C24) = H survives: that mode_join happens in step (1), before
-# sH exists.  As a *poset* L u {G, sH} is fine, but L is not a join-sublattice
-# of it (the lub of C13 and C24 in the bigger poset is sH), so the two must never
-# be mixed in one call.  assert_family() below guards the overlay-construction code paths.
+# ==================== MODE ALGEBRA ====================
 
 INF = float('inf')
 FAM_LEGS = {13: (1, 3), 24: (2, 4)}
 LEG_FAM = {1: 13, 3: 13, 2: 24, 4: 24}
+# [Optimization] Intern pool: identical (class, m, n, leg, fam) construction reuses one object.
+_MODE_POOL = {}
 
 
-# Canonical mode. Stored as (m, n, leg, fam); leg/fam are None when the corresponding label is meaningless (n <= 0
-# kills leg, n = -1 kills fam).
+# Canonical mode stored as (m, n, leg, fam); leg/fam are None when the label is meaningless.
 class Mode(tuple):
     __slots__ = ()
 
@@ -146,12 +49,19 @@ class Mode(tuple):
                 raise ValueError(f'leg {leg} not in family {fam}')
         if n >= 0 and fam is None:
             raise ValueError('n >= 0 requires a family')
-        return super().__new__(cls, (m, n, leg, fam))
+        key = (cls, m, n, leg, fam)
+        hit = _MODE_POOL.get(key)
+        if hit is not None:
+            return hit
+        self = super().__new__(cls, (m, n, leg, fam))
+        _MODE_POOL[key] = self
+        return self
 
-    m = property(lambda self: self[0])
-    n = property(lambda self: self[1])
-    leg = property(lambda self: self[2])
-    fam = property(lambda self: self[3])
+    # [Optimization] plain itemgetter accessors (hot path).
+    m = property(itemgetter(0))
+    n = property(itemgetter(1))
+    leg = property(itemgetter(2))
+    fam = property(itemgetter(3))
     sigma = property(lambda self: self[0] + self[1])
 
     # Virtuality 2m + n + 1 = m + sigma + 1.
@@ -168,7 +78,7 @@ class Mode(tuple):
     def __str__(self):
         m, n, leg, fam = self
         if n == -1:
-            # 'S' (not 'S^1') to stay byte-compatible with the old table
+            # 'S' (not 'S^1') to keep the printed form stable
             return 'H' if m == 0 else ('S' if m == 1 else f'S^{m}')
         pre = '' if m == 0 else f'S^{m}'
         if n == 0:
@@ -179,46 +89,21 @@ class Mode(tuple):
     __repr__ = __str__
 
 
-# ----------------------------------------------------------------- constructors
+# ==================== CONSTRUCTORS ====================
+
 H = Mode(0, -1)
 S = lambda m=1: Mode(m, -1)                       # noqa: E731
 C = lambda fam, m=0: Mode(m, 0, None, fam)        # noqa: E731
 CC = lambda leg, n=1, m=0: Mode(m, n, leg)        # noqa: E731
 EXT = lambda leg: Mode(0, INF, leg)               # noqa: E731
 
-# ---------------------------------------------------------------- old-name map
-_OLD = {
-    'H': H, 'S': S(1), 'S^2': S(2), 'S^3': S(3), 'S^4': S(4),
-    'C13': C(13), 'C24': C(24),
-    'S^1C13': C(13, 1), 'S^1C24': C(24, 1),
-    'S^2C13': C(13, 2), 'S^2C24': C(24, 2),
-    'C1C13': CC(1), 'C3C13': CC(3), 'C2C24': CC(2), 'C4C24': CC(4),
-    'C1^2C13': CC(1, 2), 'C3^2C13': CC(3, 2),
-    'C2^2C24': CC(2, 2), 'C4^2C24': CC(4, 2),
-    'C1∞C13': EXT(1), 'C3∞C13': EXT(3), 'C2∞C24': EXT(2), 'C4∞C24': EXT(4),
-}
-# reverse map for O(1) name lookup (to_old hot path)
-_OLD_REV = {v: k for k, v in _OLD.items()}
-# The old leg-blind V=4 symbol decodes to (m,n) = (1,1) with an UNKNOWN leg.
+# ==================== MODE-STRING PARSE / PRINT BOUNDARY ====================
+
+# The legacy leg-blind V=4 symbol decodes to (m,n) = (1,1) with an unknown leg.
 LEG_BLIND = {'S^1C13^2': 13, 'S^1C24^2': 24}
 
 
-# Old region_checker string -> Mode. Leg-blind symbols return a tuple of the two possible readings (the information was
-# not in the old symbol).
-def from_old(name: str):
-    if name in _OLD:
-        return _OLD[name]
-    if name in LEG_BLIND:
-        fam = LEG_BLIND[name]
-        return tuple(Mode(1, 1, leg, fam) for leg in FAM_LEGS[fam])
-    p = _parse(name)
-    if p is not None:
-        return p
-    raise KeyError(name)
-
-
-# Parse a leg-explicit mode string like 'S^1C4C24', 'C1^2C13', 'C3∞C13', 'S^2C24', 'C24', 'S^3', 'H' into a Mode, or
-# None if it does not parse (e.g. the old leg-blind 'S^1C13^2').
+# Parse a leg-explicit mode string (e.g. 'S^1C4C24', 'C1^2C13', 'S^3', 'H') into a Mode; None if it does not parse.
 def _parse(name: str):
     import re
     if name == 'H':
@@ -233,6 +118,9 @@ def _parse(name: str):
         return None
     if not rest:
         return Mode(m, -1)
+    fam_only = re.fullmatch(r'C(13|24)', rest)     # soft-carrier label S^kC_fam (possibly_softest)
+    if fam_only:
+        return Mode(m, 0, None, int(fam_only.group(1)))
     cm = re.match(r'C(\d+)(?:\^(\d+)|(∞|inf))?', rest)
     if not cm:
         return None
@@ -253,73 +141,79 @@ def _parse(name: str):
     return Mode(m, nv, leg, fam)
 
 
+# Mode -> legacy region_checker string (external legs print as C{i}∞C{fam}).
 def to_old(x: Mode) -> str:
     if x == G:
         return 'G'
     if x == SH:
         return 'sH'
-    k = _OLD_REV.get(x)
-    if k is not None:
-        return k
+    if x.n == INF:
+        return f'C{x.leg}∞C{x.fam}'
     if (x.m, x.n) == (1, 1):
-        # 2026-08-29: keep the leg -- the leg-blind 'S^1C_ij^2' loses
-        # information on the string round-trip (loop4b k4 A: the (4,8) edge
-        # must stay S^1C4C24, not fall back to the leg-2 reading).
+        # keep the leg; the leg-blind form loses it on the string round-trip
         return f'S^1C{x.leg}C{x.fam}'
     return str(x)
 
 
-# Old region_checker mode string -> Mode, including the G / sH sentinels.
+# Legacy region_checker mode string -> Mode, including the G / sH sentinels.
 def to_mode(name: str) -> Mode:
     if name in ('G', 'sH'):
         return G if name == 'G' else SH
-    x = from_old(name)
-    if isinstance(x, Mode):
-        return x
-    return x[0]                                    # leg-blind: first reading
+    if name in LEG_BLIND:
+        return Mode(1, 1, FAM_LEGS[LEG_BLIND[name]][0], LEG_BLIND[name])
+    if name == 'S':
+        return Mode(1, -1)                         # bare S is S^1
+    x = _parse(name)
+    if x is None:
+        raise KeyError(name)
+    return x
 
 
-# region_checker-facing mode_meet (string in, string out). mode_meet must NEVER see G/sH in the region_checker pipeline (they are
-# assigned only afterwards, by glauber_adjust), so this is the enforcement point.
-def old_meet(a: str, b: str) -> str:
-    if a in SPECIAL or b in SPECIAL:
-        raise AssertionError(
-            f'mode_meet called with G/sH: ({a}, {b}). G/sH are overlay products '
-            'and must not reach the lattice-only code paths '
-            '(the overlay construction runs before glauber_adjust).')
-    return to_old(mode_meet(to_mode(a), to_mode(b)))
+# ==================== ORDER ====================
 
+_RELATION_MEMO = {}
 
-# region_checker-facing mode_join (string in, string out). G/sH are legal here: glauber_adjust recomputes
-# vertex modes with vee.
-def old_join(a: str, b: str) -> str:
-    return to_old(mode_join(to_mode(a), to_mode(b)))
-
-
-# ----------------------------------------------------------------------- order
-# 'same' (same leg / label-free), 'xleg', or 'xfam'.
+# [Optimization] 'same' (same leg / label-free), 'xleg', or 'xfam'; memoised on the pair.
 def _relation(a: Mode, b: Mode) -> str:
+    key = (a, b)
+    r = _RELATION_MEMO.get(key)
+    if r is not None:
+        return r
     if a.n == -1 or b.n == -1:
-        return 'same'                             # isotropic
-    if a.fam != b.fam:
-        return 'xfam'
-    if a.leg is None or b.leg is None:
-        return 'same'                             # n <= 0 has no leg
-    return 'same' if a.leg == b.leg else 'xleg'
+        r = 'same'                                # isotropic
+    elif a.fam != b.fam:
+        r = 'xfam'
+    elif a.leg is None or b.leg is None:
+        r = 'same'                                # n <= 0 has no leg
+    else:
+        r = 'same' if a.leg == b.leg else 'xleg'
+    _RELATION_MEMO[key] = r
+    return r
 
 
-# a softer-or-equal than b (2026-08-29 wide-angle-inherited rules).
+_SOFTER_MEMO = {}
+
+# [Optimization] a softer-or-equal than b (wide-angle-inherited rules); memoised on the pair.
 def softer(a: Mode, b: Mode) -> bool:
+    key = (a, b)
+    v = _SOFTER_MEMO.get(key)
+    if v is not None:
+        return v
     if a == b:
-        return True
-    r = _relation(a, b)
-    if r == 'same':
-        return a.m >= b.m and a.sigma >= b.sigma
-    if r == 'xleg':
-        return a.m >= b.sigma
-    return a.m >= b.sigma + 1
+        v = True
+    else:
+        r = _relation(a, b)
+        if r == 'same':
+            v = a.m >= b.m and a.sigma >= b.sigma
+        elif r == 'xleg':
+            v = a.m >= b.sigma
+        else:
+            v = a.m >= b.sigma + 1
+    _SOFTER_MEMO[key] = v
+    return v
 
 
+# a harder-or-equal than b.
 def harder(a: Mode, b: Mode) -> bool:
     return softer(b, a)
 
@@ -329,8 +223,8 @@ def _wa_reduction(x: Mode, y: Mode) -> bool:
     return softer(x, y) and not softer(y, x) and x.m <= y.sigma
 
 
-# x marginally softer than y: the sigma/V "strictly between" rule (matches the wide-angle and 2to3 forms).
-@lru_cache(maxsize=None)
+# x marginally softer than y: the sigma/V "strictly between" rule (matches the wide-angle and collinear forms).
+@lru_cache(maxsize=None)   # [Optimization] memoised
 def mode_marginally_softer(x: Mode, y: Mode) -> bool:
     if x == y:
         return False
@@ -377,22 +271,36 @@ def mode_marginally_softer(x: Mode, y: Mode) -> bool:
     return False
 
 
-# ------------------------------------------------------- G / sH (overlay chain)
-G = 'G'                     # Glauber: the necklace string
-SH = 'sH'                   # semihard: the pearl between two G's
+# ==================== G / sH (OVERLAY CHAIN) ====================
+
+# Overlay sentinel: a Mode-valued label (Glauber 'G' / semihard 'sH') with no lattice reading.
+class _Sentinel(Mode):
+    __slots__ = ()
+    _names = {0: 'G', 1: 'sH'}
+
+    def __new__(cls, fam):
+        return super().__new__(cls, 0, 0, None, fam)
+
+    def __str__(self):
+        return _Sentinel._names[self[3]]
+    __repr__ = __str__
+
+
+G = _Sentinel(0)            # Glauber: the necklace string
+SH = _Sentinel(1)           # semihard: the pearl between two G's
 SPECIAL = (G, SH)
 # hardness chain, hardest first:  H  >-  G  >-  sH  >-  everything in L
 _CHAIN = {G: 1, SH: 2}      # rank; H = 0, any family mode = 3
 
 
+# Chain rank: H (0), G (1), sH (2), family modes (3).
 def _rank(x):
     if x in SPECIAL:
         return _CHAIN[x]
     return 0 if x == H else 3
 
 
-# Softer of the two under the chain H >- G >- sH >- L. NB: never invoked by region_checker -- mode_meet runs before G/sH are
-# assigned (see module docstring).
+# Softer of the two under the chain H >- G >- sH >- L (unreachable from region_checker).
 def _chain_meet(a, b):
     if a == b:
         return a
@@ -412,22 +320,19 @@ def _chain_join(a, b):
     return a if a in SPECIAL else b
 
 
-# Guard for the overlay-construction code paths (vertex-mode joins and edge-mode meets): G/sH must not appear
-# there, otherwise the lub of C13 and C24 would collapse to sH instead of H.
+# Guard for the overlay-construction paths: G/sH must not appear in vertex-mode joins or edge-mode meets.
 def assert_family(*modes):
     bad = [m for m in modes if m in SPECIAL]
     if bad:
         raise AssertionError(f'G/sH reached a lattice-only code path: {bad}. Vertex-mode joins must run before glauber_adjust.')
 
 
-# ------------------------------------------------------------- mode_meet / mode_join
+# ==================== MODE_MEET / MODE_JOIN ====================
+
 _DIRS = ([('iso', None, None)] + [('lf', fam, None) for fam in (13, 24)] + [('leg', fam, leg) for fam, legs in FAM_LEGS.items() for leg in legs])
 
 
-# Closed-form glb, O(1), ONLY for unconditional cases: comparable pairs, and same-direction pairs (product order glb =
-# componentwise max, label from the labelled side). Cross-leg / cross-family overlap -> None; the caller falls back to
-# the full direction scan. Boundaries are subtle (sigma ties kill the leg label; leg-free inputs can give leg-free
-# cross-family results; comparability first -- mode_meet(C13, S^2C24) = S^2C24 since C13 is harder).
+# [Optimization] Closed-form glb for unconditional cases; None when the caller must fall back to the direction scan.
 def _meet_fast(a: Mode, b: Mode):
     if a == b:
         return a
@@ -448,6 +353,7 @@ def _meet_fast(a: Mode, b: Mode):
     return Mode(m, n, leg, fam)
 
 
+# [Optimization] Closed-form lub for unconditional cases; None when the caller must fall back to the direction scan.
 def _join_fast(a: Mode, b: Mode):
     if a == b:
         return a
@@ -486,17 +392,34 @@ def _join_fast(a: Mode, b: Mode):
     return Mode(m, n, leg, fam)
 
 
+_REL_DIR_MEMO = {}
+
+# [Optimization] Relation of z to the direction (kind, fam, leg): 'same', 'xleg', or 'xfam'; memoised on the key.
 def _rel_dir(kind, fam, leg, z: Mode) -> str:
+    key = (kind, fam, leg, z)
+    r = _REL_DIR_MEMO.get(key)
+    if r is not None:
+        return r
     if kind == 'iso' or z.n == -1:
-        return 'same'
-    if fam != z.fam:
-        return 'xfam'
-    if kind == 'lf' or z.leg is None:
-        return 'same'
-    return 'same' if leg == z.leg else 'xleg'
+        r = 'same'
+    elif fam != z.fam:
+        r = 'xfam'
+    elif kind == 'lf' or z.leg is None:
+        r = 'same'
+    else:
+        r = 'same' if leg == z.leg else 'xleg'
+    _REL_DIR_MEMO[key] = r
+    return r
 
 
+_CAND_MEMO = {}
+
+# [Optimization] Direction-scan candidates for the glb (mode='glb') or lub (mode='lub'); memoised on the pair.
 def _candidates(a: Mode, b: Mode, mode: str):
+    key = (a, b, mode)
+    hit = _CAND_MEMO.get(key)
+    if hit is not None:
+        return hit
     out = []
     for kind, fam, leg in _DIRS:
         if mode == 'glb':
@@ -549,12 +472,15 @@ def _candidates(a: Mode, b: Mode, mode: str):
         out.append(cand)
     uniq = set(out)
     if mode == 'glb':
-        return sorted({x for x in uniq if not any(y != x and harder(y, x) for y in uniq)})
-    return sorted({x for x in uniq if not any(y != x and softer(y, x) for y in uniq)})
+        res = sorted({x for x in uniq if not any(y != x and harder(y, x) for y in uniq)})
+    else:
+        res = sorted({x for x in uniq if not any(y != x and softer(y, x) for y in uniq)})
+    _CAND_MEMO[key] = res
+    return res
 
 
-# Greatest lower bound (softest common ... hardest common softer mode).
-@lru_cache(maxsize=None)
+# Greatest lower bound in the mode lattice.
+@lru_cache(maxsize=None)   # [Optimization] memoised
 def mode_meet(a: Mode, b: Mode) -> Mode:
     if a in SPECIAL or b in SPECIAL:
         return _chain_meet(a, b)
@@ -567,7 +493,8 @@ def mode_meet(a: Mode, b: Mode) -> Mode:
     return c[0]
 
 
-@lru_cache(maxsize=None)
+# Least upper bound in the mode lattice.
+@lru_cache(maxsize=None)   # [Optimization] memoised
 def mode_join(a: Mode, b: Mode) -> Mode:
     if a in SPECIAL or b in SPECIAL:
         return _chain_join(a, b)
@@ -580,15 +507,13 @@ def mode_join(a: Mode, b: Mode) -> Mode:
     return c[0]
 
 
-# --------------------------------------------- precomputed table (fast path 2)
-# 2026-08-29: precompute the full mode_meet/mode_join table for the common mode
-# range so that repeated calls are O(1) dict hits -- exactly what the old
-# table's _expand_formulas does, but for the lattice.  The table is built
-# at import time (a few seconds) and lives inside the lru_cache of mode_meet/join.
+# ==================== PRECOMPUTED TABLE ====================
+
 _PRECOMP_M = 6                       # m <= 6
 _PRECOMP_N = 5                       # n <= 5 (per leg)
 
 
+# [Optimization] Canonical mode set over the precomputation range.
 def _precomp_set():
     out = [Mode(m, -1) for m in range(_PRECOMP_M + 1)]
     for fam, legs in FAM_LEGS.items():
@@ -600,9 +525,7 @@ def _precomp_set():
     return sorted(set(out))
 
 
-# Fill the mode_meet/mode_join caches over the common range, closed under mode_meet/mode_join (m, sigma bounded, so the closure
-# terminates). Subsequent calls anywhere inside the closure are O(1) lru_cache hits; anything outside falls back to
-# the fast path / direction scan.
+# Fill the mode_meet/mode_join caches over the common range, closed under both operations.
 def _warm_cache(verbose=False):
     M = _precomp_set()
     seen = set(M)
@@ -623,7 +546,9 @@ def _warm_cache(verbose=False):
     return len(seen)
 
 
-# ------------------------------------------------------------------ self test
+# ==================== SELF TEST ====================
+
+# Mode set used by self_test (m <= mmax, n <= nmax).
 def _bounded_set(mmax=4, nmax=3):
     out = [Mode(m, -1) for m in range(mmax + 1)]
     for fam, legs in FAM_LEGS.items():
@@ -635,6 +560,7 @@ def _bounded_set(mmax=4, nmax=3):
     return sorted(set(out))
 
 
+# Check the order and lattice identities, and the fast-path/vs-scan agreement.
 def self_test(mmax=4, nmax=3, verbose=True):
     M = _bounded_set(mmax, nmax)
     res = {}
@@ -695,6 +621,7 @@ BASICS = [
 ]
 
 
+# Check the G/sH chain, the pySD constraints, and the established basic entries.
 def check_physics(verbose=True):
     ok = True
     if verbose:
@@ -740,55 +667,13 @@ def check_physics(verbose=True):
     return ok
 
 
+# [Optimization] Warm the caches over the precomputation range at import time.
 _WARM_SIZE = _warm_cache(verbose=False)
 
 
-# ============================ mode string layer ============================
+# ==================== MODE BLOCKS / SCALING ====================
 
-# x marginally softer than y (formula: mode_marginally_softer); the G/sH sentinels and the leg-blind
-# legacy symbols have no marginal reading.
-@lru_cache(maxsize=None)
-def marginally_softer(x1, x2):
-    if x1 in ('G', 'sH') or x2 in ('G', 'sH') or x1 in LEG_BLIND or x2 in LEG_BLIND:
-        return False
-    return mode_marginally_softer(to_mode(x1), to_mode(x2))
-
-# Port-walk hardness test: mw >= X, with G hard, sH never, H only against non-H; else V(mw) <= V(X).
-def harder_or_eq(mw, X):
-    if mw == X:
-        return True
-    if X == 'H':
-        return False
-    if mw == 'H':
-        return True
-    if mw == 'G':
-        return True
-    if mw == 'sH' or X in ('G', 'sH'):
-        return False
-    return V(mw) <= V(X)
-
-# Virtuality of a mode string, from the name alone: 𝒱(S^m C_i^n C_ij) = 2m+n+1 (n=∞ → ∞); G/sH sentinels carry 𝒱 = 1.
-@lru_cache(maxsize=None)
-def V(key):
-    return 1 if key in SPECIAL else to_mode(key).V
-
-@lru_cache(maxsize=None)
-def meet(a, b):
-    return old_meet(a, b)
-
-@lru_cache(maxsize=None)
-def join(a, b):
-    return old_join(a, b)
-
-def vee(modes):
-    acc = modes[0]
-    for m in modes[1:]: acc = join(acc, m)
-    return acc
-
-# ============================ mode blocks / scaling ============================
-
-# 1VI blocks of a MULTIGRAPH: self-loops become single-vertex blocks; parallel edges are distinguished by index.
-# Returns list of (vertex_set, edge_index_list) pairs.
+# [Optimization] 1VI blocks of a multigraph, as (vertex_set, edge_index_list) pairs.
 @lru_cache(maxsize=None)
 def _find_1vi_blocks(verts, edges):
     loops = [(i, e) for i, e in enumerate(edges) if e[0] == e[1]]
@@ -846,13 +731,11 @@ def _find_1vi_blocks(verts, edges):
     return out
 
 
+# Memoised wrapper around _find_1vi_blocks with normalised (hashable) arguments.
 def find_1vi_blocks(verts, edges):
-    # content-keyed memo wrapper: normalise arguments, delegate to the cached impl
     return _find_1vi_blocks(verts if isinstance(verts, frozenset) else frozenset(verts), edges if isinstance(edges, tuple) else tuple(map(tuple, edges)))
 
-# 1VI blocks of the contracted X-subgraph: X edges + X vertices (join-mode), non-X endpoints absorbed into aux.
-# Blocks sharing a cut vertex stay SEPARATE — not connected components.  Each block is (vertex_set, contracted_edges, original_edge_indices).
-# The ORIGINAL indices are needed because distinct self-loops (1,3) and (7,8) both contract to (aux,aux) and are otherwise indistinguishable.
+# 1VI blocks of the contracted X-subgraph, as (vertex_set, contracted_edges, original_edge_indices).
 def mode_components(mode, vm, em, edges, verts):
     gv = {v for v in verts if vm.get(v) == mode}
     ge_idx = [i for i, m in enumerate(em) if m == mode]
@@ -868,17 +751,22 @@ def mode_components(mode, vm, em, edges, verts):
         out.append((bv, [edges2[j] for j in eidx2], [ge_idx[j] for j in eidx2]))
     return out
 
+# Scaling vector of a list of edge modes (legacy strings; the G/sH sentinels carry V = 1 as Modes).
 def to_scaling(em):
-    return tuple(-V(m) for m in em) + (1,)
+    return tuple(-to_mode(m).V for m in em) + (1,)
 
-# ============================ external momenta ============================
+# ==================== EXTERNAL MOMENTA ====================
 
+_DEFAULT_EXT_MODE = {'p1': 'C1∞C13', 'p2': 'C2∞C24', 'p3': 'C3∞C13', 'p4': 'C4∞C24'}
+
+# [Optimization] External-mode string for vertex n, with the default attachment when unset.
 def ext_mode_for(ext_mode, n):
     if ext_mode is not None and n in ext_mode:
         return ext_mode[n]
-    return {'p1': 'C1∞C13', 'p2': 'C2∞C24', 'p3': 'C3∞C13', 'p4': 'C4∞C24'}[n]
+    return _DEFAULT_EXT_MODE[n]
 
-def ext_m(mode): # m_i from an external-mode string: p_i^2 ~ λ^{m_i}; the strict lightlike case (p_i^2 = 0) is denoted by "None".
+# m_i for an external-mode string, p_i^2 ~ lmd^{m_i}; None for the strictly lightlike case.
+def ext_m(mode):
     if mode in ('C13', 'C24'):
         return 1
     if mode in ('C1C13', 'C3C13', 'C2C24', 'C4C24'):
@@ -887,7 +775,8 @@ def ext_m(mode): # m_i from an external-mode string: p_i^2 ~ λ^{m_i}; the stric
         return 3
     return None
 
-def possibly_softest(m1, m2, m3, m4): # analyze the possibly softest mode in the expansion, given the external kinematics p1=C_1^{m1}C13, p2=C_2^{m2}C24, p3=C_3^{m3}C13, p4=C_4^{m4}C24.
+# Softest modes appearing in the expansion for the given external kinematics.
+def possibly_softest(m1, m2, m3, m4):
     def _min(*xs):
         xs = [x for x in xs if x is not None]
         return min(xs) if xs else None
@@ -906,10 +795,11 @@ def possibly_softest(m1, m2, m3, m4): # analyze the possibly softest mode in the
         return [f'S^{M1}C13', f'S^{M2}C24']
     return [f'S^{M1}C13' if M1 > M2 else f'S^{M2}C24']
 
-# ============================ graph helpers ============================
+# ==================== GRAPH HELPERS ====================
 
+# Whether the induced graph on vs is connected (edges with both endpoints in vs kept).
 @lru_cache(maxsize=None)
-def _connected(vs, es): # checks whether the induced graph (including only edges whose endpoints both lie in vs) is connected; vs: vertex set (may include the auxiliary vertex "aux"); es: edge list.
+def _connected(vs, es):
     if len(vs) <= 1: return True
     adj = {v: set() for v in vs}
     for (a, b) in es:
@@ -923,12 +813,13 @@ def _connected(vs, es): # checks whether the induced graph (including only edges
     return seen == set(vs)
 
 
+# Memoised wrapper around _connected with normalised (hashable) arguments.
 def connected(vs, es):
-    # content-keyed memo wrapper: normalise arguments, delegate to the cached impl
     return _connected(vs if isinstance(vs, frozenset) else frozenset(vs), es if isinstance(es, tuple) else tuple(map(tuple, es)))
 
+# Whether the graph is one-vertex irreducible (deleting any single vertex leaves it connected).
 @lru_cache(maxsize=None)
-def _is_1vi(vs, es): # checks whether the graph is one-vertex irreducible (deleting any single vertex leaves the graph connected).
+def _is_1vi(vs, es):
     if len(vs) <= 1: return True
     for v in vs:
         rest = vs - {v}
@@ -936,12 +827,13 @@ def _is_1vi(vs, es): # checks whether the graph is one-vertex irreducible (delet
     return True
 
 
+# Memoised wrapper around _is_1vi with normalised (hashable) arguments.
 def is_1vi(vs, es):
-    # content-keyed memo wrapper: normalise arguments, delegate to the cached impl
     return _is_1vi(vs if isinstance(vs, frozenset) else frozenset(vs), es if isinstance(es, tuple) else tuple(map(tuple, es)))
 
+# Map each vertex to its component root via Union-Find (disjoint set union).
 @lru_cache(maxsize=None)
-def _components(es, verts): # returns a mapping {vertex: component_root} via Union-Find (disjoint set union).
+def _components(es, verts):
     parent = {v: v for v in verts}
     def find(x):
         while parent[x] != x:
@@ -956,8 +848,8 @@ def _components(es, verts): # returns a mapping {vertex: component_root} via Uni
     return {v: find(v) for v in verts}
 
 
+# Memoised wrapper around _components with normalised (hashable) arguments.
 def components(es, verts):
-    # content-keyed memo wrapper: normalise arguments, delegate to the cached impl
     return _components(es if isinstance(es, tuple) else tuple(map(tuple, es)), verts if isinstance(verts, frozenset) else frozenset(verts))
 
 # Refined (single-external) cut candidates: connected subsets containing root, inside S_base, avoiding forbidden vertices; empty allowed.
@@ -1004,8 +896,8 @@ def comp_sets(req, dom, va, vb, edges):
     return out
 
 
+# Drop the per-case memo tables (called at case start by the skeleton drivers).
 def clear_graph_caches():
-    # drop the per-case memo tables (called at case start by the skeleton drivers)
     _connected.cache_clear()
     _is_1vi.cache_clear()
     _components.cache_clear()

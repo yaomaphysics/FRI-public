@@ -9,6 +9,8 @@ scalings of each configuration.
 
 Used by facet_regions_interactive.py.
 """
+# ==================== GRAPH LIBRARY ====================
+
 GRAPHS = {
     'box': [(1, 3), (2, 4), (1, 2), (3, 4)],
     'ladder': [(1, 5), (5, 3), (2, 6), (6, 4), (1, 2), (3, 4), (5, 6)],
@@ -30,12 +32,12 @@ GRAPHS = {
     'loop4a': [(1, 5), (5, 6), (6, 2), (2, 4), (4, 7), (7, 8), (8, 9), (9, 3), (3, 10), (10, 1), (5, 9), (6, 7), (8, 10)],
     'loop4b': [(1, 5), (5, 6), (6, 2), (2, 7), (7, 4), (4, 8), (8, 9), (9, 3), (3, 10), (10, 1), (6, 8), (5, 9), (7, 10)],
     'loop5a': [(1, 6), (1, 9), (2, 5), (2, 8), (3, 7), (3, 9), (4, 5), (4, 8), (5, 6), (5, 7), (6, 7), (7, 8), (8, 9)],
-    # CrownT7 series (5-loop, 2026-08-30)
+    # CrownT7 series (5-loop).
     'CrownT7_m1': [(1, 5), (1, 6), (2, 5), (2, 6), (2, 7), (3, 5), (3, 6), (3, 7), (4, 5), (4, 6), (4, 7)],
     'CrownT7_m2': [(1, 5), (1, 6), (1, 7), (2, 5), (2, 6), (3, 5), (3, 6), (3, 7), (4, 5), (4, 6), (4, 7)],
     'CrownT7_m3': [(1, 5), (1, 6), (1, 7), (2, 5), (2, 6), (2, 7), (3, 5), (3, 6), (4, 5), (4, 6), (4, 7)],
     'CrownT7_m4': [(1, 5), (1, 6), (1, 7), (2, 5), (2, 6), (2, 7), (3, 5), (3, 6), (3, 7), (4, 5), (4, 6)],
-    # K33 series (nonplanar, 2026-08-30)
+    # K33 series (nonplanar).
     'K33A': [(1, 2), (1, 3), (1, 4), (2, 5), (2, 6), (3, 5), (3, 6), (4, 5), (4, 6)],
     'K33B': [(1, 4), (1, 6), (1, 7), (2, 5), (2, 6), (2, 7), (3, 5), (3, 6), (3, 7), (4, 5)],
     'K33C': [(1, 3), (1, 6), (1, 7), (2, 4), (2, 5), (2, 7), (3, 5), (4, 6), (5, 8), (6, 8), (7, 8)],
@@ -62,41 +64,35 @@ GRAPHS = {
     'K33D3_p8': [(1, 3), (1, 6), (1, 7), (2, 5), (2, 6), (2, 7), (3, 4), (3, 8), (4, 5), (5, 8), (6, 8), (7, 8)],
     'K33D5': [(1, 3), (1, 6), (1, 7), (2, 4), (2, 5), (2, 7), (3, 5), (4, 6), (5, 6), (5, 8), (6, 8), (7, 8)],
     'K33E5': [(1, 3), (1, 6), (1, 7), (2, 4), (2, 6), (2, 7), (3, 5), (4, 5), (5, 8), (6, 7), (6, 8), (7, 8)],
-    # Necklace series (2026-09-02): external pairs co-located — Necklace1:
-    # p1,p3 both at vertex 5 (p2@2, p4@4); Necklace2: p1,p3 at 5, p2,p4 at 8.
+    # Necklace series: external pairs co-located (p1,p3 together, p2,p4 together).
     'Necklace1': [(2, 7), (4, 7), (2, 4), (5, 6), (5, 6), (6, 7), (6, 7)],
     'Necklace2': [(5, 6), (7, 8), (6, 9), (6, 10), (7, 9), (7, 10), (9, 10)],
-    # loop5c (5-loop, 2026-09-03; was 'octagon'): standard p1@1..p4@4;
-    # internal 8-cycle 5-6-9-10-11-8-7-12-5 + ext pairs 1->{5,11},
-    # 2->{8,9}, 3->{10,12}, 4->{6,7}.  E=16, V=12, L=5.
+    # loop5c (5-loop): 8-cycle 5-6-9-10-11-8-7-12-5 with external pairs 1->{5,11}, 2->{8,9}, 3->{10,12}, 4->{6,7} (E=16, V=12, L=5).
     'loop5c': [(1, 5), (1, 11), (2, 8), (2, 9), (3, 10), (3, 12),
                (4, 6), (4, 7), (5, 6), (7, 8), (9, 10), (5, 12),
                (6, 9), (7, 12), (8, 11), (10, 11)],
-    # TripleBox1 (3-loop, 2026-09-03; was 'octagon', renamed to clear the
-    # name clash with the 5-loop loop5c): E=10, V=8, L=3.
+    # TripleBox1 (3-loop): E=10, V=8, L=3.
     'TripleBox1': [(1, 3), (1, 5), (5, 6), (6, 2), (2, 4), (4, 7),
                    (7, 8), (8, 3), (5, 8), (6, 7)],
-    # TripleBox2 (3-loop, 2026-09-03): 8-cycle 1-5-2-7-4-6-3-8-1 +
-    # chords (5,6), (7,8).  E=10, V=8, L=3.
+    # TripleBox2 (3-loop): 8-cycle 1-5-2-7-4-6-3-8-1 + chords (5,6), (7,8) (E=10, V=8, L=3).
     'TripleBox2': [(1, 5), (5, 2), (2, 7), (7, 4), (4, 6), (6, 3),
                    (3, 8), (8, 1), (5, 6), (7, 8)],
-    # loop4c (4-loop, 2026-09-03): chords (5,7), (6,8), (9,10).
-    # E=13, V=10, L=4.
+    # loop4c (4-loop): chords (5,7), (6,8), (9,10) (E=13, V=10, L=4).
     'loop4c': [(1, 5), (5, 6), (6, 2), (2, 9), (9, 4), (4, 7),
                (7, 8), (8, 3), (3, 10), (10, 1), (5, 7), (6, 8),
                (9, 10)],
 }
 
-# default external attachments p1@1..p4@4
+# ==================== EXTERNAL ATTACHMENTS ====================
+
+# Default external attachments p1@1..p4@4.
 DEFAULT_EXT_ATTACH = {'p1': 1, 'p2': 2, 'p3': 3, 'p4': 4}
-# Per-graph external attachments; only graphs deviating from the default
-# p1@1..p4@4 are listed.  Necklace1: p1,p3 co-located at 5; Necklace2:
-# p1,p3 at 5 and p2,p4 at 8 (2026-09-02).
+# Per-graph external attachments; only graphs deviating from the default p1@1..p4@4 are listed.
 EXT_ATTACHES = { 'Necklace1': {'p1': 5, 'p2': 2, 'p3': 5, 'p4': 4}, 'Necklace2': {'p1': 5, 'p2': 8, 'p3': 5, 'p4': 8}, }
 
-# k0..k5 kinematics: ext_mode = external momentum modes fed to the FRI
-# pipeline; rules = momentum-invariant scalings (powers of lmd), for
-# reference.
+# ==================== REGGE KINEMATICS ====================
+
+# k0..k5 kinematics: ext_mode = external momentum modes fed to the FRI pipeline; rules = reference momentum-invariant scalings.
 KIN = {
     'k0': {
         'rules': [
