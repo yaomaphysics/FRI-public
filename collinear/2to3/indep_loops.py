@@ -1,43 +1,36 @@
 #!/usr/bin/env python3
 """
-indep_loops.py — independent loop momenta + line-momentum parameterization (five-point 2->3).
+indep_loops.py — independent loop momenta of a region (five-point 2->3 kinematics).
 
-For every region: the contracted mode subgraphs are split into their 1VI blocks (region_checker.mode_components);
-a unit's loop number is the sum of its block cycle ranks, and a concrete basis is the complement of a spanning
-tree inside each block (contracted self-loops are always basis lines).  The physical line momenta are then
-parameterized by tree+chords on the original graph, with optional forced lines.
+Given a region, for every mode X:
+
+  * Γ_X: the X subgraph, consisting of edges and vertices of the X mode.
+
+  * Contracted X-subgraph Γ̃_X: to obtain it from Γ_X, identify ALL its adjacent vertices from other (necessarily harder) mode subgraphs with an auxiliary vertex (shorthanded as "aux").
+  Γ̃_X is connected.
+
+  * The number of independent X-loop momenta = the loop number of Γ̃_X = |E(Γ̃_X)| − |V(Γ̃_X)| + 1,
+    computed as the sum over its 1VI blocks of the block cycle rank (the blocks are exactly region_filter.mode_components).
+
+  * A concrete basis: per block, the complement of a spanning tree (contracted self-loops are always basis lines).
+
+The physical line momenta are then parameterized by tree+chords on the original graph (the carriers are
+the chords), with optional forced lines.
 """
 import os, sys
 
 BASE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, BASE)
 
-import region_checker
-from primitives import INF, name
+import region_filter
+from primitives import INF, name, uf_find, uf_union
 
 
-# Display order of modes: H first, then S, then carriers by direction (1, 4, 5, then the 23 pair family).
-def _disp_key(m):
-    if m[0] == 'H':
-        return (0, 0, 0, 0, 0)
-    if m[0] == 'S':
-        return (1, 0, 0, m[1], 0)
-    _, d, n, mem, sm = m
-    return (2, d, 10**9 if n == INF else (n if n is not None else 0), -1 if mem is None else mem, sm)
-
-
-# ============================ BASIS MACHINERY ============================
+# ===================== INDEPENDENT LOOP MOMENTA =====================
 
 # Spanning tree of a connected block (aux included); basis = the deleted edges.
 def _basis_of_block(block_verts, block_edges, edges2, skip=None):
     parent = {}
-
-    def find(a):
-        while parent[a] != a:
-            parent[a] = parent[parent[a]]
-            a = parent[a]
-        return a
-
     for v in block_verts:
         parent[v] = v
     tree, basis = [], []
@@ -46,15 +39,15 @@ def _basis_of_block(block_verts, block_edges, edges2, skip=None):
         if a == b or (skip and i in skip):  # self-loop / pinned: never a tree edge
             basis.append(i)
             continue
-        ra, rb = find(a), find(b)
+        ra, rb = uf_find(parent, a), uf_find(parent, b)
         if ra != rb:
             parent[ra] = rb
             tree.append(i)
         else:
             basis.append(i)
     if skip:                            # with the pinned lines removed the block must still span
-        root = find(next(iter(block_verts)))
-        if any(find(v) != root for v in block_verts):
+        root = uf_find(parent, next(iter(block_verts)))
+        if any(uf_find(parent, v) != root for v in block_verts):
             return None, None
     return tree, basis
 
@@ -68,7 +61,7 @@ def _rank_of(blocks):
 def _iter_units(em, vm, edges, verts):
     for mode in sorted(set(em) | set(vm.values()), key=_disp_key):
         blocks = []
-        for (bv, be, idxs) in region_checker.mode_components(mode, vm, em, edges, verts):
+        for (bv, be, idxs) in region_filter.mode_components(mode, vm, em, edges, verts):
             blocks.append((bv, list(be), list(idxs)))
         yield mode, blocks
 
@@ -110,33 +103,21 @@ def forced_basis(edges, em, vm, F):
             basis_all += [idxs[j] for j in basis]
     return basis_all, None
 
-# ==================== PHYSICAL MOMENTUM PARAMETERIZATION ====================
+# ===================== LINE-MOMENTUM PARAMETERIZATION =====================
 # Spanning tree of (verts, edge_list) avoiding the skip set; None if no such tree exists.
 def _spanning_tree(verts, edge_list, skip):
     parent = {v: v for v in verts}
-
-    def find(a):
-        while parent[a] != a:
-            parent[a] = parent[parent[a]]
-            a = parent[a]
-        return a
-
-    def union(a, b):
-        ra, rb = find(a), find(b)
-        if ra != rb:
-            parent[ra] = rb
-
     tree = []
     for i, (a, b) in enumerate(edge_list):
         if i in skip or a == b:
             continue
-        if find(a) != find(b):
-            union(a, b)
+        if uf_find(parent, a) != uf_find(parent, b):
+            uf_union(parent, a, b)
             tree.append(i)
     if len(tree) != len(verts) - 1:
         return None
-    root = find(verts[0])
-    return tree if all(find(v) == root for v in verts) else None
+    root = uf_find(parent, verts[0])
+    return tree if all(uf_find(parent, v) == root for v in verts) else None
 
 
 # Line momenta as combinations of k1..kL and the externals (tree+chords on the original graph, carriers = chords); returns (ok, order, momenta, verts).
@@ -166,6 +147,7 @@ def edge_momenta(edges, em, vm, carriers, ext_attach):
         adj[a].append((b, ti))
         adj[b].append((a, ti))
 
+    # Vertices reachable from root when tree edge `removed` is cut (for the line-momentum flow sums).
     def component_without(removed, root):
         seen = {root}
         stack = [root]
@@ -223,8 +205,6 @@ def _check_conservation(edges, verts, momenta, ext_attach):
     return True
 
 
-# ============================ BASIS DISPLAY ============================
-
 # Sort key for momentum terms: k's first (numeric), then externals (alphabetical).
 def _term_key(t):
     return (0, int(t[1:]), '') if t.startswith('k') else (1, 0, t)
@@ -270,6 +250,18 @@ def show_edge_momenta(edges, em, vm, carriers, ext_attach, forced=False):
     else:
         print('  ✗ momentum conservation FAILED (bug!)')
     print('  These line momenta can form a loop-momentum basis.')
+
+
+# ========================= BASIS DISPLAY =========================
+
+# Display order of modes: H first, then S, then carriers by direction (1, 4, 5, then the 23 pair family).
+def _disp_key(m):
+    if m[0] == 'H':
+        return (0, 0, 0, 0, 0)
+    if m[0] == 'S':
+        return (1, 0, 0, m[1], 0)
+    _, d, n, mem, sm = m
+    return (2, d, 10**9 if n == INF else (n if n is not None else 0), -1 if mem is None else mem, sm)
 
 
 # A concrete basis (default per-mode 1VI-block basis or forced lines F), then every line's momentum in terms of k1..kL.

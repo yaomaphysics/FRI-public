@@ -1,70 +1,76 @@
 #!/usr/bin/env python3
-"""skeleton.py — skeleton-based cut enumeration for the collinear
-2->3 kinematics k0-k4 — one module since 2026-09-20: k0 by the union
-construction, k2-k4 by the chain construction, k1 by the engine moved here
-from skel23.py (2026-09-20; that file was removed after the merge).  Promoted
-from the private prototype `dev_skelg.py` (2026-09-19).
+"""skeleton.py — skeleton-based cut enumeration for the collinear 2->3 kinematics (general external virtualities).
 
-Model (settled 2026-09-16):
-  * H connected; 5 paths P1..P5 (P2/P3 a Y; may pass through v2/v3);
-  * C23 ⊇ P2∪P3 (connected or not; every component contains v2 or v3);
-    cannot touch P1/P4/P5;
-  * wide chains i=1,4,5: base C_i ⊇ the whole P_i; ONE refined level
-    (our k's have M_i-1 ≤ 1): refined_opts23 shape = connected, contains
-    the leg root, nested in the base, avoiding other external legs;
-  * pair chains 2/3: first level = the k1 member rule (overlap with the
-    branch = a connected subpath with the leg vertex as one endpoint;
-    stem and other branch excluded; free non-path vertices);
-  * partial chains (levels may be absent);
-  * overlap conditions:
-      - literal bookkeeping (2026-09-16): every existing level of every
-        chain (incl. bases) must have a nonempty overlap with some cut of
-        another direction; set overlap_strong=False to use this form
-        (shared vertex, or an edge with endpoints in the two cuts;
-        overlap_strict=True removes the edge branch).
-      - strengthened overlap (2026-09-19; DEFAULT since promotion):
-        for i=1,4,5, every C_i^n cut (n<m; unless it equals C_i^m) must have
-        a vertex shared with TWO cuts from two distinct other directions
-        j1,j2 (i, j1, j2 all distinct), both of total C-power n (C_j^n for
-        wide j; C_j^{n-1}C23 for pair j).  For i=2,3, every C_i^n C23 cut
-        (n<m; unless it equals C_i^m C23) must have a vertex shared with two
-        distinct-direction cuts of total C-power n.  Overlap form = shared
-        vertex only.  (The "unless it equals C_i^m" exemption is vacuous
-        for the current k-ladder - subjects only occur for m=INF.)
+A region is built from a skeleton: a connected uncovered vertex set H, one leg path P_i per external momentum, and per chain a cut expanded as a connected superset of P_i inside its domain.
+One enumeration engine covers the kinematics: enumerate_skelg, for a general ms = (m1, ..., m5); the
+all-on-shell case is simply ms = (INF,)*5.  It deduplicates candidates and runs the shared region_filter check chain.
 
-Cut-chain levels (2026-09-21): derived per graph from the mode first-
-appearance table — LEVELS = mode_levels.cut_chain_levels(ext_mode, L) with
-L = E - V + 1 (the needed refinement level of each chain is a function of the
-graph's loop count).  k1 engine: not wired (levels fixed); k0 union: none.
+Skeleton and cuts.
+  * H connected; 5 paths P1, ..., P5 (P2/P3 form a Y and may pass through v2/v3);
+  * for i = 1,4,5, the C_i cut ⊇ the whole P_i, avoiding other P, and the refined cuts are nested, i.e., C_i^1 ⊇ C_i^2 ⊇ ...;
+  * the C23 cut ⊇ P2 ∪ P3 (connected or not; every component contains v2 or v3) and touches neither P1, P4 nor P5;
+  * refined cuts in the 23 channel are nested: C23 ⊇ C2C23 ⊇ C2^2C23 ⊇ ..., and C23 ⊇ C3C23 ⊇ C3^2C23 ⊇ ...;
+  * the C2C23 cut overlaps with the v2 branch (P2 - P3) into a connected subpath with v2 as one endpoint; it avoids P1, P3, P4, P5; the C3C23 cut is similar;
 
-Fast path (2026-09-22; ported from the wide-angle skeleton): cut sets carry
-bitmasks; the cut-dedup keys and the strong-overlap test are mask-based
-(fixed-slot int arrays; mk cached per enumeration).  Semantically identical —
-verified by old-vs-new A/B (vectors + per-case counters).
-
-Early pruning in enumerate_skelg: the chain constructions are descended depth-first; a subject
-cut that can never reach the strong-overlap requirement (no possible partner pair among the
-still-available downstream cuts) kills the whole subtree; extra later retests on the (1,1)/(1,2)/
-(4,1)/(4,2) subjects catch the candidates a single early test can miss.  Escapes: FRI_NO_RT=1
-disables the retests, FRI_NO_TAIL=1 the (2,1)/(3,1) tests; pruning counters are returned
-in info.
-
-Use:  enumerate_skelg(edges, verts, ext_attach, kin, use_overlap=True,
-                      overlap_strict=False, overlap_strong=True)  # k0,k2,k3,k4
-      enumerate_skel(edges, verts, ext_attach, kin='k1')          # k1
+Pruning -- overlap condition:
+  * for i = 1,4,5, the C_i^n cut must share a vertex with two cuts from two distinct other directions j1, j2 of total C-power n (C_j^n for wide j; C_j^{n-1}C23 for pair j).
+  * for i = 2,3 the same holds for every C_i^n C23 cut.
 """
 import os, sys
 from itertools import combinations, product
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
-import region_checker as F
-import kin23 as K
+import region_filter as F
 import mode_levels as ML
-from primitives import INF
-from region_checker import (build_overlay, momentum_ok, jets_ok, h_c23_connected_ok, uncovered_ok, mojetic_all_ok, island_ok, ir_ok)
-# ---- shared helpers (moved from skel23.py, 2026-09-20; that file was
-# removed) ----
+from primitives import INF, W, P, meet, H, ext_modes
+from region_filter import (momentum_ok, jets_ok, h_c23_connected_ok, uncovered_ok, mojetic_all_ok, island_ok, ir_ok)
 
+# ==================== OVERLAY ====================
+CUT_MODES = {'C23': P(0, 0), 'C1': W(1, 1), 'C4': W(4, 1), 'C5': W(5, 1), 'C1R1': W(1, 2), 'C4R1': W(4, 2), 'C5R1': W(5, 2), 'C2R1': P(1, 2), 'C3R1': P(1, 3), 'C2R2': P(2, 2), 'C3R2': P(2, 3)}
+
+# Build the overlay (em, vm) from a cut assignment {name: frozenset}; cut_modes overrides the default name -> mode table.
+def build_overlay(edges, verts, ext_attach, ext_mode, cuts, vm_seen=None, cut_modes=None):
+    # vm(v) = meet of the covering cuts' modes, H when no cut covers v.
+    acc_map = {}
+    _cm = CUT_MODES if cut_modes is None else cut_modes
+    _meet = meet
+    for nm in _cm:
+        S = cuts.get(nm)
+        if not S:
+            continue
+        m = _cm[nm]
+        for v in S:
+            acc = acc_map.get(v)
+            if acc is None:
+                acc_map[v] = m
+            else:
+                try:
+                    acc_map[v] = _meet(acc, m)
+                except ArithmeticError as e:
+                    return None, f'meet:{e}'
+    vm = {}
+    _H = H
+    for v in verts:
+        acc = acc_map.get(v)
+        vm[v] = acc if acc is not None else _H()
+    if vm_seen is not None:
+        # Dedup key: the modes in fixed (sorted) vertex order; callers pass the sorted vertex list.
+        vkey = tuple(map(vm.__getitem__, verts))
+        if vkey in vm_seen:
+            return None, 'vm-dup'
+        vm_seen.add(vkey)
+    em = []
+    _ap = em.append
+    for (a, b) in edges:
+        try:
+            _ap(_meet(vm[a], vm[b]))
+        except ArithmeticError as e:
+            return None, f'edge-meet:{e}'
+    return (em, vm), 'ok'
+
+# ==================== SHARED HELPERS ====================
+
+# True iff the vertex subset S induces a connected subgraph.
 def _connected_set(S, adj):
     S = set(S)
     if not S:
@@ -80,6 +86,7 @@ def _connected_set(S, adj):
     return seen == S
 
 
+# All connected supersets of req inside dom.
 def _conn_sets(req, dom, adj):
     req = set(req); dd = set(dom)
     if not req <= dd:
@@ -93,6 +100,7 @@ def _conn_sets(req, dom, adj):
     return out
 
 
+# All vertex paths from start to H that avoid other external vertices.
 def _enumerate_seqs(start, Hset, adj, Vset, extv, friends=()):
     allowed = [w for w in Vset if w not in Hset and (w == start or w in friends or w not in extv)]
     seqs = []
@@ -107,8 +115,7 @@ def _enumerate_seqs(start, Hset, adj, Vset, extv, friends=()):
     return seqs
 
 
-# Two leg-paths for p2/p3 are compatible iff, seen from H backwards, they share only a common prefix (the Y stem) and
-# never meet again.
+# True iff the two p2/p3 leg paths share only a common prefix (the Y stem).
 def _compat(seq2, seq3):
     r2 = seq2[::-1]; r3 = seq3[::-1]
     k = 0
@@ -117,46 +124,14 @@ def _compat(seq2, seq3):
     return not (set(r2[k:]) & set(r3[k:]))
 
 
-# LEGACY (pre-L-wire formula + 09-19/09-21 patches). Kept for dev tools and pre-wire A/B comparisons
-# (dev_ab_lwire.py); the engines now use mode_levels.cut_chain_levels(ext_mode, L) instead. [2026-09-21]
-def _chain_tops(ext_mode):
-    def _mf(leg):
-        x = ext_mode[leg][2]
-        if x == INF:
-            return None
-        return x + 1 if leg in ('p2', 'p3') else x
-    f = [v for v in (_mf(l) for l in ('p1', 'p2', 'p3', 'p4', 'p5')) if v is not None]
-    msf = max(f)
+# ==================== MASK & PRUNING HELPERS ====================
 
-    def _top(leg):
-        x = ext_mode[leg][2]
-        if x == INF:
-            return msf
-        mi = x + 1 if leg in ('p2', 'p3') else x
-        return min(mi, msf)
-    M = {l: _top(l) for l in ('p1', 'p2', 'p3', 'p4', 'p5')}
-    levels = {'p1': M['p1'] - 1, 'p4': M['p4'] - 1, 'p5': M['p5'] - 1, 'p2': max(M['p2'] - 1, 1), 'p3': max(M['p3'] - 1, 1)}
-    # 2026-09-19: open wide-leg refinement level 1 — k2 gets C1^2/C4^2/C5^2,
-    # k3 gets C1^2 (aligning with k4; k0 untouched).
-    # 2026-09-21: p1 of both ladders CLOSED per A/B (dev_ab_cutlevels.py —
-    # C1^2 not needed for k2/k3; sets equal; k3 3L/4L speedup ~1.4x,
-    # R013 canary 2.5x).  Re-open by restoring `levels['p1'] = 1` below.
-    if (ext_mode['p1'][2] == 1 and ext_mode['p2'][2] == INF and ext_mode['p3'][2] == INF and ext_mode['p4'][2] == INF and ext_mode['p5'][2] == INF):          # k2 ladder
-        levels['p4'] = levels['p5'] = 1
-    if (ext_mode['p1'][2] == 1 and ext_mode['p2'][2] == 1 and ext_mode['p3'][2] == INF and ext_mode['p4'][2] == INF and ext_mode['p5'][2] == INF):          # k3 ladder
-        # p1 closed 2026-09-21 (see A/B note above).
-        pass
-    return M, levels
-
-
-# Bitmask helper (fast path 2026-09-22, ported from the wide-angle skeleton): frozenset(vertices) -> int mask, cached
-# per enumeration. Injective on subsets of `verts` (bit i <-> verts[i]): mask equality == vertex-set equality; mask &
-# mask == shared vertices (used by the cut-dedup keys and the strong-overlap test). Inputs must be hashable
-# (frozensets) — the cache is keyed by the set itself.
+# [Optimization] Return mk(frozenset) -> int bitmask (bit i <-> verts[i]), cached per enumeration.
 def _make_mk(verts):
     bidx = {v: 1 << i for i, v in enumerate(verts)}
     cache = {}
 
+    # [Optimization] cached bitmask of a vertex subset.
     def mk(S):
         r = cache.get(S)
         if r is None:
@@ -169,35 +144,55 @@ def _make_mk(verts):
     return mk
 
 
-# fixed slot order for the cut-dedup keys (fast path 2026-09-22); a
-# candidate's key is the int tuple  masks[nm] for nm in _CUT_SLOTS
+# Shared per-enumeration context: bitmask cache, adjacency basis and connected-set list.
+def _slot_ctx(V, E, ext_attach):
+    mk = _make_mk(V)                  # bitmask cache
+    adj = {v: set() for v in V}
+    for a, b in E:
+        adj[a].add(b); adj[b].add(a)
+    Vset = set(V)
+    extv = set(ext_attach.values())
+    roots = {leg: ext_attach[leg] for leg in ('p1', 'p2', 'p3', 'p4', 'p5')}
+    Hs = [frozenset(S) for r in range(1, len(V) + 1) for S in combinations(V, r) if _connected_set(S, adj)]
+    return mk, adj, Vset, extv, roots, Hs
+
+
+# [Optimization] Fixed slot order for the cut-dedup keys.
 _CUT_SLOTS = ('C23', 'C1', 'C4', 'C5', 'C1R1', 'C4R1', 'C5R1', 'C2R1', 'C3R1', 'C2R2', 'C3R2')
 
-# strong-overlap subject (leg, level) -> fixed-slot index into the mslot tuple (built per candidate)
-_SUB_IDX = {(1, 1): 1, (1, 2): 4, (4, 1): 2, (4, 2): 5, (5, 1): 3, (5, 2): 6, (2, 1): 7, (3, 1): 8}
+
+# Dynamic cut slots (name, mode, leg, power) of a chain assignment: one slot per appearing carrier power PW[leg].
+def _deep_slots(PW):
+    out = [('C23', P(0, 0), 23, 0)]
+    for i in (1, 4, 5):
+        for n in PW[i]:
+            out.append(('C%d' % i if n == 1 else 'C%dR%d' % (i, n - 1), W(i, n), i, n))
+    for i in (2, 3):
+        for k in PW[i]:
+            out.append(('C%dR%d' % (i, k), P(k, i), i, k))
+    return out
 
 
-# Early pruning: subject (leg i, level n, mask msx) is provably dead
-# once no pair of partner directions can still supply two same-power cuts
-# sharing a vertex with it.  pools[leg][n-1] = exact slot mask where the
-# choice is fixed, else the union over all still-possible cuts (upper bound).
+# True iff no two other directions can supply cuts of total C-power n sharing a vertex with this subject (pools: leg -> {power: mask}).
 def _prune_dead(msx, i, n, pools):
     for j1 in (1, 2, 3, 4, 5):
         if j1 == i:
             continue
-        U1 = pools[j1][n - 1]
+        U1 = pools[j1].get(n, 0)
         if not U1:
             continue
         for j2 in (1, 2, 3, 4, 5):
             if j2 == i or j2 == j1:
                 continue
-            U2 = pools[j2][n - 1]
+            U2 = pools[j2].get(n, 0)
             if U2 and (msx & U1 & U2):
                 return False
     return True
 
 
-# refined_opts23 shape: empty + connected supersets of `root` inside base, avoiding `forbid`.
+# ==================== CUT-SET CONSTRUCTION HELPERS ====================
+
+# one refined cut, one level deeper: the empty set plus connected supersets of `root` inside `base`, avoiding `forbid`.
 def _refined_opts(root, base, forbid, adj):
     allowed = {v for v in base if v not in forbid}
     out = [frozenset()]
@@ -212,8 +207,17 @@ def _refined_opts(root, base, forbid, adj):
     return out
 
 
-# Supersets of `req` inside dom; every connected component contains v2 or v3 (connected form or the S4-1 split form;
-# nothing else).
+# Nested refined cuts: level 1 from lvl1_opts, each deeper level nested inside the previous one.
+def _tower(root, lvl1_opts, depth, forbid, adj):
+    if depth <= 0:
+        return [()]
+    t = [(s,) for s in lvl1_opts]
+    for _ in range(depth - 1):
+        t = [ch + (s2,) for ch in t for s2 in _refined_opts(root, ch[-1], forbid, adj)]
+    return t
+
+
+# Supersets of req inside dom whose every connected component contains v2 or v3.
 def _c23_opts(req, dom, v2, v3, adj):
     extras = sorted(set(dom) - set(req))
     out = []
@@ -244,56 +248,308 @@ def _c23_opts(req, dom, v2, v3, adj):
     return out
 
 
-# Overlap: share a vertex, or an edge with endpoints in A / B resp. strict=True: shared vertex only (edge branch
-# removed).
-def _overlap_pair(A, B, adj, strict=False):
-    if A & B:
-        return True
-    if strict:
-        return False
-    for u in A:
-        if adj[u] & B:
-            return True
-    return False
+# ==================== DEEP CHAIN ENUMERATION ====================
 
-
-def enumerate_skelg(edges, verts, ext_attach, kin, use_overlap=True, overlap_strict=False, overlap_strong=True, collect=False):
-    if kin == 'k1':
-        # k1: separate engine (enumerate_skel); not wired to the derived
-        # levels yet (to do later).  [2026-09-21: leave aside for now]
-        raise NotImplementedError('k1 is handled by enumerate_skel')
-    if kin == 'k0':
-        # k0: union construction.  No cut-chain refinement levels exist at
-        # any loop count (mode table has no fine structure; derived levels
-        # are all zero) -- nothing to gate.  [2026-09-21]
-        return _k0_union(edges, verts, ext_attach)
-    ext_mode = K.ext_modes(kin)
-    m1, m2, m3, m4, m5 = K.KIN[kin]['ms']
-    # Cut-chain levels, derived per graph (2026-09-21): the refinement level
-    # of each chain is a function of the graph's loop count L, read off the
-    # mode first-appearance table.
-    L = len(edges) - len(verts) + 1
-    LEVELS = ML.cut_chain_levels(ext_mode, L)
-    if max(LEVELS['p1'], LEVELS['p4'], LEVELS['p5'], LEVELS['p2'], LEVELS['p3']) > 1:
-        raise NotImplementedError('deeper chains not implemented yet (levels > 1)')
+# Chain construction for the deep regime: one nested refined cut per appearing carrier power (wide legs and the pair channel).
+def _enumerate_skelg_deep(edges, verts, ext_attach, ms, ext_mode, PWS, use_overlap, collect):
+    PW = {i: list(PWS['p%d' % i]) for i in (1, 2, 3, 4, 5)}
+    mof = dict(zip((1, 2, 3, 4, 5), ms))
     edges = [tuple(e) for e in edges]
     V = sorted(verts)
-    mk = _make_mk(V)                  # fast path 2026-09-22 (bitmask cache)
-    adj = {v: set() for v in V}
-    for a, b in edges:
-        adj[a].add(b); adj[b].add(a)
-    Vset = set(V)
-    extv = set(ext_attach.values())
-    roots = {leg: ext_attach[leg] for leg in ('p1', 'p2', 'p3', 'p4', 'p5')}
+    mk, adj, Vset, extv, roots, Hs = _slot_ctx(V, edges, ext_attach)
     v2r, v3r = roots['p2'], roots['p3']
-    Hs = [frozenset(S) for r in range(1, len(V) + 1) for S in combinations(V, r) if _connected_set(S, adj)]
+    slots = _deep_slots(PW)
+    # mode table of the dynamic cut names, handed to the overlay builder
+    cut_modes = {nm: md for nm, md, _lg, _lv in slots}
+    total_cand = 0
+    dup_cuts = 0
+    skip_emvm = 0
+    n_vmdup = 0
+    n_overlap = 0
+    cuts_seen = set()
+    emvm_seen = set()
+    vm_seen = set()
+    found = {}
+    SURV = {}
+
+    # Partner mask of direction j at total C-power c (wide leg C_j^c, pair leg C_j^{c-1} C23); missing powers are absent cuts.
+    def pmask(plist, cm, j, c):
+        if j in (1, 4, 5):
+            return plist[j].get(c, 0)
+        k = c - 1
+        if k == 0:
+            return cm['C23']
+        return plist[j].get(k, 0)
+
+    # Region checks for one chain assignment (cm: name -> mask, plist: leg -> masks indexed by level).
+    def run_checks(cutmap, cm, plist):
+        nonlocal total_cand, dup_cuts, skip_emvm, n_overlap, n_vmdup
+        total_cand += 1
+        ck = tuple(cm.get(nm, 0) for nm, _md, _lg, _lv in slots)
+        if ck in cuts_seen:
+            dup_cuts += 1
+            return
+        cuts_seen.add(ck)
+        if use_overlap:
+            # the C_i^n cut must share a vertex with two cuts from two distinct other directions of total C-power n
+            for i in (1, 4, 5, 2, 3):
+                for c in PW[i]:
+                    if i in (1, 4, 5):
+                        if not (c < mof[i]):
+                            continue
+                    else:
+                        if not (c < mof[i] - 1):
+                            continue
+                    subj = plist[i].get(c, 0)
+                    if not subj:
+                        continue
+                    dirs = [j for j in (1, 4, 5, 2, 3) if j != i]
+                    ok = False
+                    for a in range(len(dirs)):
+                        for b in range(a + 1, len(dirs)):
+                            if pmask(plist, cm, dirs[a], c) & pmask(plist, cm, dirs[b], c) & subj:
+                                ok = True
+                                break
+                        if ok:
+                            break
+                    if not ok:
+                        n_overlap += 1
+                        return
+        if not uncovered_ok(edges, V, cutmap):
+            return
+        res, why = build_overlay(edges, V, ext_attach, ext_mode, cutmap, vm_seen=vm_seen, cut_modes=cut_modes)
+        if res is None:
+            if why == 'vm-dup':
+                n_vmdup += 1
+            return
+        em, vm = res
+        ek = tuple((i, F.name(m)) for i, m in enumerate(em))
+        vk = tuple(F.name(vm[w]) for w in V)
+        if (ek, vk) in emvm_seen:
+            skip_emvm += 1
+            return
+        emvm_seen.add((ek, vk))
+        if not momentum_ok(edges, V, ext_attach, ext_mode, em, vm):
+            return
+        okinfo = jets_ok(edges, V, vm, em, ext_attach)
+        if not okinfo[0]:
+            return
+        if not h_c23_connected_ok(edges, V, em, vm):
+            return
+        if not mojetic_all_ok(edges, V, vm, em, ext_attach, okinfo[1]):
+            return
+        if not island_ok(edges, V, em, vm):
+            return
+        if not ir_ok(edges, V, em, vm, ext_attach, ext_mode, {}):
+            return
+        vec = tuple(-F.V(m) if F.V(m) != F.INF else 'inf' for m in em) + (1,)
+        found[(ek, vk)] = vec
+        if collect:
+            SURV[(ek, vk)] = (dict((kk, set(vv)) for kk, vv in cutmap.items()), em, vm)
+
+    for H in Hs:
+        Hset = set(H)
+        outs = [leg for leg in ('p1', 'p2', 'p3', 'p4', 'p5') if roots[leg] not in Hset]
+        fam = {}
+        ok = True
+        for leg in ('p1', 'p4', 'p5'):
+            if leg not in outs:
+                fam[leg] = None
+                continue
+            start = roots[leg]
+            sets = set()
+            allowed = [w for w in Vset if w not in Hset and (w == start or w not in extv)]
+            st = [(start, {start}, (start,))]
+            while st:
+                cur, vis, path = st.pop()
+                if adj[cur] & Hset:
+                    sets.add(frozenset(path))
+                for w in adj[cur]:
+                    if w in allowed and w not in vis:
+                        st.append((w, vis | {w}, path + (w,)))
+            if not sets:
+                ok = False
+                break
+            fam[leg] = list(sets)
+        if not ok:
+            continue
+        pair_opts = []
+        both_H = (roots['p2'] in Hset) and (roots['p3'] in Hset)
+        if both_H:
+            pair_opts = [(None, None, None, None)]
+        else:
+            fr = {roots['p2'], roots['p3']}
+            seq2 = (_enumerate_seqs(roots['p2'], Hset, adj, Vset, extv, fr) if roots['p2'] not in Hset else [])
+            seq3 = (_enumerate_seqs(roots['p3'], Hset, adj, Vset, extv, fr) if roots['p3'] not in Hset else [])
+            if not seq2 and not seq3:
+                continue
+            seen_po = set()
+            if seq2 and seq3:
+                for a in seq2:
+                    ra = a[::-1]
+                    for b in seq3:
+                        if not _compat(a, b):
+                            continue
+                        rb = b[::-1]
+                        k = 0
+                        while k < min(len(ra), len(rb)) and ra[k] == rb[k]:
+                            k += 1
+                        key = (frozenset(a), frozenset(b), ra[k:], rb[k:])
+                        if key in seen_po:
+                            continue
+                        seen_po.add(key)
+                        pair_opts.append((frozenset(a), frozenset(b), ra[k:], rb[k:]))
+            elif seq2:
+                for a in seq2:
+                    key = (frozenset(a), frozenset(), a[::-1], None)
+                    if key in seen_po:
+                        continue
+                    seen_po.add(key)
+                    pair_opts.append((frozenset(a), frozenset(), a[::-1], None))
+            else:
+                for b in seq3:
+                    key = (frozenset(), frozenset(b), None, b[::-1])
+                    if key in seen_po:
+                        continue
+                    seen_po.add(key)
+                    pair_opts.append((frozenset(), frozenset(b), None, b[::-1]))
+            if not pair_opts:
+                continue
+        l1 = fam['p1'] if fam['p1'] is not None else [None]
+        l4 = fam['p4'] if fam['p4'] is not None else [None]
+        l5 = fam['p5'] if fam['p5'] is not None else [None]
+        f1 = extv - {roots['p1']}
+        f4 = extv - {roots['p4']}
+        f5 = extv - {roots['p5']}
+        f2 = extv - {roots['p2']}
+        f3 = extv - {roots['p3']}
+        for S1, S4, S5 in product(l1, l4, l5):
+            u = set()
+            skip = False
+            for S in (S1, S4, S5):
+                if S is not None:
+                    if S & u:
+                        skip = True
+                        break
+                    u |= S
+            if skip:
+                continue
+            for S2, S3, br2, br3 in pair_opts:
+                if (S2 is not None or S3 is not None) and (((S2 or frozenset()) | (S3 or frozenset())) & u):
+                    continue
+                a1 = S1 or frozenset()
+                a4 = S4 or frozenset()
+                a5 = S5 or frozenset()
+                a2 = S2 or frozenset()
+                a3 = S3 or frozenset()
+                C1s = (_conn_sets(a1, Vset - Hset - a2 - a3 - a4 - a5, adj) if S1 is not None else [frozenset()])
+                if not C1s:
+                    continue
+                C4s = (_conn_sets(a4, Vset - Hset - a1 - a2 - a3 - a5, adj) if S4 is not None else [frozenset()])
+                if not C4s:
+                    continue
+                C5s = (_conn_sets(a5, Vset - Hset - a1 - a2 - a3 - a4, adj) if S5 is not None else [frozenset()])
+                if not C5s:
+                    continue
+                T1 = _tower(roots['p1'], C1s, len(PW[1]), f1, adj)
+                T4 = _tower(roots['p4'], C4s, len(PW[4]), f4, adj)
+                T5 = _tower(roots['p5'], C5s, len(PW[5]), f5, adj)
+                if S2 is not None or S3 is not None:
+                    for C23 in _c23_opts(a2 | a3, Vset - Hset - a1 - a4 - a5, v2r, v3r, adj):
+                        D = frozenset(set(C23) - a2 - a3)
+                        M2 = {frozenset()}
+                        # the C2C23 cut is trivial for m_2 = 1 (C_2^0 C23 = C23)
+                        if br2 and mof[2] > 1:
+                            for j in range(len(br2)):
+                                T = frozenset(br2[j:])
+                                M2.update(_conn_sets(T, T | D, adj))
+                        M3 = {frozenset()}
+                        # the C3C23 cut is trivial for m_3 = 1 (C_3^0 C23 = C23)
+                        if br3 and mof[3] > 1:
+                            for j in range(len(br3)):
+                                T = frozenset(br3[j:])
+                                M3.update(_conn_sets(T, T | D, adj))
+                        T2 = _tower(roots['p2'], M2, len(PW[2]), f2, adj)
+                        T3 = _tower(roots['p3'], M3, len(PW[3]), f3, adj)
+                        mC23 = mk(C23)
+                        for ch1, ch4, ch5, ch2, ch3 in product(T1, T4, T5, T2, T3):
+                            cutmap = {'C23': C23}
+                            cm = {'C23': mC23}
+                            plist = {1: {}, 4: {}, 5: {}, 2: {}, 3: {}}
+                            for i, ch in ((1, ch1), (4, ch4), (5, ch5)):
+                                for n, S in zip(PW[i], ch):
+                                    nm = 'C%d' % i if n == 1 else 'C%dR%d' % (i, n - 1)
+                                    msk = mk(S)
+                                    cutmap[nm] = S
+                                    cm[nm] = msk
+                                    plist[i][n] = msk
+                            for i, ch in ((2, ch2), (3, ch3)):
+                                for k, S in zip(PW[i], ch):
+                                    nm = 'C%dR%d' % (i, k)
+                                    msk = mk(S)
+                                    cutmap[nm] = S
+                                    cm[nm] = msk
+                                    plist[i][k] = msk
+                            run_checks(cutmap, cm, plist)
+                else:
+                    for ch1, ch4, ch5 in product(T1, T4, T5):
+                        cutmap = {'C23': frozenset()}
+                        cm = {'C23': 0}
+                        plist = {1: {}, 4: {}, 5: {}, 2: {}, 3: {}}
+                        for i, ch in ((1, ch1), (4, ch4), (5, ch5)):
+                            for n, S in zip(PW[i], ch):
+                                nm = 'C%d' % i if n == 1 else 'C%dR%d' % (i, n - 1)
+                                msk = mk(S)
+                                cutmap[nm] = S
+                                cm[nm] = msk
+                                plist[i][n] = msk
+                        run_checks(cutmap, cm, plist)
+
+    info = {'dup_cuts': dup_cuts, 'skip_emvm': skip_emvm, 'overlap_kill': n_overlap, 'vm_dup': n_vmdup}
+    if collect:
+        info['survivors'] = [(vv,) + sv for vv, sv in sorted(((vv, SURV[k]) for k, vv in found.items()), key=lambda t: t[0])]
+    return sorted(found.values()), total_cand, info
+
+
+# ==================== MAIN ENUMERATION (GENERAL CHAIN) ====================
+
+# True when every leg's appearing powers fit the shallow fixed-slot chain (wide {1} or {1,2}, pair {1}; none fits too).
+# A gap, a power above 2, or a wide chain that starts above the base forces the general (deep) engine.
+def _shallow_chain_ok(levels):
+    for leg in ('p1', 'p4', 'p5'):
+        if levels[leg] not in ([1], [1, 2]):
+            return False
+    for leg in ('p2', 'p3'):
+        if levels[leg] not in ([], [1]):
+            return False
+    return True
+
+
+# Cuts and refined levels are built by the chain construction for a general ms = (m1, ..., m5).
+def enumerate_skelg(edges, verts, ext_attach, kin, use_overlap=True, collect=False):
+    # kin is the raw (m1, ..., m5) virtuality tuple (general kinematics).
+    ms = tuple(kin)
+    ext_mode = ext_modes(ms)
+    m1, m2, m3, m4, m5 = ms
+    # carrier powers of each chain from the loop count L = E - V + 1
+    L = len(edges) - len(verts) + 1
+    PWS = ML.cut_chain_levels(ext_mode, L)
+    # the shallow fixed-slot engine consumes one refinement level per leg (wide: max n - 1, pair: max k); the deep engine needs the powers.
+    LEVELS = ML.cut_chain_depth(PWS)
+    if max(LEVELS['p1'], LEVELS['p4'], LEVELS['p5'], LEVELS['p2'], LEVELS['p3']) > 1 or not _shallow_chain_ok(PWS):
+        return _enumerate_skelg_deep(edges, verts, ext_attach, ms, ext_mode, PWS,
+                                     use_overlap, collect)
+    edges = [tuple(e) for e in edges]
+    V = sorted(verts)
+    mk, adj, Vset, extv, roots, Hs = _slot_ctx(V, edges, ext_attach)
+    v2r, v3r = roots['p2'], roots['p3']
 
     total_cand = 0
     dup_cuts = 0
     skip_emvm = 0
     n_vmdup = 0
     n_overlap = 0
-    _use_prune = bool(use_overlap and overlap_strong)   # early pruning mirrors the strong-overlap form only
+    _use_prune = bool(use_overlap)   # early pruning mirrors the overlap condition
     _RT = _use_prune and not os.environ.get('FRI_NO_RT')       # later-stage (re-)tests
     _TAIL = ((1 < m2 - 1) or (1 < m3 - 1)) and _use_prune and not os.environ.get('FRI_NO_TAIL')
     n_prune = 0          # subtrees skipped by the overlap pruning
@@ -302,24 +558,22 @@ def enumerate_skelg(edges, verts, ext_attach, kin, use_overlap=True, overlap_str
     skip_combos = 0       # complete combos skipped (accounting vs total_cand)
     cuts_seen = set()
     emvm_seen = set()
-    vm_seen = set()   # vm-level dedup (2026-09-18)
+    vm_seen = set()   # vm-level dedup
     found = {}
     SURV = {}   # collect=True: (ek, vk) -> (cuts, em, vm)
 
+    # Region checks for one cut assignment (cuts dict -> overlay -> filter chain).
     def run_checks(C1, C1R1, C4, C4R1, C5, C5R1, C2, C3, C23, M=None):
         nonlocal total_cand, dup_cuts, skip_emvm, n_overlap, n_vmdup
         total_cand += 1
-        # fast path (2026-09-22 / v3): bitmasks for the fixed cut slots; hot
-        # callers pass the already-computed tuple M, otherwise look up via the
-        # per-candidate mk cache.
+        # [Optimization] per-cut bitmasks for the fixed cut slots (callers may pass the precomputed tuple M)
         if M is not None:
             mC23, mC1, mC4, mC5, mC1R1, mC4R1, mC5R1, mC2, mC3 = M
         else:
             mC23 = mk(C23); mC1 = mk(C1); mC4 = mk(C4); mC5 = mk(C5)
             mC1R1 = mk(C1R1); mC4R1 = mk(C4R1); mC5R1 = mk(C5R1)
             mC2 = mk(C2); mC3 = mk(C3)
-        # fast path (2026-09-22): fixed-slot mask tuple as the dedup key
-        # (was: sorted (name, sorted-set-tuple) pairs — same equality classes)
+        # [Optimization] fixed-slot mask tuple as the cut-dedup key
         mslot = (mC23, mC1, mC4, mC5, mC1R1, mC4R1, mC5R1, mC2, mC3, 0, 0)
         ck = mslot
         if ck in cuts_seen:
@@ -327,68 +581,32 @@ def enumerate_skelg(edges, verts, ext_attach, kin, use_overlap=True, overlap_str
             return
         cuts_seen.add(ck)
         if use_overlap:
-            if overlap_strong:
-                # v3 fused form (exact masks): each subject condition is a
-                # single mask AND against its partner-pair OR; semantics match
-                # the pair search it replaces (validated by A/B).
-                if C1 and 1 < m1 and not (mC1 & ((mC4 & mC5) | mC23)):
-                    n_overlap += 1
-                    return
-                if C4 and 1 < m4 and not (mC4 & ((mC1 & mC5) | mC23)):
-                    n_overlap += 1
-                    return
-                if C5 and 1 < m5 and not (mC5 & ((mC1 & mC4) | mC23)):
-                    n_overlap += 1
-                    return
-                if C1R1 and not (mC1R1 & ((mC4R1 & mC5R1) | ((mC4R1 | mC5R1) & (mC2 | mC3)) | (mC2 & mC3))):
-                    n_overlap += 1
-                    return
-                if C4R1 and 2 < m4 and not (mC4R1 & ((mC1R1 & mC5R1) | ((mC1R1 | mC5R1) & (mC2 | mC3)) | (mC2 & mC3))):
-                    n_overlap += 1
-                    return
-                if C5R1 and 2 < m5 and not (mC5R1 & ((mC1R1 & mC4R1) | ((mC1R1 | mC4R1) & (mC2 | mC3)) | (mC2 & mC3))):
-                    n_overlap += 1
-                    return
-                if C2 and 1 < m2 - 1 and not (mC2 & ((mC1 & mC4) | (mC1 & mC5) | (mC4 & mC5) | (mC23 & (mC1 | mC4 | mC5)))):
-                    n_overlap += 1
-                    return
-                if C3 and 1 < m3 - 1 and not (mC3 & ((mC1 & mC4) | (mC1 & mC5) | (mC4 & mC5) | (mC23 & (mC1 | mC4 | mC5)))):
-                    n_overlap += 1
-                    return
-            else:
-                # literal bookkeeping (2026-09-16): every C_i^n /
-                # C_i^nC23 cut with n < m must overlap some existing
-                # cut of another direction; targets: other directions'
-                # cuts (bases included) plus C23; C23 never a subject.
-                subs = []
-                if C1 and 1 < m1:
-                    subs.append((1, 1, C1))
-                if C4 and 1 < m4:
-                    subs.append((4, 1, C4))
-                if C5 and 1 < m5:
-                    subs.append((5, 1, C5))
-                if C1R1:
-                    subs.append((1, 2, C1R1))
-                if C4R1 and 2 < m4:
-                    subs.append((4, 2, C4R1))
-                if C5R1 and 2 < m5:
-                    subs.append((5, 2, C5R1))
-                if C2 and 1 < m2 - 1:
-                    subs.append((2, 1, C2))
-                if C3 and 1 < m3 - 1:
-                    subs.append((3, 1, C3))
-                for i, n, Sx in subs:
-                    others = []
-                    for dn, cts in ((1, (C1, C1R1)), (4, (C4, C4R1)), (5, (C5, C5R1)), (2, (C2,)), (3, (C3,))):
-                        if dn == i:
-                            continue
-                        others += [x for x in cts if x]
-                    if C23:
-                        others.append(C23)
-                    if not any(_overlap_pair(Sx, T, adj, strict=overlap_strict) for T in others):
-                        n_overlap += 1
-                        return
-        # v3: cuts dict built only for the survivors of the overlap stage
+            # overlap: the C_i^n cut must share a vertex with two cuts from two distinct other directions of total C-power n
+            if C1 and 1 < m1 and not (mC1 & ((mC4 & mC5) | mC23)):
+                n_overlap += 1
+                return
+            if C4 and 1 < m4 and not (mC4 & ((mC1 & mC5) | mC23)):
+                n_overlap += 1
+                return
+            if C5 and 1 < m5 and not (mC5 & ((mC1 & mC4) | mC23)):
+                n_overlap += 1
+                return
+            if C1R1 and not (mC1R1 & ((mC4R1 & mC5R1) | ((mC4R1 | mC5R1) & (mC2 | mC3)) | (mC2 & mC3))):
+                n_overlap += 1
+                return
+            if C4R1 and 2 < m4 and not (mC4R1 & ((mC1R1 & mC5R1) | ((mC1R1 | mC5R1) & (mC2 | mC3)) | (mC2 & mC3))):
+                n_overlap += 1
+                return
+            if C5R1 and 2 < m5 and not (mC5R1 & ((mC1R1 & mC4R1) | ((mC1R1 | mC4R1) & (mC2 | mC3)) | (mC2 & mC3))):
+                n_overlap += 1
+                return
+            if C2 and 1 < m2 - 1 and not (mC2 & ((mC1 & mC4) | (mC1 & mC5) | (mC4 & mC5) | (mC23 & (mC1 | mC4 | mC5)))):
+                n_overlap += 1
+                return
+            if C3 and 1 < m3 - 1 and not (mC3 & ((mC1 & mC4) | (mC1 & mC5) | (mC4 & mC5) | (mC23 & (mC1 | mC4 | mC5)))):
+                n_overlap += 1
+                return
+        # cuts dict built only for the overlap survivors
         cuts = {'C23': C23, 'C1': C1, 'C4': C4, 'C5': C5, 'C1R1': C1R1, 'C4R1': C4R1, 'C5R1': C5R1, 'C2R1': C2, 'C3R1': C3, 'C2R2': frozenset(), 'C3R2': frozenset()}
         if not uncovered_ok(edges, V, cuts):
             return
@@ -399,8 +617,7 @@ def enumerate_skelg(edges, verts, ext_attach, kin, use_overlap=True, overlap_str
             return
         em, vm = res
         ek = tuple((i, F.name(m)) for i, m in enumerate(em))
-        # fast path (2026-09-22): fixed vertex-order key (V is sorted; was
-        # sorted (vertex, name) pairs — same equality classes)
+        # fixed vertex-order key (V is sorted)
         vk = tuple(F.name(vm[w]) for w in V)
         if (ek, vk) in emvm_seen:
             skip_emvm += 1
@@ -521,13 +738,11 @@ def enumerate_skelg(edges, verts, ext_attach, kin, use_overlap=True, overlap_str
                 C5s = (_conn_sets(a5, Vset - Hset - a1 - a2 - a3 - a4, adj) if S5 is not None else [frozenset()])
                 if not C5s:
                     continue
-                # refined levels depend only on the cut; precompute the maps
-                # once, reuse across all combinations below
+                # [Optimization] refined levels depend only on the cut; precompute the maps once
                 L1map = ({C1: _refined_opts(roots['p1'], C1, extv - {roots['p1']}, adj) for C1 in C1s} if LEVELS['p1'] else {C1: [frozenset()] for C1 in C1s})
                 L4map = ({C4: _refined_opts(roots['p4'], C4, extv - {roots['p4']}, adj) for C4 in C4s} if LEVELS['p4'] else {C4: [frozenset()] for C4 in C4s})
                 L5map = ({C5: _refined_opts(roots['p5'], C5, extv - {roots['p5']}, adj) for C5 in C5s} if LEVELS['p5'] else {C5: [frozenset()] for C5 in C5s})
-                # prune pools for legs 4/5: unions over all still-possible cuts
-                # (fixed decisions override them at the test points below)
+                # [Optimization] mask unions over the still-possible cuts for legs 4/5 (fixed picks override them)
                 U4a = U4b = U5a = U5b = 0
                 for _c4 in C4s:
                     U4a |= mk(_c4)
@@ -543,18 +758,18 @@ def enumerate_skelg(edges, verts, ext_attach, kin, use_overlap=True, overlap_str
                     for C23 in _c23_opts(a2 | a3, Vset - Hset - a1 - a4 - a5, v2r, v3r, adj):
                         D = frozenset(set(C23) - a2 - a3)
                         C2s = {frozenset()}
-                        if br2:
+                        # the C2C23 cut is trivial for m_2 = 1 (C_2^0 C23 = C23)
+                        if br2 and m2 > 1:
                             for j in range(len(br2)):
                                 T = frozenset(br2[j:])
                                 C2s.update(_conn_sets(T, T | D, adj))
                         C3s = {frozenset()}
-                        if br3:
+                        # the C3C23 cut is trivial for m_3 = 1 (C_3^0 C23 = C23)
+                        if br3 and m3 > 1:
                             for j in range(len(br3)):
                                 T = frozenset(br3[j:])
                                 C3s.update(_conn_sets(T, T | D, adj))
-                        # prune pools for the pair legs (C23 fixed; C2/C3 open)
-                        # tests: each subject condition = single mask AND with a pair-mask
-                        # OR built from fixed / union slot masks.
+                        # [Optimization] mask unions for the pair legs (C23 fixed; C2/C3 open)
                         mC23r = mk(C23)
                         U2b = 0
                         for _c2 in C2s:
@@ -731,546 +946,8 @@ def enumerate_skelg(edges, verts, ext_attach, kin, use_overlap=True, overlap_str
     return sorted(found.values()), total_cand, info
 
 
-# ---------------------------------------------------------------------------
-# k0 union construction (merged from dev_skel0, 2026-09-20)
-#
-# Scheme (2026-09-18; validated vs pySecDec on rand100_4l_no2v,
-# rand200_4l_no2v, rand100_5l_no2v — all green; the wide-angle skeleton uses
-# the same construction):
-#   * H connected (as before);
-#   * per leg i in 1,4,5:  P_i = connected set ⊆ V∖H containing root_i and
-#     touching H  (think: union of several possibly-overlapping root→H paths);
-#   * P_23 = Q2 ∪ Q3, each Qk = connected set ⊆ V∖H containing root_k and
-#     touching H (Q2/Q3 may overlap each other; Qk = ∅ iff root_k ∈ H);
-#   * P_1, P_23, P_4, P_5 pairwise disjoint;
-#   * leftover = V − (P_1∪P_23∪P_4∪P_5).
-#     cond3 (comp_adj2): every component of the leftover subgraph must be
-#       adjacent to ≥2 of the four groups;
-#     cond5 (cut_mem2): every leftover vertex must be contained in ≥2 cuts.
-#   * cuts: C_g connected ⊇ P_g inside (V∖H) minus the other groups' P's;
-#     C_g = ∅ iff P_g = ∅; every component of C23 contains v2 or v3.
-#
-# _k0_union returns (sorted vecs, total_cand, info) — same contract as
-# enumerate_skelg.
-# ---------------------------------------------------------------------------
+# ==================== UNIFIED ENTRY ====================
 
-def _comps(sub, adj):
-    sub = set(sub); seen = set(); out = []
-    for s in sorted(sub):
-        if s in seen:
-            continue
-        stack = [s]; comp = set()
-        while stack:
-            u = stack.pop()
-            if u in comp:
-                continue
-            comp.add(u)
-            for w in adj[u]:
-                if w in sub and w not in comp:
-                    stack.append(w)
-        seen |= comp
-        out.append(comp)
-    return out
-
-
-def _c23_sets(req, dom, v2, v3, adj):
-    req = set(req); dd = set(dom)
-    if not req <= dd:
-        return []
-    extras = sorted(dd - req)
-    out = []
-    for r in range(len(extras) + 1):
-        for add in combinations(extras, r):
-            S = req | set(add)
-            ok = True
-            for K_ in _comps(S, adj):
-                if not (v2 in K_ or v3 in K_):
-                    ok = False
-                    break
-            if ok:
-                out.append(frozenset(S))
-    return out
-
-
-def _k0_union(edges, verts, ext_attach, comp_adj2=True, cut_mem2=True, excl_h=True, skip_if_lt2=True, count_startpoints=True, cap=2000000, corner_prune=True, collect=False):
-    # defaults = the blessed k0 config (2026-09-18): comp_adj2 + cut_mem2 +
-    # excl_h + skip_if_lt2 + startpoints + corner_prune; dedup key includes H.
-    edges = [tuple(e) for e in edges]
-    V = sorted(verts)
-    mk = _make_mk(V)                  # fast path 2026-09-22 (bitmask cache)
-    adj = {v: set() for v in V}
-    for a, b in edges:
-        adj[a].add(b)
-        adj[b].add(a)
-    Vset = set(V)
-    extv = set(ext_attach.values())
-    roots = {l: ext_attach[l] for l in ('p1', 'p2', 'p3', 'p4', 'p5')}
-    ext_mode = K.ext_modes('k0')
-    Hs_all = [frozenset(S) for r in range(1, len(V) + 1) for S in combinations(V, r) if _connected_set(S, adj)]
-    n_corner_skip = 0
-    if corner_prune:
-        # H is the hardest mode: an H-edge incident with a vertex forces that
-        # vertex to be H as well (2026-09-18).  Operational rule: skip H
-        # if some NON-root v∉H has all its edges into H (N(v) ⊆ H) — such v can
-        # never sit on a path or in a cut, so every config of this H would
-        # need v absorbed anyway.  Roots exempt (a root can be covered by its
-        # leg / can appear in a cut).  See dev_skel0_corner_summary.txt.
-        Hs = []
-        for H in Hs_all:
-            bad = False
-            for v in V:
-                if v in H:
-                    continue
-                if v in extv:
-                    continue
-                if adj[v] and adj[v] <= H:
-                    bad = True
-                    break
-            if bad:
-                n_corner_skip += 1
-            else:
-                Hs.append(H)
-    else:
-        Hs = Hs_all
-    total_cand = 0
-    dup_cuts = 0
-    skip_emvm = 0
-    n_vmdup = 0
-    n_filt = 0
-    n_combo = 0
-    n_filtF = 0
-    cuts_seen = set()
-    emvm_seen = set()
-    vm_seen = set()   # vm-level dedup (2026-09-18)
-    found = {}
-
-    def run_checks(C1, C4, C5, C23, leftover, H, P1, a23, P4, P5):
-        nonlocal total_cand, dup_cuts, skip_emvm, n_filt, n_vmdup
-        total_cand += 1
-        if cap and total_cand > cap:
-            raise RuntimeError('cap')
-        if cut_mem2 and leftover:
-            # NOTE: must run BEFORE the cut-set dedup — the same cut-set can be
-            # reached under different (H, P) configs whose leftover sets differ;
-            # a violating config must not block a clean one via cuts_seen
-            # (2026-09-18 fix, same class as the H-key dedup bug).  Default ON
-            # since 2026-09-18 evening: every vertex of V∖(H∪P's) must
-            # lie in >=2 cuts.
-            csets = (set(C1), set(C23), set(C4), set(C5))
-            for z in (leftover - set(H)):
-                if sum(1 for cs in csets if z in cs) < 2:
-                    n_filt += 1
-                    return
-        cuts = {'C23': set(C23), 'C1': set(C1), 'C4': set(C4), 'C5': set(C5), 'C1R1': set(), 'C4R1': set(), 'C5R1': set(), 'C2R1': set(), 'C3R1': set(), 'C2R2': set(), 'C3R2': set()}
-        # fast path (2026-09-22): bitmasks for the fixed cut slots (the
-        # R1/R2 slots are always empty in this engine)
-        masks = {'C23': mk(C23), 'C1': mk(C1), 'C4': mk(C4), 'C5': mk(C5), 'C1R1': 0, 'C4R1': 0, 'C5R1': 0, 'C2R1': 0, 'C3R1': 0, 'C2R2': 0, 'C3R2': 0}
-        # fast path (2026-09-22): fixed-slot mask array as the dedup key
-        # (was: sorted (name, sorted-set-tuple) pairs — same equality classes)
-        ck = tuple(masks[nm] for nm in _CUT_SLOTS)
-        if ck in cuts_seen:
-            dup_cuts += 1
-            return
-        cuts_seen.add(ck)
-        if not uncovered_ok(edges, V, cuts):
-            return
-        res, why = build_overlay(edges, V, ext_attach, ext_mode, cuts, vm_seen=vm_seen)
-        if res is None:
-            if why == 'vm-dup':
-                n_vmdup += 1
-            return
-        em, vm = res
-        ek = tuple((i, F.name(m)) for i, m in enumerate(em))
-        # fast path (2026-09-22): fixed vertex-order key (V is sorted; was
-        # sorted (vertex, name) pairs — same equality classes)
-        vk = tuple(F.name(vm[w]) for w in V)
-        if (ek, vk) in emvm_seen:
-            skip_emvm += 1
-            return
-        emvm_seen.add((ek, vk))
-        if not momentum_ok(edges, V, ext_attach, ext_mode, em, vm):
-            return
-        okinfo = jets_ok(edges, V, vm, em, ext_attach)
-        if not okinfo[0]:
-            return
-        if not h_c23_connected_ok(edges, V, em, vm):
-            return
-        if not mojetic_all_ok(edges, V, vm, em, ext_attach, okinfo[1]):
-            return
-        if not island_ok(edges, V, em, vm):
-            return
-        if not ir_ok(edges, V, em, vm, ext_attach, ext_mode, {}):
-            return
-        vec = tuple(-F.V(m) if F.V(m) != F.INF else 'inf' for m in em) + (1,)
-        found[(ek, vk)] = (vec, cuts, em, vm)
-
-    seenP = set()
-    for H in Hs:
-        Hset = set(H)
-        dom_base = Vset - Hset
-        opt = {}
-        bad = False
-        for leg in ('p1', 'p4', 'p5'):
-            r = roots[leg]
-            if r in Hset:
-                opt[leg] = [frozenset()]
-                continue
-            allowed = {w for w in Vset if w not in Hset and (w == r or w not in extv)}
-            os_ = [S for S in _conn_sets({r}, allowed, adj) if any(adj[u] & Hset for u in S)]
-            if not os_:
-                bad = True
-                break
-            opt[leg] = os_
-        if bad:
-            continue
-        allowed23 = {w for w in Vset if w not in Hset and (w in (roots['p2'], roots['p3']) or w not in extv)}
-        if roots['p2'] in Hset:
-            q2 = [frozenset()]
-        else:
-            q2 = [S for S in _conn_sets({roots['p2']}, allowed23, adj) if any(adj[u] & Hset for u in S)]
-            if not q2:
-                continue
-        if roots['p3'] in Hset:
-            q3 = [frozenset()]
-        else:
-            q3 = [S for S in _conn_sets({roots['p3']}, allowed23, adj) if any(adj[u] & Hset for u in S)]
-            if not q3:
-                continue
-        for P1 in opt['p1']:
-            for P4 in opt['p4']:
-                if P1 & P4:
-                    continue
-                for P5 in opt['p5']:
-                    if P1 & P5 or P4 & P5:
-                        continue
-                    u = P1 | P4 | P5
-                    for b2 in q2:
-                        for b3 in q3:
-                            a23 = b2 | b3
-                            if a23 & u:
-                                continue
-                            # NOTE (2026-09-18 fix): the filter depends on H (leftover =
-                            # V - H - P's), so the same P-quad with a different H can give
-                            # a different verdict; H must enter the dedup key.  The old
-                            # cross-H dedup skipped larger-H configs entirely -> false
-                            # losses of regions that a larger-H config keeps.
-                            keyP = (H, P1, a23, P4, P5)
-                            if keyP in seenP:
-                                continue
-                            seenP.add(keyP)
-                            n_combo += 1
-                            leftover = Vset - P1 - a23 - P4 - P5
-                            lf = (leftover - Hset) if excl_h else leftover
-                            groups = [g for g in (P1, a23, P4, P5) if g]
-                            do_filter = comp_adj2
-                            if do_filter and skip_if_lt2 and len(groups) < 2:
-                                do_filter = False
-                            if do_filter:
-                                good = True
-                                gg = []
-                                for g in groups:
-                                    if count_startpoints:
-                                        gg.append(g | {h for h in Hset if adj[h] & g})
-                                    else:
-                                        gg.append(g)
-                                if comp_adj2:
-                                    for K_ in _comps(lf, adj):
-                                        cnt = 0
-                                        for g in gg:
-                                            if any((adj[uu] & g) for uu in K_):
-                                                cnt += 1
-                                        if cnt < 2:
-                                            good = False
-                                            break
-                                if not good:
-                                    n_filtF += 1
-                                    continue
-                            C1s = (_conn_sets(P1, dom_base - a23 - P4 - P5, adj) if P1 else [frozenset()])
-                            C4s = (_conn_sets(P4, dom_base - P1 - a23 - P5, adj) if P4 else [frozenset()])
-                            C5s = (_conn_sets(P5, dom_base - P1 - a23 - P4, adj) if P5 else [frozenset()])
-                            if not C1s or not C4s or not C5s:
-                                continue
-                            if a23:
-                                C23s = _c23_sets(a23, dom_base - P1 - P4 - P5, roots['p2'], roots['p3'], adj)
-                            else:
-                                C23s = [frozenset()]
-                            if not C23s:
-                                continue
-                            for C1 in C1s:
-                                for C4 in C4s:
-                                    for C5 in C5s:
-                                        for C23 in C23s:
-                                            run_checks(C1, C4, C5, C23, leftover, H, P1, a23, P4, P5)
-    info = {'dup_cuts': dup_cuts, 'skip_emvm': skip_emvm, 'filt_kill': n_filt, 'n_combo': n_combo, 'filtF_kill': n_filtF, 'corner_skip': n_corner_skip, 'vm_dup': n_vmdup}
-    reps = list(found.values())
-    if collect:
-        info['survivors'] = sorted(reps, key=lambda r: r[0])
-    return sorted(v[0] for v in reps), total_cand, info
-
-
-# ---------------------------------------------------------------------------
-# k1 engine (was skel23.py; moved here 2026-09-20)
-#
-# Rules:
-#   * member-cut rule: a nonempty C2C23 / C3C23 takes from the paths only a
-#     connected subpath of its own branch (p2 branch / p3 branch) with the leg
-#     vertex as one endpoint, excluding the shared subpath and the other
-#     branch; vertices on neither path may be included freely.
-#     C23 still contains the whole P2 and P3.
-#   * acceptance filter: keep a candidate if the wide-leg share condition (M)
-#     holds — for i in 1,4,5 with nonempty P_i, some vertex shared by C_i, C23
-#     and another wide cut C_j (j != i); otherwise keep it only via one of the
-#     three symmetric pathways (all five P_i nonempty; with s_ab = C_a∩C_b∩C23
-#     exactly one of s14/s15/s45 nonempty and s145 = C1∩C4∩C5 nonempty):
-#       PA: s14 ;  PB: s15 ;  PC: s45.
-#   * idea (skeleton construction): build each region from a skeleton —
-#       H       : the uncovered vertex set,
-#       P1..P5  : the leg "jet" paths from each external vertex to H
-#                 (P2/P3 form a Y: a shared prefix out of H, then split; they
-#                  may pass through v2/v3, which are both roots of C23),
-#     then expand each leg's cut supersets inside its domain and run region_checker's
-#     standard check chain.  Canonical de-duplication skips repeated
-#     representations: identical cut tuples are skipped outright; after the
-#     coverage check, candidates with identical (em, vm) are skipped too —
-#     every check downstream of `uncovered_ok` is a function of (em, vm)
-#     alone, so the skip is safe.
-#   * validated against region_checker / pySecDec on the random-batch series of
-#     2026-09 (spot checks plus full batches via run_random.py --engine skel).
-# ---------------------------------------------------------------------------
-
-
-def enumerate_skel(edges, verts, ext_attach, kin='k1', collect=False):
-    if kin != 'k1':
-        raise NotImplementedError('enumerate_skel supports k1 only')
-    edges = [tuple(e) for e in edges]
-    V = sorted(verts)
-    mk = _make_mk(V)                  # fast path 2026-09-22 (bitmask cache)
-    adj = {v: set() for v in V}
-    for a, b in edges:
-        adj[a].add(b); adj[b].add(a)
-    Vset = set(V)
-    extv = set(ext_attach.values())
-    roots = {leg: ext_attach[leg] for leg in ('p1', 'p2', 'p3', 'p4', 'p5')}
-    ext_mode = K.ext_modes(kin)
-    Hs = [frozenset(S) for r in range(1, len(V) + 1) for S in combinations(V, r) if _connected_set(S, adj)]
-
-    total_cand = 0
-    dup_cuts = 0
-    skip_emvm = 0
-    n_vmdup = 0
-    n_wide = 0
-    n_path = 0
-    cuts_seen = set()
-    emvm_seen = set()
-    vm_seen = set()   # vm-level dedup (2026-09-18)
-    found = {}
-    SURV = {}   # collect=True: (ek, vk) -> (cuts, em, vm)
-
-    def run_checks(C1, C2, C3, C4, C5, C23, legreq):
-        nonlocal total_cand, dup_cuts, skip_emvm, n_wide, n_path, n_vmdup
-        total_cand += 1
-        # acceptance filter + three symmetric pathways (2026-09-16):
-        # (M) every i in 1,4,5 with nonempty P_i shares a vertex of
-        #     C_i, C23 and another wide cut C_j; or if M fails, one of
-        # (PA) all five P_i nonempty; exists v in C1∩C4∩C23; none in
-        #     C1∩C5∩C23; none in C4∩C5∩C23; exists v in C1∩C4∩C5;
-        # (PB) all five; exists v in C1∩C5∩C23; none in C1∩C4∩C23;
-        #     none in C4∩C5∩C23; exists v in C1∩C4∩C5;
-        # (PC) all five; exists v in C4∩C5∩C23; none in C1∩C4∩C23;
-        #     none in C1∩C5∩C23; exists v in C1∩C4∩C5.
-        _W = ((1, C1), (4, C4), (5, C5))
-        _ok_main = True
-        for _t, (_i, _Ci) in enumerate(_W):
-            if not legreq[_t]:
-                continue
-            if not any((_Ci & C23 & _Cj) for _j, _Cj in _W if _j != _i):
-                _ok_main = False
-                break
-        if not _ok_main:
-            _all5 = legreq[0] and legreq[1] and legreq[2] and legreq[3] and legreq[4]
-            _s14 = C1 & C4 & C23
-            _s15 = C1 & C5 & C23
-            _s45 = C4 & C5 & C23
-            _s145 = C1 & C4 & C5
-            _ok_path = _all5 and _s145 and ((_s14 and not _s15 and not _s45) or (_s15 and not _s14 and not _s45) or (_s45 and not _s14 and not _s15))
-            if not _ok_path:
-                n_wide += 1
-                return
-            n_path += 1
-        cuts = {'C23': set(C23), 'C1': set(C1), 'C4': set(C4), 'C5': set(C5), 'C1R1': set(), 'C4R1': set(), 'C5R1': set(), 'C2R1': set(C2), 'C3R1': set(C3), 'C2R2': set(), 'C3R2': set()}
-        # fast path (2026-09-22): bitmasks for the fixed cut slots (the
-        # R1/R2 slots are always empty in this engine)
-        masks = {'C23': mk(C23), 'C1': mk(C1), 'C4': mk(C4), 'C5': mk(C5), 'C1R1': 0, 'C4R1': 0, 'C5R1': 0, 'C2R1': mk(C2), 'C3R1': mk(C3), 'C2R2': 0, 'C3R2': 0}
-        # fast path (2026-09-22): fixed-slot mask array as the dedup key
-        # (was: sorted (name, sorted-set-tuple) pairs — same equality classes)
-        ck = tuple(masks[nm] for nm in _CUT_SLOTS)
-        if ck in cuts_seen:
-            dup_cuts += 1
-            return
-        cuts_seen.add(ck)
-        res, why = build_overlay(edges, V, ext_attach, ext_mode, cuts, vm_seen=vm_seen)
-        if res is None:
-            if why == 'vm-dup':
-                n_vmdup += 1
-            return
-        em, vm = res
-        if not uncovered_ok(edges, V, cuts):
-            return
-        ek = tuple((i, F.name(m)) for i, m in enumerate(em))
-        # fast path (2026-09-22): fixed vertex-order key (V is sorted; was
-        # sorted (vertex, name) pairs — same equality classes)
-        vk = tuple(F.name(vm[w]) for w in V)
-        if (ek, vk) in emvm_seen:
-            skip_emvm += 1
-            return
-        emvm_seen.add((ek, vk))
-        if not momentum_ok(edges, V, ext_attach, ext_mode, em, vm):
-            return
-        okinfo = jets_ok(edges, V, vm, em, ext_attach)
-        if not okinfo[0]:
-            return
-        if not h_c23_connected_ok(edges, V, em, vm):
-            return
-        if not mojetic_all_ok(edges, V, vm, em, ext_attach, okinfo[1]):
-            return
-        if not island_ok(edges, V, em, vm):
-            return
-        if not ir_ok(edges, V, em, vm, ext_attach, ext_mode, {}):
-            return
-        vec = tuple(-F.V(m) if F.V(m) != F.INF else 'inf' for m in em) + (1,)
-        found[(ek, vk)] = vec
-        if collect:
-            SURV[(ek, vk)] = (dict((kk, set(vv)) for kk, vv in cuts.items()), em, vm)
-
-    for H in Hs:
-        Hset = set(H)
-        outs = [leg for leg in ('p1', 'p2', 'p3', 'p4', 'p5') if roots[leg] not in Hset]
-        fam = {}
-        ok = True
-        for leg in ('p1', 'p4', 'p5'):
-            if leg not in outs:
-                fam[leg] = None
-                continue
-            start = roots[leg]
-            sets = set()
-            allowed = [w for w in Vset if w not in Hset and (w == start or w not in extv)]
-            st = [(start, {start}, (start,))]
-            while st:
-                cur, vis, path = st.pop()
-                if adj[cur] & Hset:
-                    sets.add(frozenset(path))
-                for w in adj[cur]:
-                    if w in allowed and w not in vis:
-                        st.append((w, vis | {w}, path + (w,)))
-            if not sets:
-                ok = False
-                break
-            fam[leg] = list(sets)
-        if not ok:
-            continue
-        if roots['p2'] in Hset:
-            if roots['p3'] not in Hset:
-                continue
-            pair_opts = [(None, None, None, None)]
-        else:
-            fr = {roots['p2'], roots['p3']}
-            seq2 = _enumerate_seqs(roots['p2'], Hset, adj, Vset, extv, fr)
-            seq3 = _enumerate_seqs(roots['p3'], Hset, adj, Vset, extv, fr)
-            if not seq2 or not seq3:
-                continue
-            # 2026-09-16 (agreed rule): keep each compatible realization, and
-            # split it at the shared prefix: br2/br3 = the branch sequences
-            # (from the split down to v2 / v3, i.e. reversed path after the
-            # shared part).  Member cuts may take any connected subpath of
-            # their own branch with the leg vertex as one endpoint.
-            pair_opts = []
-            seen_po = set()
-            for a in seq2:
-                ra = a[::-1]
-                for b in seq3:
-                    if not _compat(a, b):
-                        continue
-                    rb = b[::-1]
-                    k = 0
-                    while k < min(len(ra), len(rb)) and ra[k] == rb[k]:
-                        k += 1
-                    key = (frozenset(a), frozenset(b), ra[k:], rb[k:])
-                    if key in seen_po:
-                        continue
-                    seen_po.add(key)
-                    pair_opts.append((frozenset(a), frozenset(b), ra[k:], rb[k:]))
-            if not pair_opts:
-                continue
-        l1 = fam['p1'] if fam['p1'] is not None else [None]
-        l4 = fam['p4'] if fam['p4'] is not None else [None]
-        l5 = fam['p5'] if fam['p5'] is not None else [None]
-        for S1, S4, S5 in product(l1, l4, l5):
-            u = set(); skip = False
-            for S in (S1, S4, S5):
-                if S is not None:
-                    if S & u:
-                        skip = True
-                        break
-                    u |= S
-            if skip:
-                continue
-            for S2, S3, br2, br3 in pair_opts:
-                if S2 is not None and ((S2 | S3) & u):
-                    continue
-                legreq = (S1 is not None, S4 is not None, S5 is not None, S2 is not None, S3 is not None)
-                a1 = S1 or frozenset(); a4 = S4 or frozenset()
-                a5 = S5 or frozenset(); a2 = S2 or frozenset()
-                a3 = S3 or frozenset()
-                C1s = (_conn_sets(a1, Vset - Hset - a2 - a3 - a4 - a5, adj) if S1 is not None else [frozenset()])
-                if not C1s:
-                    continue
-                C4s = (_conn_sets(a4, Vset - Hset - a1 - a2 - a3 - a5, adj) if S4 is not None else [frozenset()])
-                if not C4s:
-                    continue
-                C5s = (_conn_sets(a5, Vset - Hset - a1 - a2 - a3 - a4, adj) if S5 is not None else [frozenset()])
-                if not C5s:
-                    continue
-                if S2 is not None:
-                    for C23 in _conn_sets(a2 | a3, Vset - Hset - a1 - a4 - a5, adj):
-                        # agreed rule (2026-09-16): a nonempty C2C23/C3C23
-                        # takes from the paths only a connected subpath of its
-                        # own branch with the leg vertex as one endpoint
-                        # (shared subpath and the other branch excluded);
-                        # vertices on neither path may be included freely.
-                        D = frozenset(set(C23) - a2 - a3)
-                        C2s = {frozenset()}
-                        for j in range(len(br2)):
-                            T = frozenset(br2[j:])
-                            C2s.update(_conn_sets(T, T | D, adj))
-                        C3s = {frozenset()}
-                        for j in range(len(br3)):
-                            T = frozenset(br3[j:])
-                            C3s.update(_conn_sets(T, T | D, adj))
-                        for C2 in C2s:
-                            for C3 in C3s:
-                                for C1 in C1s:
-                                    for C4 in C4s:
-                                        for C5 in C5s:
-                                            run_checks(C1, C2, C3, C4, C5, C23, legreq)
-                else:
-                    for C1 in C1s:
-                        for C4 in C4s:
-                            for C5 in C5s:
-                                run_checks(C1, frozenset(), frozenset(), C4, C5, frozenset(), legreq)
-
-    info = {'dup_cuts': dup_cuts, 'skip_emvm': skip_emvm, 'wide_kill': n_wide, 'pathway': n_path, 'vm_dup': n_vmdup}
-    if collect:
-        info['survivors'] = [(vv,) + sv for vv, sv in sorted(((vv, SURV[k]) for k, vv in found.items()), key=lambda t: t[0])]
-    return sorted(found.values()), total_cand, info
-
-# ---------------------------------------------------------------------------
-# unified entry with full records (interactive browser / plotting)
-# k0 union / k1 engine / k2-k4 chain, returning full region records. Returns (vecs, total, info); additionally
-# info['survivors'] = [(vec, cuts, em, vm), ...] sorted by vec — the survivor shape the interactive browser and
-# region_plot use. [2026-09-21: takes over this role from region_checker.enumerate_regions.]
+# Unified entry returning full records: info['survivors'] = [(vec, cuts, em, vm), ...] sorted by vec.
 def enumerate_surv(edges, verts, ext_attach, kin):
-    if kin == 'k0':
-        return _k0_union(edges, verts, ext_attach, collect=True)
-    if kin == 'k1':
-        return enumerate_skel(edges, verts, ext_attach, kin, collect=True)
-    return enumerate_skelg(edges, verts, ext_attach, kin, collect=True)
+    return enumerate_skelg(edges, verts, ext_attach, tuple(kin), collect=True)

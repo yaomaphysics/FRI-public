@@ -1,27 +1,24 @@
 #!/usr/bin/env python3
-"""facet_regions_interactive.py — interactive region browser for the collinear 2->3 FRI enumerator (region_checker).
+"""facet_regions_interactive.py — interactive region browser for the collinear 2->3 FRI enumerator (region_filter).
 
 Input: graph topology + external kinematics ONLY (the cut formalism is
 internal — the user never touches cuts).  External momenta p1..p5 attach
 at vertices 1,2,3,4,5.  The script:
 
-  1. enumerates ALL regions of the graph (skeleton: k0 union / k1 engine / k2-k4 chain),
+  1. enumerates ALL regions of the graph (skeleton: all-on-shell engine / general chain),
   2. lists them with numbers (scaling vector + non-empty cuts + edge-mode sequence), then offers a menu:
        1) Inspect specific regions — pick a subset ("3, 8--10" = regions 3, 4, 8, 10; empty = all); for every picked region:
           MODE SUBGRAPHS
-            mode X: {vertices: {V_X}, edges: {E_X}}   loop number of X (r_X = sum of |E| - |V| + 1 over the 1VI blocks of the contracted
-          mode subgraph, computed with region_checker's own mode_components; Σ r_X vs L is checked), then optionally a concrete set of independent loop momenta (default basis) with optional FORCED lines ((x,y) endpoint pairs, square brackets also accepted),
+            mode X: {vertices: {V_X}, edges: {E_X}}   loop number of X (r_X = sum of |E| - |V| + 1 over the 1VI (one-vertex-irreducible) blocks of the contracted
+          mode subgraph, computed with region_filter's own mode_components; Σ r_X vs L is checked), then optionally a concrete set of independent loop momenta (default basis) with optional FORCED lines ((x,y) endpoint pairs, square brackets also accepted),
        2) Show Lee-Pomeransky parametric representation — per region the scaling vector v_e = -V (edge order, trailing 1 = expansion scale,
           pySecDec style, same as the verified region files),
        3) Classify these regions based on their characteristic modes — per region its softest-mode class + by-type counts,
        4) Visualize the selected regions: one PDF atlas (default) or PNG figures (per-mode colours; saved under fri_out/regions_*/),
    and loops until the user quits (empty or q).
 
-Kinematics: k0..k4 (defined in kin23.py; default k1).  At the edge
-prompt: 'kin k3' switches kinematics, 'v' toggles the enumeration
-statistics, 'q'/'b' quits.  Start with -v to have the statistics on from
-the beginning.
-Results are saved to fri_out/<timestamp>.txt after each graph.
+Kinematics: k0..k2 are shown as local examples (default k1); type kx for a custom p_i^2 pattern.
+At the edge prompt: 'kin kx' (or a k0..k2 label) switches kinematics, 'v' toggles the enumeration statistics, 'q'/'b' quits.
 
 Usage: python3 facet_regions_interactive.py [-v]
   Example graph (the built-in Fish): 1-3,1-5,2-3,2-5,3-4,4-5
@@ -35,24 +32,27 @@ from collections import defaultdict
 
 BASE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, BASE)
-import region_checker
-import kin23
+import region_filter
 import skeleton
 from indep_loops import indep_loops, show_basis, _disp_key   # independent loop momenta + line-momentum parameterization
-from primitives import V, m_of, name, n_of
+from primitives import V, m_of, name, n_of, INF, leg_check, ext_modes
+from mode_levels import predict, derive_external_modes
 
 EXT_ATTACH = {'p1': 1, 'p2': 2, 'p3': 3, 'p4': 4, 'p5': 5}
-KIN_CHOICES = list(kin23.KIN_ORDER)
+KIN_EXAMPLES = ['k0', 'k1', 'k2']
+# Local illustration of the three example kinematics: label text + raw (m1..m5) virtuality tuple.
 KIN_NOTES = {
-    'k0': 'all p_i^2 ~ t1',
-    'k1': 'all p_i^2 = 0 (lightlike)',
-    'k2': 'p_1^2 ~ t1; p_i^2 = 0 otherwise',
-    'k3': 'p_1^2 ~ t1, p_2^2 ~ t1^2; p_i^2 = 0 otherwise',
-    'k4': 'p_2^2 ~ p_3^2 ~ t1^2; p_i^2 = 0 otherwise',
+    'k0': ('all p_i^2 ~ t1', (1, 1, 1, 1, 1)),
+    'k1': ('all p_i^2 = 0 (lightlike)', (INF, INF, INF, INF, INF)),
+    'k2': ('p_1^2 ~ t1; p_i^2 = 0 otherwise', (1, INF, INF, INF, INF)),
 }
 
+# Per external leg: (label, mode prefix, mode suffix, lowest accepted power).
+LEG_MODES = [('p1', 'C1^', '', 1), ('p2', 'C2^', 'C23', 0), ('p3', 'C3^', 'C23', 0), ('p4', 'C4^', '', 1), ('p5', 'C5^', '', 1)]
 
-# ---------------------------------------------------------------- input helpers
+
+# ==================== INPUT HELPERS ====================
+
 # Ask a y/n question (empty = n); any other input re-asks.
 def ask_yn(prompt):
     while True:
@@ -77,6 +77,7 @@ def parse_edges(s):
     return [(int(dn[k]), int(dn[k + 1])) for k in range(0, len(dn), 2)]
 
 
+# Format a scaling tuple as a parenthesised comma-separated string.
 def fmt_scaling(sc):
     return '(' + ', '.join(str(x) for x in sc) + ')'
 
@@ -136,10 +137,9 @@ def parse_forced_lines(edges, line):
     return sorted(set(F))
 
 
-# ---------------------------------------------------------------- mode display
-# Per-mode subgraphs {{V_X}, {E_X}} with loop numbers r_X, plus the sum check vs L = |E| - |V| + 1. r_X uses the
-# contracted-subgraph rule (1VI blocks of gamma~_X with the aux vertex; r = |E| - |V| + 1 per block) — same rule as
-# the 2->2 browser, computed with region_checker's own mode_components.
+# ==================== MODE DISPLAY ====================
+
+# Per-mode subgraphs {V_X}, {E_X} with loop numbers r_X (1VI blocks of the contracted mode subgraph), plus the sum check against L = |E| - |V| + 1.
 def show_mode_subgraphs(edges, em, vm):
     verts = sorted({v for e in edges for v in e})
     results, total, L = indep_loops(edges, em, vm)
@@ -154,9 +154,9 @@ def show_mode_subgraphs(edges, em, vm):
     print(f'  Σ loop numbers = {total}  vs  L = {L}  {flag}')
 
 
-# ---------------------------------------------------------------- menus
-# Option 1: pick regions -> per-mode subgraphs with loop numbers, then optionally a concrete basis / forced lines /
-# line momenta.
+# ==================== MENU ACTIONS ====================
+
+# Option 1: pick regions, show their per-mode subgraphs, then optionally a concrete basis / forced lines / line momenta.
 def inspect_regions(edges, regs, ext_attach):
     n = len(regs)
     line = input('Region numbers (e.g. "3, 8--10" represents regions 3, 8, 9, and 10; empty = all; q/b = back) > ').strip()
@@ -274,10 +274,63 @@ def visualize_regions(edges, regs, ext_mode):
         print(f'  saved atlas PDF to: {path}')
 
 
+# Power of a mode as text ('inf' for the on-shell case).
+def _pow_str(q):
+    return 'inf' if q == INF else str(q)
+
+
+# The virtuality tuple (m1..m5) that reproduces a custom power tuple (the pair power is m - 1).
+def custom_ms(q):
+    q1, q2, q3, q4, q5 = q
+    return (q1, INF if q2 == INF else q2 + 1, INF if q3 == INF else q3 + 1, q4, q5)
+
+
+# Short label for a kinematics: a preset name, or the custom powers.
+def kin_label(kin):
+    return kin if isinstance(kin, str) else 'custom ' + '/'.join(_pow_str(q) for q in kin)
+
+
+# Display note for a kinematics: a preset name, or the custom mode literals.
+def kin_note(kin):
+    if isinstance(kin, str):
+        return KIN_NOTES[kin][0]
+    q1, q2, q3, q4, q5 = kin
+    return ('C1^' + _pow_str(q1) + ', C2^' + _pow_str(q2) + 'C23, C3^' + _pow_str(q3) + 'C23, C4^' + _pow_str(q4) + ', C5^' + _pow_str(q5))
+
+
+# Read a custom kinematics: the power of each external mode (integer >= 0, or inf for on-shell).
+def ask_momenta():
+    print('Input the external modes (only the powers, selected from {0, 1, ..., ' + chr(92) + 'infty})')
+    q = []
+    for i, (leg, pre, post, lo) in enumerate(LEG_MODES, 1):
+        while True:
+            try:
+                s = input('  %s mode [%s?%s] (only input the power) > ' % (leg, pre, post)).strip().lower()
+            except (EOFError, KeyboardInterrupt):
+                return None
+            if s in ('q', 'quit', 'exit', 'b', 'back'):
+                return None
+            if s in ('inf', 'infty', 'os', 'on-shell', chr(92) + 'infty'):
+                p = '∞'
+            elif s.isdigit() and int(s) >= lo:
+                p = s
+            else:
+                print('    [error] enter an integer >= %d, or ' % lo + chr(92) + 'infty')
+                continue
+            if not leg_check(i, region_filter.parse(pre + p + post)):
+                print('    [error] not allowed for %s' % leg)
+                continue
+            q.append(INF if p == '∞' else int(p))
+            break
+    return tuple(q)
+
+
+# Print the example kinematics; kx enters a custom pattern.
 def print_kin_menu():
-    print('available 2->3 kinematics:')
-    for k in KIN_CHOICES:
-        print(f'  {k}: {KIN_NOTES[k]}')
+    print('Input kinematics:')
+    print('For example,')
+    for k in KIN_EXAMPLES:
+        print(f'  {k}: {KIN_NOTES[k][0]};')
 
 
 # Ask for a kinematics label at startup; default k1.
@@ -285,19 +338,25 @@ def choose_kinematics():
     print_kin_menu()
     while True:
         try:
-            s = input('kinematics [default k1; q/b = back]> ').strip().lower()
+            s = input('kinematics [k0, k1, k2 for above; kx for others; q/b = back]> ').strip().lower()
         except (EOFError, KeyboardInterrupt):
             return None
-        if not s:
-            return 'k1'
         if s in ('q', 'quit', 'exit', 'b', 'back'):
             return None
-        if s in KIN_CHOICES:
+        if s in KIN_EXAMPLES:
             return s
-        print(f'  [error] unknown kinematics "{s}" — choose from {", ".join(KIN_CHOICES)} (q/b = back)')
+        if s == 'kx':
+            kin = ask_momenta()
+            if kin is not None:
+                return kin
+            print_kin_menu()
+            continue
+        print(f'  [error] unknown kinematics "{s}" — choose from {", ".join(KIN_EXAMPLES)}, or kx (q/b = back)')
 
 
-# ---------------------------------------------------------------- driver
+# ==================== DRIVER ====================
+
+# Enumerate one graph's regions and offer the inspection menu; writes a run file under fri_out/.
 def run_graph(edges_raw, kin_name, verbose=False):
     edges = [tuple(e) for e in edges_raw]
     verts = sorted({v for e in edges for v in e})
@@ -305,16 +364,17 @@ def run_graph(edges_raw, kin_name, verbose=False):
     if missing:
         print(f'  [warning] external-leg vertices {missing} not in the graph!  The 2->3 kinematics needs vertices 1,2,3,4,5.')
         return
-    ext_mode = kin23.ext_modes(kin_name)
+    kin_ms = custom_ms(kin_name) if isinstance(kin_name, tuple) else KIN_NOTES[kin_name][1]
+    ext_mode = ext_modes(kin_ms)
     L = len(edges) - len(verts) + 1
-    print(f'  kinematics: {kin_name} ({KIN_NOTES[kin_name]})')
+    print(f'  kinematics: {kin_label(kin_name)} ({kin_note(kin_name)})')
     print(f'  graph: {len(edges)} edges, {len(verts)} vertices, L = {L} loops')
     print(f'  edges: {edges}')
     if L >= 5:
         print('  [warning] L >= 5 may be slow')
     t0 = time.time()
     try:
-        _vecs, total, stats = skeleton.enumerate_surv(edges, verts, EXT_ATTACH, kin_name)
+        _vecs, total, stats = skeleton.enumerate_surv(edges, verts, EXT_ATTACH, kin_ms)
         surv = stats['survivors']
     except Exception as e:
         print(f'  [error] skeleton engine could not handle this input: {e}')
@@ -358,7 +418,7 @@ def run_graph(edges_raw, kin_name, verbose=False):
     fname = os.path.join(fdir, time.strftime('%Y%m%d-%H%M%S') + '.txt')
     with open(fname, 'w') as f:
         f.write(f'# collinear 2->3 FRI regions - {time.strftime("%Y-%m-%d %H:%M:%S")}\n')
-        f.write(f'# kinematics: {kin_name}\n')
+        f.write(f'# kinematics: {kin_label(kin_name)}\n')
         f.write(f'# edges: {edges}  ({len(edges)} edges, {len(verts)} verts, L={L})\n')
         f.write(f'# FRI regions: {len(regs)} ({dt:.1f}s)\n\n')
         for i, (vec, cuts, em, vm) in enumerate(regs, 1):
@@ -370,23 +430,166 @@ def run_graph(edges_raw, kin_name, verbose=False):
     print(f'  saved to: {fname}')
 
 
+LMAX = 10
+
+BANNER = '''\
+==============================================================
+  What modes appear at which loop level?   (2->3)
+--------------------------------------------------------------
+  Enter the five external-momentum modes,
+  then:
+    space = step +1 loop      enter = jump to next non-empty loop
+    a     = cumulative table  q/b   = quit
+  (levels are capped at L = %d)
+==============================================================''' % LMAX
+
+# single keypress on a tty; line-based fallback otherwise ('' line = space).
+def read_key():
+    if not sys.stdin.isatty():
+        try:
+            s = input('▶ (blank=advance, j=jump, a=all, q/b=quit): ')
+        except EOFError:
+            return 'q'
+        s = s.strip()
+        if s == '':
+            return ' '
+        return s[0]
+    import termios, tty
+    fd = sys.stdin.fileno()
+    old = termios.tcgetattr(fd)
+    try:
+        tty.setcbreak(fd)
+        ch = sys.stdin.read(1)
+    finally:
+        termios.tcsetattr(fd, termios.TCSADRAIN, old)
+    return ch
+
+
+# Display state for one kinematics: extends the ladder on demand and reports each new level's origin.
+class Stepper:
+    # Store the entered external modes and the momentum modes; the ladder is built lazily by ensure().
+    def __init__(self, ext, momenta):
+        self.ext, self.momenta = ext, momenta
+        self.levels = {}
+        self.m_log, self.w_log = [], []
+        self.computed = -1
+
+    # [Optimization] Extend the cached ladder to level k (recompute with the larger cap when the display advances).
+    def ensure(self, k):
+        k = min(k, LMAX)
+        if k <= self.computed:
+            return
+        self.levels, log = predict(self.ext, k, momenta=self.momenta)
+        self.m_log, self.w_log = log['messenger_log'], log['wedge_log']
+        self.computed = k
+
+    # Mode names first computed at exactly level k.
+    def modes_at(self, k):
+        return [region_filter.name(m) for m in self.levels if self.levels[m] == k]
+
+    # One-line origin of the new modes at level k.
+    def source_line(self, k):
+        for lv, nm in self.m_log:
+            if lv == k:
+                return 'messenger round: %s (+2 anchored)' % nm
+        for lv, names in self.w_log:
+            if lv == k:
+                return 'wedge round (+1): ' + ', '.join(names)
+        if k == 0:
+            return 'seeds (external modes)'
+        return 'vee closure'
+
+
+# Entry point: interactive loop over the mode ladder (the -l/--ladder mode).
+def run_ladder():
+    print(BANNER)
+    q = ask_momenta()
+    if q is None:
+        print('bye 👋')
+        return
+    momenta = [region_filter.parse(pre + ('∞' if p == INF else str(p)) + post) for (leg, pre, post, lo), p in zip(LEG_MODES, q)]
+    mnames = [region_filter.name(m) for m in momenta]
+    print('momenta: ' + ', '.join('p%d=%s' % (i + 1, nm) for i, nm in enumerate(mnames)))
+    ext = derive_external_modes(momenta)
+    print('external modes (L=0 seeds): %s' % ', '.join(ext))
+
+    st = Stepper(ext, momenta)
+    cur = 0
+
+    # Print level k's new modes and how they arose.
+    def show(k):
+        st.ensure(k)
+        names = st.modes_at(k)
+        print()
+        if names:
+            n = len(names)
+            print('L=%d — %d new mode%s:' % (k, n, 's' if n != 1 else ''))
+            print('   ' + ', '.join(names))
+        else:
+            print('L=%d — (no new modes)' % k)
+        print('   [%s]' % st.source_line(k))
+        n_le = sum(1 for lv in st.levels.values() if lv <= k)
+        print('   cumulative: %d modes (≤L=%d) | space=+1, enter=next non-empty, a=all, q/b=quit' % (n_le, k))
+
+    show(cur)
+    while True:
+        k = read_key()
+        if k in ('q', 'Q', 'b', 'B', '\x1b', '\x03'):
+            print('\nbye 👋')
+            break
+        if k == ' ':
+            if cur < LMAX:
+                cur += 1
+                show(cur)
+            else:
+                print('  (display capped at L=%d)' % LMAX)
+        elif k in ('\r', '\n', 'j'):
+            j0, hit = cur, None
+            while j0 < LMAX:
+                hi = min(j0 + 6, LMAX)
+                st.ensure(hi)
+                for k2 in range(j0 + 1, hi + 1):
+                    if st.modes_at(k2):
+                        hit = k2
+                        break
+                if hit is not None:
+                    break
+                j0 += 6
+            if hit is None:
+                print('  (no new modes up to L=%d)' % LMAX)
+            else:
+                cur = hit
+                show(cur)
+        elif k in ('a', 'A'):
+            st.ensure(cur)
+            print()
+            for lv in sorted(set(st.levels.values())):
+                if lv > cur:
+                    break
+                print('L=%-3d: %s' % (lv, ', '.join(st.modes_at(lv))))
+        else:
+            print('  (space=advance, enter=jump, a=all, q/b=quit)')
+
+# Entry point: interactive loop over graphs.
 def main():
+    # hidden mode: -l/--ladder runs the mode-ladder stepper instead of the graph browser
+    if any(a in ('-l', '--ladder') for a in sys.argv[1:]):
+        run_ladder()
+        return
     # Hidden debug switch (not shown to the user): -v/--verbose starts with the enumeration statistics on.
     verbose = any(a in ('-v', '--verbose') for a in sys.argv[1:])
     print('=' * 72)
-    print('collinear 2->3 FRI region enumerator (k0..k4)')
+    print('collinear 2->3 FRI region enumerator')
     print('external momenta: p1@1, p2@2, p3@3, p4@4, p5@5')
-    print('type an edge list, e.g. 1-3,1-5,2-3,2-5,3-4,4-5 (the Fish)')
-    print("at the edge prompt: 'kin k3' switches kinematics, 'q'/'b' quits")
     print('=' * 72)
     kin_name = choose_kinematics()
     if kin_name is None:
         print('bye!')
         return
-    print(f'-> using kinematics {kin_name}')
+    print(f'-> using kinematics {kin_label(kin_name)} ({kin_note(kin_name)})')
     while True:
         try:
-            s = input(f'\nedge list [{kin_name}]> ').strip()
+            s = input(f'\nedge list for {kin_label(kin_name)} (e.g., the Fish, 1-3,1-5,2-3,2-5,3-4,4-5)> ').strip()
         except (EOFError, KeyboardInterrupt):
             print('\nbye!')
             break
@@ -398,11 +601,16 @@ def main():
         low = s.lower()
         if low.startswith('kin '):
             k = low.split()[1]
-            if k in KIN_CHOICES:
+            if k in KIN_EXAMPLES:
                 kin_name = k
-                print(f'-> kinematics switched to {kin_name} ({KIN_NOTES[kin_name]})')
+                print(f'-> kinematics switched to {kin_label(kin_name)} ({kin_note(kin_name)})')
+            elif k == 'kx':
+                kin = ask_momenta()
+                if kin is not None:
+                    kin_name = kin
+                    print(f'-> kinematics switched to {kin_label(kin_name)} ({kin_note(kin_name)})')
             else:
-                print(f'  [error] unknown kinematics "{k}" — choose from {", ".join(KIN_CHOICES)}')
+                print(f'  [error] unknown kinematics "{k}" — choose from {", ".join(KIN_EXAMPLES)}, or kx')
             continue
         # Hidden debug switch: 'v' toggles the enumeration statistics.
         if low in ('v', '-v', 'stats', 'verbose'):

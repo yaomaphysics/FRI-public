@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
-"""primitives.py — zero-judgment base layer for the collinear 2->3 framework.
+"""
+primitives.py — fundamental tools.
 
-Mode algebra (canonical mode tuple, constructors, accessors, meet/join), graph
-tools, and the softness-order relations.  The region checks (judgment) live in
-region_checker.py; the enumerators in skeleton.py.
+External kinematics (2->3): for a raw virtuality tuple ms = (m1, ..., m5) — m = 1, 2, ... for
+p_i^2 ~ t1**m and INF for exactly on-shell — the external modes follow the established formulas
+    p_i = C_i^{m_i} (i = 1, 4, 5),  p_2 = C_2^{m_2-1} C_23,  p_3 = C_3^{m_3-1} C_23
+(m = 1 degenerates the pair member: C_2^0 C_23 = C23, member marker dropped).  ext_modes() and
+mass_exprs() implement them for an arbitrary ms.
 """
 
 import re
@@ -12,15 +15,9 @@ from functools import lru_cache
 INF = float('inf')
 
 
-# ============================ mode algebra ============================
-# canonical mode tuple:
-#   ('H',)                        hard
-#   ('S', m)                      pure soft S^m (m >= 1)
-#   ('C', d, n, mem, m)           carrier: S^m C-carrier
-#     d in {1,4,5}: wide leg;  n >= 1 or INF (depth); mem = None
-#     d == 23: pair family;    n >= 0 (refinement index k); mem in {0,2,3}
-#     m >= 0 soft prefactor
-# hard mode constructor.
+# ==================== MODE ALGEBRA ====================
+
+# Hard mode constructor.
 def H():  return ('H',)
 # pure-soft mode S^m (S^1 by default).
 def S(m=1): return ('S', m)
@@ -99,7 +96,8 @@ def parse(s):
         return P(0, 0, sm)  # bare C23
     raise ValueError(s)
 
-# --- direction helpers
+# ==================== DIRECTION HELPERS ====================
+
 # True when both modes sit on the same carrier direction (leg).
 def same_dir(a, b):
     return d_of(a) is not None and d_of(a) == d_of(b)
@@ -108,8 +106,19 @@ def wide_like(x): return x[0] == 'C' and x[1] in (1, 4, 5)
 # True for pair-family modes (C23 family).
 def pair_like(x): return x[0] == 'C' and x[1] == 23
 
+
+# True when mode m is admissible as the momentum mode of leg i.
+def leg_check(i, m):
+    d = d_of(m)
+    if i in (1, 4, 5):
+        return d == i
+    if i in (2, 3):
+        return d == 23 and mem_of(m) in (0, i)
+    return False
+
+# Decode a (m, sigma) pair into a wide-leg mode; degenerate cases fall back to S or H.
 def _decode_wide(m, sig, leg):
-    # (m, sigma) -> wide mode.  n = sig - m; n<0 or 0 -> pure S^m!
+    # n = sig - m; n <= 0 gives a pure S^m.
     n = sig - m
     if n <= 0:
         if n == 0:
@@ -120,20 +129,21 @@ def _decode_wide(m, sig, leg):
     return W(leg, n, m)
 
 
+# Wide×wide carrier vee/wedge for finite carrier powers; coordinates (m, n, i) = (soft index, carrier power, direction).
 def _wide_join_meet(a, b):
-    # wide×wide carrier vee/wedge for finite carrier powers — translated from
-    # wide_angle/primitives._join_meet (aligned 2026-09-16; keep the two in sync).
-    # tuple view: (m, n, i) = (soft index, carrier power, direction).
+    # Normalise a coordinate: a zero carrier power carries no direction.
     def _norm(t):
         m, n, i = t
         if n == 0:
             i = 0
         return (m, n, i)
 
+    # Equality of two coordinates, ignoring the direction when a carrier power is zero.
     def _eq(X, Y):
         X, Y = _norm(X), _norm(Y)
         return X[0] == Y[0] and X[1] == Y[1] and (X[2] == Y[2] or X[1] == 0 or Y[1] == 0)
 
+    # Harder-or-equal order on the coordinates.
     def _harder_or_eq(X, Y):
         X, Y = _norm(X), _norm(Y)
         if _eq(X, Y):
@@ -181,6 +191,7 @@ def _wide_join_meet(a, b):
                 mt = _norm((m1 + n1, m2 + n2 - m1 - n1, j))
                 vt, wt = jn, mt
 
+    # Convert a coordinate back into a mode (n <= 0 -> S or H).
     def _back(t):
         m, n, i = t
         if n <= 0:
@@ -189,11 +200,9 @@ def _wide_join_meet(a, b):
 
     return _back(vt), _back(wt)
 
-# ---------- pair-family algebra (meet/join in the C23 family) ----------
-# Our pair tuple P(k, mem, m): soft index m = x[4]; refinement level n = x[2] (INF allowed);
-# member leg = x[3] when meaningful (None for base C23 / n = 0).
-# The pair algebra (member legs 2/3) includes the raise cases.
-# pair mode -> (m, k, leg) coordinates used by the pair algebra.
+# ==================== PAIR-FAMILY ALGEBRA ====================
+
+# Pair mode -> (m, k, leg) coordinates used by the pair algebra.
 def _pair_parts(x):
     return (x[4], x[2], (x[3] if x[3] else None))
 
@@ -339,10 +348,9 @@ def _pair_join(a, b):
         leg = None
     return _pair_from(m, n, leg)
 
-# ---------- cross-family algebra for wide-single x pair ----------
-# Coordinates: wide W(i, n_ours, m) <-> (m, n_ours-1, leg i, fam 'W');
-# pair P(k, mem, m) <-> (m, k, mem, fam 'P').
-# wide/pair mode -> (m, n', leg, family) coordinates (n' = n-1 for wide).
+# ==================== CROSS-FAMILY ALGEBRA (WIDE x PAIR) ====================
+
+# Wide/pair mode -> (m, n', leg, family) coordinates (n' = n - 1 for a wide leg).
 def _wp_parts(x):
     if wide_like(x):
         n = x[2]
@@ -456,20 +464,17 @@ def _wide_pair_join(a, b):
     leg = src[2]
     return _wp_from(m, n, leg, src[3])
 
-# mode meet (AND): softest common refinement; ArithmeticError when undefined.
-# Memoised (lru_cache): the same (a, b) pairs recur thousands of times in the enumerators.
-# Keep the key ordered: tie cases return the first argument (meet(a, b) may differ from meet(b, a)).
-@lru_cache(maxsize=None)
+@lru_cache(maxsize=None)   # [Optimization] memoised
+# Mode meet (AND): softest common refinement; raises ArithmeticError when undefined. Memoised.
 def meet(a, b):
+    # Keep the key ordered: tie cases return the first argument, so meet(a, b) may differ from meet(b, a).
     if a == b: return a
     if a == H(): return b
     if b == H(): return a
     # S x S
     if isS(a) and isS(b):
         return S(max(a[1], b[1]))
-    # S x C  (same-branch arithmetic):
-    #   m' = max(m_S, m_soft); sig' = max(m_S - 1, m_soft + nu); nu' = sig' - m'
-    #   (nu = n - 1 for i=1,4,5; nu = k for pair).
+    # S x C: softest common refinement (nu = n - 1 for wide legs, nu = k for pair modes).
     if isS(a) or isS(b):
         s_, c_ = (a, b) if isS(a) else (b, a)
         m1 = s_[1]
@@ -498,9 +503,9 @@ def meet(a, b):
     # C x C
     if wide_like(a) and wide_like(b):
         if n_of(a) != INF and n_of(b) != INF:
-            # carrier wedge — same rules as wide_angle/primitives._join_meet (aligned 2026-09-16).
+            # Carrier wedge — same rules as wide_angle/primitives._join_meet.
             return _wide_join_meet(a, b)[1]
-        # n = INF keeps the previous handling:
+        # n = INF takes the INF-specific branch.
         if same_dir(a, b):
             d_ = d_of(a)
             # Same-direction special case: S^1C_i ∧ C_i^2 = S^1C_i  (SC5)
@@ -535,9 +540,8 @@ def meet(a, b):
             return W(i, an - k - 1, k + 1)
     raise ArithmeticError(f'meet unhandled: ({name(a)},{name(b)})')
 
-# mode join (OR): combined mode of two momenta at a vertex.
-# Memoised (lru_cache; ordered-key note under meet).
-@lru_cache(maxsize=None)
+@lru_cache(maxsize=None)   # [Optimization] memoised
+# Mode join (OR): combined mode of two momenta at a vertex. Memoised.
 def join(a, b):
     if a == b: return a
     if a == H() or b == H(): return H()
@@ -567,9 +571,9 @@ def join(a, b):
         return P(nu2, mem_of(c_), mm)
     if wide_like(a) and wide_like(b):
         if n_of(a) != INF and n_of(b) != INF:
-            # carrier vee — same rules as wide_angle/primitives._join_meet (aligned 2026-09-16).
+            # Carrier vee — same rules as wide_angle/primitives._join_meet.
             return _wide_join_meet(a, b)[0]
-        # n = INF keeps the previous handling:
+        # n = INF takes the INF-specific branch.
         if same_dir(a, b):
             # S^1C_i^n ∨ C_i^∞ = C_i^{n+1}
             for x, y in ((a, b), (b, a)):
@@ -578,8 +582,7 @@ def join(a, b):
             m = min(m_of(a), m_of(b))
             sig = min(V(a), V(b))
             return _decode_wide(m, sig, d_of(a))
-        # 2026-09-19: soft-wide (S^mC_i, m>=1) ∨ C_j^∞ (j != i) = C_j^m
-        # (aligned with the pair-type route; fixes the R046-class v11 block).
+        # Soft-wide S^m C_i joined with an INF-mode C_j (j != i) gives C_j^m.
         for x, y in ((a, b), (b, a)):
             if x[4] >= 1 and y[4] == 0 and n_of(y) == INF:
                 return W(d_of(y), x[4], 0)
@@ -593,7 +596,7 @@ def join(a, b):
     return H()
 
 
-# ============================ graph helpers ============================
+# ==================== GRAPH HELPERS ====================
 # connectivity of a vertex subset via the induced edges.
 def connected(vs, es):
     vs = set(vs)
@@ -617,24 +620,32 @@ def is_1vi(vs, es):
         if not connected(vs - {v}, es): return False
     return True
 
-# connected components of the induced subgraph: {vertex: component_root} via Union-Find.
-@lru_cache(maxsize=None)
+# Union-Find root of x in parent (path halving).
+def uf_find(parent, x):
+    while parent[x] != x:
+        parent[x] = parent[parent[x]]
+        x = parent[x]
+    return x
+
+
+# Merge the trees of a and b in parent.
+def uf_union(parent, a, b):
+    ra, rb = uf_find(parent, a), uf_find(parent, b)
+    if ra != rb:
+        parent[ra] = rb
+
+
+@lru_cache(maxsize=None)   # [Optimization] memoised
+# Connected components of the induced subgraph: {vertex: component_root} via Union-Find.
 def _components(es, verts):
     parent = {v: v for v in verts}
-    def find(x):
-        while parent[x] != x:
-            parent[x] = parent[parent[x]]
-            x = parent[x]
-        return x
-    def union(a, b):
-        ra, rb = find(a), find(b)
-        if ra != rb: parent[ra] = rb
     for (a, b) in es:
-        if a in parent and b in parent: union(a, b)
-    return {v: find(v) for v in verts}
+        if a in parent and b in parent:
+            uf_union(parent, a, b)
+    return {v: uf_find(parent, v) for v in verts}
 
+# [Optimization] Content-keyed memo wrapper: normalise the arguments and delegate to the cached implementation.
 def components(es, verts):
-    # content-keyed memo wrapper: normalise arguments, delegate to the cached impl
     return _components(es if isinstance(es, tuple) else tuple(map(tuple, es)), verts if isinstance(verts, frozenset) else frozenset(verts))
 
 # 1VI blocks of (verts, edges): self-loops and isolated vertices become single-vertex blocks.
@@ -680,17 +691,12 @@ def find_1vi_blocks(verts, edges):
     return out
 
 
-# ============================ mode relations ============================
+# ==================== MODE RELATIONS ====================
 # The marginally-softer test and the harder-or-equal order used by the monotone walks.
 def marginally_softer(src, dst):
-    # src marginally softer than dst.
-    # Cross-family soft-carrier entries follow the level rule: S^m-carrier -> other-side target
-    # of level L iff m == L + 1; same-side targets keep the V-based rule.
     if src == dst: return False
     if isS(src) and isC(dst):
-        # marginal ⟺ sigma equal:
-        # sigma(S^m) = m-1; sigma(C_i^n) = m+n-1 (i=1,4,5); sigma(C_j^kC23) = m+k.
-        # So S^2 is marginal to C_i^2, S^1C_i, C3C23; NOT to C23 / C_i^1 / C24 level.
+        # Marginal means equal sigma: sigma(S^m) = m - 1, sigma(C_i^n) = m + n - 1 (wide), sigma(C_j^kC23) = m + k.
         if wide_like(dst):
             sg = m_of(dst) + n_of(dst) - 1
         elif pair_like(dst):
@@ -716,17 +722,13 @@ def marginally_softer(src, dst):
             return nd != INF and m == nd
         return False
     if isC(src) and isS(dst):
-        # soft-carrier -> pure soft: S^m X -> S^m (added 2026-09-23; was missing).
-        # Matches wide_angle.primitives.marginal_softer and the regge marginal rule
-        # rows ('S^1C13','S'), ('S^1C24','S'), ('S^1C1C13','S'), ('S^2C13','S^2')
-        # (all reduce to: carrier soft power == target soft power).
-        # (R066_v12 k3: without this branch the S#0 block could not be confirmed.)
+        # Soft carrier -> pure soft: the carrier soft power must equal the target soft power.
         return m_of(src) == dst[1]
     return False
 
 
+# Harder-or-equal order on the 2->3 modes, used by the monotone walks and the port (B) clause.
 def harder_or_eq(mw, X):
-    # Order test on the 2->3 modes (S / C_i^n / C_j^kC_23 / H), used by the monotone walks and the port (B) clause.
     if mw == X: return True
     if mw == H(): return True
     if X == H(): return False
@@ -748,3 +750,22 @@ def harder_or_eq(mw, X):
     if i1 == i2:
         return m1 <= m2 and s1 <= s2
     return s1 <= m2
+
+
+# ==================== EXTERNAL KINEMATICS ====================
+
+# The five m_i**2 expressions handed to pySecDec for a raw (m1, ..., m5) virtuality tuple.
+def mass_exprs(ms):
+    return ['0' if m == INF else ('t1*m%dsq' % (i + 1) if m == 1 else 't1**%d*m%dsq' % (m, i + 1)) for i, m in enumerate(ms)]
+
+
+# the ext_mode dict {'p1'..'p5'} for a raw (m1, ..., m5) virtuality tuple (general kinematics).
+def ext_modes(ms):
+    m1, m2, m3, m4, m5 = tuple(ms)
+
+    # Pair member mode: C_mem^{m-1} C23 (m = 1 degenerates to a bare C23).
+    def pair(m, mem):
+        k = m - 1 # note that INF - 1 = INF
+        return P(k, mem if k >= 1 else 0)
+
+    return {'p1': W(1, m1), 'p2': pair(m2, 2), 'p3': pair(m3, 3), 'p4': W(4, m4), 'p5': W(5, m5)}

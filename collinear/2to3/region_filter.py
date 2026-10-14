@@ -1,27 +1,27 @@
 #!/usr/bin/env python3
-# region_checker.py — collinear 2->3 FRI enumerator.
-#
-# Pipeline: cuts
-#   -> overlay (em/vm)
-#   -> fundamental pattern (momentum conservation, jets, H-region, mojetic, island)
-#   -> IR compatibility (fixpoint over three conditions:
-#        condition 1 = partial-sum vee of inflows;
-#        condition 2 = messenger (incl. the SC23 special messenger);
-#        condition 3 = meet-of-two).
-#
-# Mode algebra and graph tools: see primitives.py (zero-judgment base layer).
-# Run:  python3 region_checker.py [k0..k4] [-v]   (built-in example; default k1)
+"""
+region_filter.py — region filter for the collinear 2->3 FRI enumerator.
+
+Similar to the wide-angle case, the filter is built on the following subgraph requirements:
+    (A) fundamental pattern (momentum conservation, Coleman--Norton interpretation),
+    (B) connectivity requirement (First Connectivity Theorem),
+    (C) infrared-compatibility requirement.
+    
+Infrared compatibility for this case -- still, iterates the following three conditions to a fixpoint.
+    Condition 1 (mode = the external momenta and already infrared-confirmed line momenta entering γ),
+    Condition 2 (messenger mechanism; with an S^mC23 hidden path),
+    Condition 3 (mode = the wedge of the harder modes which γ is relevant to).
+Note that the messenger mechanism slightly differs from the wide-angle case.
+"""
 from itertools import combinations
 
-_DBG = False
-CONDUCT23 = True  # S^mC23 hidden-path conduction (general m; approved 2026-09-19 15:15; supersedes the 03:30 bridge prototype).  Set False to disable.
 
 from primitives import (H, S, W, P, isS, isC, m_of, d_of, n_of, mem_of, V, name, parse,
     meet, join, connected, is_1vi, components, find_1vi_blocks,
     marginally_softer, harder_or_eq, INF)
 
+# Mode components: the 1VI blocks of the contracted mode subgraph.
 def mode_components(mode, vm, em, edges, verts):
-    # 1VI blocks of the contracted mode subgraph.
     gv = {v for v in verts if vm.get(v) == mode}
     ge = [e for e, m in zip(edges, em) if m == mode]
     if not gv and not ge:
@@ -43,58 +43,7 @@ def mode_components(mode, vm, em, edges, verts):
         out.append((bv, be, idxs))
     return out
 
-# ============================ overlay ============================
-CUT_MODES = {'C23': P(0, 0), 'C1': W(1, 1), 'C4': W(4, 1), 'C5': W(5, 1), 'C1R1': W(1, 2), 'C4R1': W(4, 2), 'C5R1': W(5, 2), 'C2R1': P(1, 2), 'C3R1': P(1, 3), 'C2R2': P(2, 2), 'C3R2': P(2, 3)}
-_CUT_NAMES = tuple(CUT_MODES)   # fixed iteration order for build_overlay
-
-def build_overlay(edges, verts, ext_attach, ext_mode, cuts, vm_seen=None):
-    # cuts: {name: frozenset}. Returns (em, vm) or (None, reason).
-    # Vertex-first construction: vm(v) = meet of the modes of the nonempty cuts covering v (no covering cut -> H); then em(e) = vm(u) ∧ vm(w).
-    # vm_seen (optional, 2026-09-18): vm-level dedup.  em is a function of vm and
-    # every downstream check depends only on (em, vm) => the outcome is a
-    # function of vm alone; a repeated vm can return early (before the edge
-    # meets and all checks).  Callers pass a per-enumeration set.
-    # per-vertex meets built in one pass over the cuts; the vertex loop
-    # below just reads them off
-    acc_map = {}
-    _cm = CUT_MODES
-    _meet = meet
-    for nm in _CUT_NAMES:
-        S = cuts.get(nm)
-        if not S:
-            continue
-        m = _cm[nm]
-        for v in S:
-            acc = acc_map.get(v)
-            if acc is None:
-                acc_map[v] = m
-            else:
-                try:
-                    acc_map[v] = _meet(acc, m)
-                except ArithmeticError as e:
-                    return None, f'meet:{e}'
-    vm = {}
-    _H = H
-    for v in verts:
-        acc = acc_map.get(v)
-        vm[v] = acc if acc is not None else _H()
-    if vm_seen is not None:
-        # fast path (2026-09-22): fixed vertex order (callers pass the
-        # sorted V); same equality classes as the old frozenset-of-pairs key
-        vkey = tuple(map(vm.__getitem__, verts))
-        if vkey in vm_seen:
-            return None, 'vm-dup'
-        vm_seen.add(vkey)
-    em = []
-    _ap = em.append
-    for (a, b) in edges:
-        try:
-            _ap(_meet(vm[a], vm[b]))
-        except ArithmeticError as e:
-            return None, f'edge-meet:{e}'
-    return (em, vm), 'ok'
-
-# ============================ fundamental pattern ============================
+# ==================== FUNDAMENTAL PATTERN ====================
 # jet family tag: J1/J4/J5 (wide legs), J23 (pair), S, H.
 def fam_tag(x):
     if x[0] == 'H': return 'H'
@@ -106,7 +55,7 @@ def fam_tag(x):
 
 FAM_EXT = {'J1': ['p1'], 'J4': ['p4'], 'J5': ['p5'], 'J23': ['p2', 'p3']}
 
-# Momentum conservation per vertex: exists a partition of the incident momenta with ∨(A) == ∨(B).
+# Fundamental pattern (A), momentum conservation (Coleman--Norton interpretation): exists a partition of the incident momenta with ∨(A) == ∨(B).
 def momentum_ok(edges, verts, ext_attach, ext_mode, em, vm):
     for v in sorted(verts):
         inc = [em[i] for i, (a, b) in enumerate(edges) if a == v or b == v]
@@ -114,8 +63,6 @@ def momentum_ok(edges, verts, ext_attach, ext_mode, em, vm):
             if vv == v: inc.append(ext_mode[nm])
         n = len(inc)
         if n < 2: return False
-        # Momentum conservation at each vertex follows one single rule:
-        # there exists a partition with ∨(A) == ∨(B) (for two incident momenta this reduces to equality).
         ok = False
         for r in range(1, n):
             for A in combinations(range(n), r):
@@ -139,10 +86,7 @@ def acc_join(modes):
         acc = join(acc, m2)
     return acc
 
-# tightened connectivity for jet pieces (2026-09-19): pieces connect only
-# through a vertex that is itself of the same family; every resulting component
-# must touch the family's external leg(s).  (Replaces the looser any-endpoint
-# connectivity, which merged pieces through far/ H vertices — k3 trio fix.)
+# Tight jet connectivity: pieces connect only through a same-family vertex, and every component must touch the family's external leg.
 def _tight_jet_ok(je, vm, tag, extvs):
     if not je: return True
     n = len(je); adj = {i: set() for i in range(n)}
@@ -178,9 +122,7 @@ def jets_ok(edges, verts, vm, em, ext_attach):
             return False, (tag, 'jet')
     return True, jvje
 
-# 2026-09-23: the subgraph H ∪ C23 must be connected ("C23" = the whole
-# C23 mode subgraph, not the cut): the H- and C23-mode elements (vertices
-# plus their mode edges) must form one connected component.
+# The H and C23 subgraph (the whole C23 mode subgraph, not the cut) must be connected.
 def h_c23_connected_ok(edges, verts, em, vm):
     hv = {v for v in verts if vm.get(v) == H()}
     cv = {v for v in verts if vm.get(v) == P(0, 0)}
@@ -194,8 +136,7 @@ def h_c23_connected_ok(edges, verts, em, vm):
 
 # the subgraph outside all cuts (H) must be nonempty and connected.
 def uncovered_ok(edges, verts, cuts):
-    # one fewer temp set; inline BFS for the pre-filtered (hv, he)
-    # (he endpoints are a subset of hv by construction — no re-check needed).
+    # Inline BFS on the pre-filtered (hv, he); he endpoints lie in hv by construction.
     covered_v = set()
     for S in cuts.values():
         if S:
@@ -263,13 +204,15 @@ def mojetic_all_ok(edges, verts, vm, em, ext_attach, jvje):
             return False
     return True
 
-# C23-mode "islands" whose incident modes are all at higher levels are rejected.
-# Components = connected components of the exact-mode subgraph; adjacency = the modes of the edges leaving the component.
+# ============================ CONNECTIVITY ============================
+# Connectivity requirement (B), First Connectivity Theorem (similar to the wide-angle case, see theorem 5.1 of 2601.22144): reject C23-mode islands whose incident modes are all softer.
+
 def island_ok(edges, verts, em, vm):
     mode = P(0, 0)
     gv = frozenset(v for v in verts if vm.get(v) == mode)
     if not gv:
         return True
+    # Components of the exact-mode subgraph; adjacency = the modes of the edges leaving a component.
     cmap = components(tuple((a, b) for i, (a, b) in enumerate(edges) if em[i] == mode), gv)
     for root in sorted(set(cmap.values())):
         comp = frozenset(v for v in gv if cmap[v] == root)
@@ -278,12 +221,9 @@ def island_ok(edges, verts, em, vm):
             return False
     return True
 
-# ---- switches (all set to the validated settings) ----
-# Enforce the condition 1 third-port check (see the third-port block below).
-USE_THIRD_PORT = True
-# C23 cut: every component must contain v2 or v3; for all-INF kinematics this reduces to a connected cut containing both incident roots.
-# ============================ IR compatibility ============================
-# relevance (path version): marginally softer + monotone path (V non-increasing), no pass-through H.
+# ==================== INFRARED COMPATIBILITY ====================
+
+# Relevance (path version): marginally softer plus a monotone path (V non-increasing), no pass-through H.
 def relevant(src_blk, dst_blk, dst_mode, edges, em, vm, src_mode):
     if not marginally_softer(src_mode, dst_mode): return False
     bv, be, *rest = src_blk
@@ -292,9 +232,7 @@ def relevant(src_blk, dst_blk, dst_mode, edges, em, vm, src_mode):
     src = {v for v in bv if v != 'aux'}
     tgt = {v for v in cv if v != 'aux'}
     if not tgt: return False
-    # Direct touch = degenerate relevant path: the source's OWN carrier (its vertices, or its own lines)
-    # touching tgt — no global scan.
-    # (Relevance is required — not mere adjacency.)
+    # Direct touch: the source's own carrier touches tgt (a degenerate relevant path).
     if src & tgt: return True
     _ends = []
     if sidx:
@@ -336,8 +274,8 @@ def relevant(src_blk, dst_blk, dst_mode, edges, em, vm, src_mode):
             seen.add(w); stack.append((w, w_V))
     return False
 
+# Condition 1: the mode = the external momenta and already infrared-confirmed line momenta entering γ (vee(inflows) == mode); the C23 blocks also require the third-port check.
 def cond1_confirms(blk, mode, comps, confirmed, edges, em, vm, ext_attach, ext_mode, dbg=None):
-    # condition 1: exists a cut of the block such that vee(inflows) == mode.
     bv, be, *rest = blk
     verts = [v for v in bv if v != 'aux']
     n = len(verts)
@@ -386,7 +324,7 @@ def cond1_confirms(blk, mode, comps, confirmed, edges, em, vm, ext_attach, ext_m
                         inflow.append(m)
                 break
         return inflow
-    # the third-port requirement is part of condition 1: two sources need an exit port for the outgoing flow.
+    # the third-port requirement is part of Condition 1: two sources need an exit port for the outgoing flow.
     def _port_ok():
         return port_ok_pairs(blk, mode, edges, em, vm, ext_attach, ext_mode, confirmed, comps, dbg)
     if n == 1 or not any((a in set(verts)) != (b in set(verts)) for (a, b) in be):
@@ -410,16 +348,8 @@ def cond1_confirms(blk, mode, comps, confirmed, edges, em, vm, ext_attach, ext_m
         if acc == mode: return _port_ok()
     return False
 
-# Note a subtlety in applying condition 1: we need to make sure that the momenta "..." in vee(...) must be flowing into the mode component.
-# To realize this, we use the "third-port" check: besides the two vertices for the two incoming momenta (which can coincide), there must exist a third vertex to for the outgoing momentum flow.
-#   (A) as a same-mode vertex shared with another same-mode component, or
-#   (B) as a harder-mode vertex reached by one of the block's OWN edges.
-# A scale assembled from two sources with no exit port is scaleless.
+# Element-level first-entry collection: vertices and edges are elements, walked with monotone harder_or_eq steps; the walk stops at the block.
 def _collect_entries(blk, start_vs, start_es, cur_mode, edges, em, vm):
-    # Element-level first-ENTRY collection: vertices AND edges are elements; walk with monotone harder_or_eq steps;
-    # when an element of the block is reached it is a HIT and the walk does not propagate inside the block.
-    # Entries = hit vertices / endpoints of hit edges that belong to the block
-    # (the entry is the connection point where the monotone path enters the component).
     realV = {v for v in blk[0] if v != 'aux'}
     tgt = {('v', v) for v in realV}
     tgt |= {('e', ei) for ei in (blk[2] if len(blk) > 2 else [])}
@@ -461,8 +391,7 @@ def _collect_entries(blk, start_vs, start_es, cur_mode, edges, em, vm):
                 if w in realV: ev.add(w)
     return ev
 
-# third-port test: (A) same-mode vertex shared with another component, (B) harder vertex via the block's own edge;
-# returns (tag, w) or None.
+# Third-port test: (A) a same-mode vertex shared with another component, or (B) a harder vertex via the block's own edge; returns (tag, w) or None.
 def third_port(blk, X, entry_vs, comps_same, vm, edges):
     realV = {v for v in blk[0] if v != 'aux'}
     for w in sorted(realV):
@@ -482,14 +411,12 @@ def third_port(blk, X, entry_vs, comps_same, vm, edges):
                 return ('B', w)
     return None
 
+# Entry contacts of an outside source: element walk from its attach vertex, starting from that vertex's mode.
 def _outside_contacts(blk, X, v0, edges, em, vm):
-    # Entry candidates of an outside source: element walk from its attach
-    # vertex with the vertex's own mode as the starting mode.
     return _collect_entries(blk, [v0], [], vm.get(v0, H()), edges, em, vm)
 
+# Contact-based sources for the third-port check: externals plus confirmed components with a marginally softer mode.
 def _port_sources(blk, X, edges, em, vm, ext_attach, ext_mode, confirmed, comps):
-    # Contact-based sources for the third-port check: externals (always) + confirmed components
-    # with a marginally softer mode; entries are contacts only.
     srcs = []
     realV = {v for v in blk[0] if v != 'aux'}
     for extn, v0 in ext_attach.items():
@@ -512,10 +439,8 @@ def _port_sources(blk, X, edges, em, vm, ext_attach, ext_mode, confirmed, comps)
             srcs.append(('%s#%d' % (name(cm), ci), cm, c))
     return srcs
 
+# Third-port check over contact-based source pairs (join == X).
 def port_ok_pairs(blk, X, edges, em, vm, ext_attach, ext_mode, confirmed, comps, dbg=None):
-    # Third-port check over contact-based source pairs (join == X).
-    if not USE_THIRD_PORT:
-        return True
     srcs = _port_sources(blk, X, edges, em, vm, ext_attach, ext_mode, confirmed, comps)
     comps_same = comps.get(X, [])
     for (_tag, md, cands) in srcs:
@@ -548,13 +473,12 @@ def depth_of(x):
         return INF if n == INF else n
     return INF if n == INF else (n + 1)
 
+# Real (non-aux) vertices of a mode component block.
 def _real_verts(blk):
     return {v for v in blk[0] if v != 'aux'}
 
+# Vertex-contact adjacency: an edge of one block has an endpoint that is a real vertex of the other (this is what blocks borrowing).
 def _comp_adjacent(a_blk, b_blk, edges):
-    # vertex-contact adjacency (WA `adjacent` semantics): an edge of one block has an endpoint
-    # that is an OWN (real) vertex of the other block.  This is what blocks BORROWING (e.g. a
-    # member hanging on a third component's cut vertex does not attach).
     bv = _real_verts(b_blk)
     if bv:
         for ei in (a_blk[2] if len(a_blk) > 2 else []):
@@ -567,15 +491,8 @@ def _comp_adjacent(a_blk, b_blk, edges):
             if u in av or w in av: return True
     return False
 
+# Collect (dirs, targets) for the messenger check of the S^m block blk, built on the Gamma^[m] cloud around the kernel.
 def messenger_targets(blk, mode, comps, edges, em, vm, ext_attach, ext_mode, debug=None, kernel=None, kernel_blocks=None):
-    # Collect (dirs, targets) for the messenger check of the S^m block blk — FULL version
-    # (2026-09-19, WA-aligned; kernel clouds added 2026-09-23 per the 2026-09-04 rules 1+2).
-    #   Gamma^[m] = connected closure (vertex-contact) of all soft-power-m components around
-    #   the kernel (S^m and S^m C^n members alike; kernel = the whole connected pure-S^m cloud
-    #   when given — several 1VI blocks joined through shared real S^m vertices).
-    #   A target gamma_i counts iff the n_i-matched Gamma member is relevant to it:
-    #     n_i = 0  -> the KERNEL (the whole cloud may serve; no borrowing from other S blocks);
-    #     n_i >= 1 -> an S^m C_i^{n_i} member ADJACENT to the kernel (cloud).
     m = mode[1]
     _kern = kernel if kernel is not None else blk
     pool = []
@@ -583,6 +500,7 @@ def messenger_targets(blk, mode, comps, edges, em, vm, ext_attach, ext_mode, deb
         if m_of(md) != m: continue
         for i, b in enumerate(lst):
             pool.append((md, i, b))
+    # Gamma^[m] = vertex-contact connected closure of the soft-power-m components around the kernel.
     gmemb = [False] * len(pool)
     _seeds = kernel_blocks if kernel_blocks else (blk,)
     for j in range(len(pool)):
@@ -607,6 +525,7 @@ def messenger_targets(blk, mode, comps, edges, em, vm, ext_attach, ext_mode, deb
             if depth == INF: continue
             n_i = depth - mi
             if n_i < 0: continue
+            # A target counts when the n_i-matched Gamma member is relevant to it (n_i = 0 -> the kernel itself).
             via = None
             if n_i == 0:
                 if relevant(_kern, d, md, edges, em, vm, mode):
@@ -642,9 +561,8 @@ def messenger_targets(blk, mode, comps, edges, em, vm, ext_attach, ext_mode, deb
                 debug.append((name(md), i, n_i, via))
     return dirs, targets
 
+# S^m messenger check: the Gamma^[m] target set must span at least 3 distinct directions and include a confirmed-relevant component.
 def messenger_ok(blk, mode, comps, confirmed, edges, em, vm, ext_attach, ext_mode, info=None, kernel=None, kernel_blocks=None):
-    # S^m messenger check — full Gamma^[m] form (WA-aligned; kernel + n_i-matched members,
-    # connected closure; >=3 distinct directions; >=1 confirmed-relevant).
     dirs, targets = messenger_targets(blk, mode, comps, edges, em, vm, ext_attach, ext_mode, kernel=kernel, kernel_blocks=kernel_blocks)
     if info is not None:
         info.setdefault('messenger', []).append((name(mode), sorted(dirs)))
@@ -656,21 +574,14 @@ def messenger_ok(blk, mode, comps, confirmed, edges, em, vm, ext_attach, ext_mod
             return True
     return False
 
-# IR compatibility — recursive fixpoint over three conditions; every non-H component must be confirmed:
-#   [condition 1] the partial sum of the momenta entering the component (externals + confirmed components) is of its mode (third-port included);
-#   [condition 2] the component is a messenger (S^m; or the SC23 special messenger of this kinematics);
-#   [condition 3] the component mode is the meet of two confirmed components relevant to it.
+# Infrared compatibility: iterates the following three conditions to a fixpoint; every non-H component must be confirmed.
 def ir_ok(edges, verts, em, vm, ext_attach, ext_mode, dbg=None):
     comps = {}
     modes_present = sorted(set(em) | set(vm.values()))
     for m in modes_present:
         comps[m] = mode_components(m, vm, em, edges, verts)
-    # drop empty
     comps = {m: c for m, c in comps.items() if c}
-    # 2026-09-04 rules 1+2 (ported 2026-09-23; WA primitives): kernel clouds —
-    # blocks of the same pure-soft S^m mode joined (transitively) through shared
-    # REAL S^m vertices form ONE kernel; a messenger confirmation covers every
-    # confirmable block of that cloud (rule 2).
+    # Kernel clouds: pure-soft S^m blocks joined through shared real S^m vertices form one cloud.
     _cloud_of = {}
     _pure_by = {}
     for _md, _lst in comps.items():
@@ -682,6 +593,7 @@ def ir_ok(edges, verts, em, vm, ext_attach, ext_mode, dbg=None):
             continue
         _par = {id(b): id(b) for b in _blocks}
 
+        # Union-Find root (path halving) used to merge cloud blocks over shared vertices.
         def _uf(i, _par=_par):
             while _par[i] != i:
                 _par[i] = _par[_par[i]]
@@ -704,6 +616,7 @@ def ir_ok(edges, verts, em, vm, ext_attach, ext_mode, dbg=None):
             for _b in _lst2:
                 _cloud_of[id(_b)] = _lst2
 
+    # Kernel block assembled from a cloud: union of its real vertices and its internal edge indices.
     def _make_kern(blk):
         _lst = _cloud_of.get(id(blk))
         if not _lst or len(_lst) == 1:
@@ -716,10 +629,7 @@ def ir_ok(edges, verts, em, vm, ext_attach, ext_mode, dbg=None):
                 _I += list(_b[2])
         return (_V, [tuple(edges[_i]) for _i in _I], _I), _lst
     confirmed = {}
-    # tadpole gate (2026-09-12, ported from wide-angle primitives.py).
-    # A soft-containing component (m >= 1) adjacent to NO harder-mode component is already a 1VI block of its own mode subgraph;
-    #   it can then only be confirmed by cond 1 — unless it is pure soft carrying two attached momenta whose join is exactly its mode (rule 3), in which case cond 2/3 are allowed again.
-    # Hard and jet modes are exempt.
+    # Tadpole gate: a soft component (m >= 1) with no adjacent harder component is confirmed by condition 1 alone, unless it is pure soft and passes rule 3.
     def _tadp(md, blk):
         if m_of(md) < 1:
             return False
@@ -731,6 +641,7 @@ def ir_ok(edges, verts, em, vm, ext_attach, ext_mode, dbg=None):
         for w in ends:
             if vm.get(w) == H():
                 return False
+        # True when the two blocks share a vertex through one of their internal edges.
         def _adj(a_idxs, a_v, b_idxs, b_v):
             for ei in a_idxs:
                 for w in edges[ei]:
@@ -751,11 +662,8 @@ def ir_ok(edges, verts, em, vm, ext_attach, ext_mode, dbg=None):
                     return False
         return True
 
+    # Rule 3 gate: the component carries two attached momenta (carrier lines or externals) whose join equals its mode.
     def _vee_ok(md, blk):
-        # Rule 3: two momenta attached to the component — carrier line
-        # modes (collinear part) or external momenta — with join equal to
-        # its mode.  Pure-soft lines cannot be the scale source of a soft
-        # blob and are excluded.
         realV = {v for v in blk[0] if v != 'aux'}
         idxs = blk[2] if len(blk) > 2 else []
         ends = set(realV)
@@ -777,9 +685,10 @@ def ir_ok(edges, verts, em, vm, ext_attach, ext_mode, dbg=None):
                     return True
         return False
 
-    _tad_cache = {}
-    _vee_cache = {}
+    _tad_cache = {}    # [Optimization] per-block cache
+    _vee_cache = {}    # [Optimization] per-block cache
 
+    # [Optimization] Condition allowance under the tadpole gate (cached per block).
     def _cond_allowed(md, blk):
         t = _tad_cache.get(id(blk))
         if t is None:
@@ -799,10 +708,8 @@ def ir_ok(edges, verts, em, vm, ext_attach, ext_mode, dbg=None):
     def try_confirm(mode, i):
         if (mode, i) in confirmed: return False
         confirmed[(mode, i)] = True
-        if _DBG: print('   CONFIRM %s#%d' % (name(mode), i))
         return True
-    if _DBG: print('-- initial cond1 --')
-    # initial: condition 1 for every block (vee of inflows == mode; the C23 blocks also require third-port).
+    # initial: Condition 1 for every block (vee of inflows == mode; the C23 blocks also require the third-port check).
     for md, lst in comps.items():
         if md[0] == 'H': continue
         for i, blk in enumerate(lst):
@@ -813,9 +720,7 @@ def ir_ok(edges, verts, em, vm, ext_attach, ext_mode, dbg=None):
     guard = 0
     while changed and guard < 40:
         changed = False; guard += 1
-        if _DBG: print('== iter %d ==' % guard)
-        if _DBG: print('  -- cond2 S-messenger --')
-        # [condition 2] S messengers.
+        # [Condition 2] the messenger mechanism: S messengers; it slightly differs from the wide-angle case.
         for sm, lst in comps.items():
             if sm[0] != 'S': continue
             for i, blk in enumerate(lst):
@@ -825,25 +730,13 @@ def ir_ok(edges, verts, em, vm, ext_attach, ext_mode, dbg=None):
                 if messenger_ok(blk, sm, comps, confirmed, edges, em, vm, ext_attach, ext_mode, dbg, kernel=_kern, kernel_blocks=_kbs):
                     if try_confirm(sm, i):
                         changed = True
-                        # rule 2 (2026-09-04): a messenger confirmation covers every
-                        # confirmable S^m block of the kernel cloud.
+                        # A messenger confirmation covers every confirmable S^m block of the kernel cloud.
                         if _kbs:
                             _kids = {id(b) for b in _kbs}
                             for j2, kb in enumerate(lst):
                                 if id(kb) in _kids and (sm, j2) not in confirmed and _cond_allowed(sm, kb):
                                     changed |= try_confirm(sm, j2)
-        if _DBG: print('  -- cond2 special-messenger --')
-        # [condition 2] special messenger for the 23-collinear kinematics: simultaneously relevant to a C2C23 component, a C3C23 component, and a C_i component (i in 1,4,5), with >=1 of those confirmed.
-        # [hidden path — approved 2026-09-19 15:15; (二) restated 17:06 (v-E)]
-        # S^m C_i conduction (m >= 1):
-        #   conductor X = S^m C_i, i in {1,4,5,23};
-        #   - SC23-type (i = 23): X relevant to >=1 C2^m C23 or C3^m C23 + two wide C_j^m targets
-        #     [2026-09-19: anchor extended to C2/C3 (fixes the R442-class k2 misses)]
-        #     (distinct directions); any one confirmed conducts the other wide(s).  [unchanged form]
-        #   - wide-type (i in 1,4,5): (1) X relevant to one C_i^2 target (own direction);
-        #     (2) X relevant to one C_j^1 & one C_k^1 target (i,j,k pairwise distinct; j,k in {1,23,4,5});
-        #     conduction within the (2)-pair: one confirmed => the other confirmed.
-        #   X itself is NOT confirmed by this rule.
+        # [Condition 2] the S^mC23 hidden path: an S^m C_i conductor confirms S^m C_j targets; the conductor X itself is not confirmed here.
         def _is_cond_mode(md):
             if md[0] != 'C' or md[4] < 1: return False
             if md[1] == 23: return md[2] == 0 and md[3] == 0
@@ -852,10 +745,8 @@ def ir_ok(edges, verts, em, vm, ext_attach, ext_mode, dbg=None):
         for _scm in sorted((md for md in comps if _is_cond_mode(md)), key=lambda x: (x[1], x[4])):
             _cm = _scm[4]
             for _i, _blk in enumerate(comps.get(_scm, [])):
-                if not CONDUCT23: continue
                 if _scm[1] == 23:
-                    # SC23-type (form unchanged): anchor >=1 C2^m C23; two wide C_j^m targets
-                    # in distinct directions; conduct among the wide targets.
+                    # SC23-type: anchor on a C2^m C23 or C3^m C23 target; conduct among two wide C_j^m targets in distinct directions.
                     _anchor = False
                     for _am in (P(_cm, 2), P(_cm, 3)):
                         for _j2, _comp in enumerate(comps.get(_am, [])):
@@ -875,13 +766,9 @@ def ir_ok(edges, verts, em, vm, ext_attach, ext_mode, dbg=None):
                         continue
                     for (_md, _j2) in _cand:
                         if (_md, _j2) not in confirmed:
-                            if _DBG: print('   conduct23-fire: %s#%d -> conduct to %s#%d' % (name(_scm), _i, name(_md), _j2))
                             changed |= try_confirm(_md, _j2)
                 else:
-                    # wide-type (2026-09-19 17:06 form / v-E):
-                    # (1) X relevant to one C_i^2 target (own direction i);
-                    # (2) X relevant to one C_j^1 & one C_k^1 target (i,j,k pairwise distinct; j,k in {1,23,4,5});
-                    # conduction within the (2)-pair: one confirmed => the other confirmed.
+                    # Wide-type: (1) X relevant to one C_i^2 target (own direction); (2) X relevant to two C_j^1 targets in distinct other directions; conduct within the (2)-pair.
                     _A = []
                     for _j2, _comp in enumerate(comps.get(W(_scm[1], 2), [])):
                         if relevant(_blk, _comp, W(_scm[1], 2), edges, em, vm, _scm):
@@ -904,14 +791,10 @@ def ir_ok(edges, verts, em, vm, ext_attach, ext_mode, dbg=None):
                             for (_am, _aj) in _D[_dks[_a1]]:
                                 for (_bm, _bj) in _D[_dks[_a2]]:
                                     if confirmed.get((_am, _aj)) and (_bm, _bj) not in confirmed:
-                                        if _DBG: print('   conduct23-fire: %s#%d -> conduct to %s#%d' % (name(_scm), _i, name(_bm), _bj))
                                         changed |= try_confirm(_bm, _bj)
                                     elif confirmed.get((_bm, _bj)) and (_am, _aj) not in confirmed:
-                                        if _DBG: print('   conduct23-fire: %s#%d -> conduct to %s#%d' % (name(_scm), _i, name(_am), _aj))
                                         changed |= try_confirm(_am, _aj)
-        # [generalized 2026-09-19] S^m C23 (m >= 1): relevant to a C2^m C23 component, a C3^m C23
-        # component, and a C_i^m component (i in 1,4,5) — each category nonempty, >=1 confirmed overall
-        # -> the S^m C23 component is confirmed itself.  (Only m = 1 occurs on the current corpus.)
+        # [Condition 2] S^mC23 (m >= 1): relevant to a C2^m C23, a C3^m C23 and a C_i^m component (i in 1,4,5), each nonempty and >= 1 confirmed -> confirmed itself.
         for scm_m in sorted((md for md in comps if md[0] == 'C' and md[1] == 23 and md[2] == 0 and md[3] == 0 and md[4] >= 1), key=lambda x: x[4]):
             _m = scm_m[4]
             sc_cats = ((P(_m, 2),), (P(_m, 3),), (W(1, _m), W(4, _m), W(5, _m)))
@@ -932,8 +815,7 @@ def ir_ok(edges, verts, em, vm, ext_attach, ext_mode, dbg=None):
                         break
                 if ok_all and any(confirmed.get((md, j)) for (md, j) in adj):
                     changed |= try_confirm(scm_m, i)
-        if _DBG: print('  -- cond3 --')
-        # [condition 3] meet of two confirmed relevant components.
+        # [Condition 3] the wedge of the harder modes which γ is relevant to.
         for md, lst in comps.items():
             for i, blk in enumerate(lst):
                 if (md, i) in confirmed: continue
@@ -953,8 +835,7 @@ def ir_ok(edges, verts, em, vm, ext_attach, ext_mode, dbg=None):
                     if done: break
                 if done:
                     changed |= try_confirm(md, i)
-        if _DBG: print('  -- cond1 --')
-        # [condition 1] for every unconfirmed block, we need (1) vee of inflows == mode (2) the C23 blocks also require third-port.
+        # [Condition 1] for every unconfirmed block: (1) vee of inflows == mode; (2) the C23 blocks also require the third-port check.
         for md, lst in comps.items():
             if md[0] == 'H': continue
             for i, blk in enumerate(lst):

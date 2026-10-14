@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
-"""region_plot.py — render collinear 2->3 regions as PNG figures with per-mode colours.
+"""
+region_plot.py — render collinear 2->3 regions as PNG figures with per-mode colours.
 
-Style spec (final) — collinear 2->3 edition:
+Rendering style (collinear 2->3):
 
   colours  (directions: p1 -> 1, p4 -> 4, p5 -> 5, the p2/p3 pair -> 23)
       H                                          Blue
@@ -11,35 +12,23 @@ Style spec (final) — collinear 2->3 edition:
       direction 23   (C23, C2C23, C3C23, ...)    DarkGreen
       S              Magenta
       S^2            Red
-      S^k x carrier  (SC23, ...)                 Orange (k = 1) / Pink (k >= 2)
-                                                 — direction-blind (by design)
-  (there is no G / sH in the 2->3 case)
+      S^k x carrier  (SC23, ...)                 Orange (k = 1) / Pink (k >= 2) — direction-blind (by design)
 
-  caption words (display only; colours unchanged):  D12 -> "Teal",
-      D6 -> "Olive", Green -> "LightGreen";  each colour word is
-      bold and printed in the colour of its modes.
+  caption words (display only; colours unchanged):  D12 -> "Teal", D6 -> "Olive", Green -> "LightGreen";  each colour word is bold and printed in the colour of its modes.
 
-  geometry & captions: identical to the regge edition (region_plot.py):
-      solid edge thickness 0.0055; vertex radius 0.010, no outlines; vertex
-      numbers grey (FontSize 11) offset 0.026 outward; external legs
-      (p1..p5 @ vertices 1..5) stub + label in the external-mode colour;
-      caption "R{label}:  v = (...)" + one colour->modes line per colour
-      (modes displayed via name(); merged modes listed together).
+  geometry & captions (same conventions as the wide-angle plotter):
+      solid edge thickness 0.0055; vertex radius 0.010, no outlines; vertex numbers grey (FontSize 11) offset 0.026 outward; external legs (p1..p5 @ vertices 1..5) stub + label in the external-mode colour;
+      caption "R{label}:  v = (...)" + one colour->modes line per colour (modes displayed via name(); merged modes listed together).
 
 Rendering runs through `wolframscript` (must be on PATH).
 
 API:
-    render_individual_pngs(edges, verts, items, ext_mode=None, ext_attach=None,
-                           outdir=None, image_size=720) -> [png paths]
+    render_individual_pngs(edges, verts, items, ext_mode=None, ext_attach=None, outdir=None, image_size=720) -> [png paths]
         items = [(label, region), ...] with region = (vec, cuts, em, vm)
-        (the survivors format: skeleton.enumerate_surv); em/vm entries are
-        2->3 mode tuples.
-    render_combined_pdf(edges, verts, items, ext_mode=None, ext_attach=None,
-                        outdir=None, nrows=None, font=None) -> atlas PDF path
-        Single A4 PDF atlas; rows/page auto (5-7, by the drawn content's
-        aspect; same layout as the wide-angle atlas): mini figure left,
-        "v = (...)" plus one line per mode on the right.  Runs a font
-        fidelity check on the font first.
+        (the survivors format: skeleton.enumerate_surv); em/vm entries are 2->3 mode tuples.
+    render_combined_pdf(edges, verts, items, ext_mode=None, ext_attach=None, outdir=None, nrows=None, font=None) -> atlas PDF path
+        Single A4 PDF atlas; rows/page auto (5-7, by the drawn content's aspect; same layout as the wide-angle atlas): mini figure left, "v = (...)" plus one line per mode on the right.
+        Runs a font fidelity check on the font first.
 """
 import os
 import re
@@ -65,7 +54,7 @@ COLOR_ORDER = ['Blue', 'Green', 'DarkGreen', 'D12', 'D6', 'Magenta', 'Orange', '
 DISPLAY_NAME = {'D12': 'Teal', 'D6': 'Olive', 'Green': 'LightGreen'}   # caption words (display only; figures keep their colours)
 
 
-# ========================== FIGURE RENDERING ==========================
+# ==================== FIGURE RENDERING ====================
 
 # (color-name, wl-directive) for one 2->3 mode tuple.
 def mode_color(x):
@@ -277,12 +266,9 @@ def render_individual_pngs(edges, verts, items, ext_mode=None, ext_attach=None, 
     return paths
 
 
-# ============================= PDF ATLAS =============================
-# Region atlas: A4 portrait, `nrows` rows/page; each row shows the region
-# figure on the left and, on the right, "R{n} v = (...)" plus one line per
-# mode ("<typeset mode>: v{...} e{...}").  Pages are exported one by one
-# and merged with ghostscript (fallback: pdfunite).  Same layout as the
-# wide-angle atlas (wide_angle/region_plot.py).
+# ==================== PDF ATLAS ====================
+
+# A4 portrait atlas, `nrows` rows/page: mini figure left, "R{n} v = (...)" plus one line per mode right; pages merged with ghostscript (fallback: pdfunite).
 
 ATLAS_FONT = 'Utopia'
 ATLAS_ROWS = 5
@@ -319,9 +305,11 @@ _MODE_TOK = re.compile('S(?:\\^\\d+)?|C\\d+(?:\\^INF|\\^\\d+|\u221e)?')
 def _ts_str(m, font=None):
     font = font or ATLAS_FONT
 
+    # Italic style, for mode symbols.
     def L(s):
         return ts(s, font, italic=True)
 
+    # Upright style, for sub/superscripts.
     def U(s):
         return ts(s, font)
     if m in ('G', 'sH', 'H'):

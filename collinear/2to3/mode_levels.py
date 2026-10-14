@@ -1,47 +1,16 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""mode_levels.py — first-appearance loop levels of internal modes, and the
-cut-chain refinement levels that follow from them.
+"""
+mode_levels.py — first-appearance loop levels of internal modes and the cut-chain levels that follow from them.
 
-(Public core; graduated from the private mode_level_prediction.py on
-2026-09-21 so skeleton can derive cut levels per graph.  The private file
-re-exports these functions for the interactive tool.)
+The mode ladder for the collinear 2->3 kinematics:
+  * seeds: the external modes (L = 0) and the finite vee closure of the five external momenta;
+  * vee closure: joins of modes and momenta are free (they do not raise the level);
+  * wedge batches: meet products raise the level by one per complete batch;
+  * messenger tower: a degree-m kernel starts at max(prev_messenger + 2, current + 1), gated by messenger_gate;
+  * close-out: anything the last additions still force within the cap.
 
-predict(ext_tokens, Lmax, momenta=None)
-    The mode ladder: seeds (external modes at L=0) -> vee closure (free) ->
-    wedge batches (+1, complete batch) -> messenger tower (+2 anchored:
-    max(prev_mess + 2, cur + 1)) -> close-out.  Returns
-    {mode tuple: first-appearance level} plus a log dict.
-    Messenger tower (this class of inputs): S^1, S^1C23, S^2, S^2C23, ...
-    (wide-type / pair-type interleaved; chain-checked 2026-09-20/21).
-
-derive_external_modes(momenta)
-    L=0 seeds: finite members of the vee closure of the five momentum modes.
-
-messenger_eligibility / messenger_gate
-    The item-[3] external acceptance gate.
-    kind A (S^m): >= 3 eligible directions.
-    kind B (S^mC23): BOTH pair legs attachable (depth >= m+1) AND >= 1 wide.
-
-cut_chain_levels(ext_mode, L)
-    Per-graph cut-chain refinement levels ("L enters the decision",
-    wired into skeleton on 2026-09-21).  For each wide leg i the level is
-    (max carrier power n among C_i^n / S^m C_i^n modes present within L) - 1;
-    for the pair chains the level is the max k among C_mem^k C23 modes
-    present within L (C2C23 = level 1).  k0: all zeros (no fine structure at
-    any L).  Convention matches skeleton's LEVELS.
-
-Tree-anchored messengers (2026-09-21): a degree-m S^m kernel may
-anchor directly on a tree-level target -- an external leg whose mode is an
-n_i=0 target of the kernel; it may then appear as early as L = 0 + 2 (k4:
-S^2 relevant to the C2C23/C3C23 seeds -> S^2 at L = 2, verified against
-pysd_cache region data).  Members may share a level (k4: S^2@2 with S@2).
-
-Known caveat (pending): same-direction joins S^m C_i^n v C_i^inf (m >= 2)
-differ between region_checker (C_i^{2m+n}) and wide_angle (sigma = m+n); affects
-extrapolated high-L output only (can inflate derived levels for L >= 9 on
-k2-like inputs -> those hit the engine's "deeper chains not implemented"
-guard).  See two_to_three_vs_wa_inf_join_note_20260921.md (private).
+predict() returns {mode tuple: first-appearance level} together with a log of the messenger and wedge rounds.
 """
 import os, sys
 
@@ -49,21 +18,22 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 if HERE not in sys.path:
     sys.path.insert(0, HERE)
 
-import region_checker as F
-import kin23
+import region_filter as F
+from primitives import ext_modes
 
 
-# ---------------------------------------------------------------- algorithm
-# Returns (levels: {mode tuple -> level}, log: dict). momenta: optional override for the five external-momentum modes
-# (list of 2->3 mode tuples); default = kin23.ext_modes(kin).
-def predict(ext_tokens, Lmax, kin='k1', momenta=None):
+# ==================== MODE LADDER ====================
+
+# Grow the mode ladder to level Lmax; returns ({mode tuple: level}, log). momenta overrides the five external-momentum modes.
+def predict(ext_tokens, Lmax, momenta=None):
     ext_modes = [F.parse(t) for t in ext_tokens]
-    ext_mom = list(momenta) if momenta is not None else list(kin23.ext_modes(kin).values())
+    ext_mom = list(momenta) if momenta is not None else list(ext_modes((F.INF,) * 5).values())
 
     levels = {}
     messenger_log, wedge_log = [], []
     exc_count = [0]
 
+    # Register mode m at level lvl once (no-op if already present).
     def add(m, lvl):
         if m not in levels:
             levels[m] = lvl
@@ -73,7 +43,7 @@ def predict(ext_tokens, Lmax, kin='k1', momenta=None):
     for m0 in ext_modes:
         add(m0, 0)
 
-    # ---- take vee closure: fixpoint over join (modes x modes, modes x momenta, momenta x momenta)
+    # Vee closure: fixpoint over joins of modes and momenta (free, does not raise the level).
     def vee_closure():
         changed = True
         while changed:
@@ -90,7 +60,7 @@ def predict(ext_tokens, Lmax, kin='k1', momenta=None):
                         levels[r] = max(pool[i][1], pool[j][1])
                         changed = True
 
-    # ---- wedge check: missing pair meet products over the current set
+    # Meet products still missing from the current set (the next wedge batch).
     def wedge_missing():
         items = list(levels)
         miss = {}
@@ -105,8 +75,10 @@ def predict(ext_tokens, Lmax, kin='k1', momenta=None):
                     miss[r] = None
         return list(miss)
 
-    # ---- messenger tower (the single place to swap in the general rule)
-    pair_enabled = True  # 2->3: the collinear (2,3) pair always brings the C23 family in (via the momenta)
+    # The collinear 2->3 (2,3) pair always brings the C23 family in (via the momenta).
+    pair_enabled = True
+
+    # Candidate messengers in tower order: S^m, then S^m C23.
     def messenger_iter():
         m = 1
         while True:
@@ -117,6 +89,7 @@ def predict(ext_tokens, Lmax, kin='k1', momenta=None):
 
     mit = messenger_iter()
 
+    # Next tower candidate that passes the degree-m acceptance gate, or (None, reason).
     def next_messenger():
         for cand in mit:
             if cand in levels:
@@ -129,7 +102,7 @@ def predict(ext_tokens, Lmax, kin='k1', momenta=None):
             return cand, None
         return None, 'no new messenger -- end'
 
-    # ---- main loop
+    # Alternate vee closure, one wedge batch, and one messenger step until the cap.
     prev_mess = 0
     stop = None
     while True:
@@ -153,9 +126,7 @@ def predict(ext_tokens, Lmax, kin='k1', momenta=None):
             stop = why
             break
         lvl = max(prev_mess + 2, cur + 1)
-        # Tree-anchored shortcut (2026-09-21): an S^m kernel with a
-        # tree-level n_i=0 target may appear as early as 0 + 2 -- it does not
-        # have to wait for the tower chain (k4: S^2@2 together with S@2).
+        # Tree-anchored kernel: an S^m kernel with a tree-level n_i=0 target may appear as early as L = 2.
         if nxt[0] == 'S':
             t = _tree_anchor_level(ext_mom, F.m_of(nxt))
             if t is not None and t + 2 < lvl:
@@ -167,7 +138,7 @@ def predict(ext_tokens, Lmax, kin='k1', momenta=None):
         prev_mess = lvl
         messenger_log.append((lvl, F.name(nxt)))
 
-    # ---- close-out: capture anything else the last additions force within Lmax
+    # Close-out: capture anything else the last additions force within Lmax.
     for _ in range(5):
         vee_closure()
         batch = wedge_missing()
@@ -183,8 +154,7 @@ def predict(ext_tokens, Lmax, kin='k1', momenta=None):
     return levels, dict(messenger_log=messenger_log, wedge_log=wedge_log, stop=stop, exc=exc_count[0])
 
 
-# External modes at L = 0: the finite members of the vee closure of the five external-momentum modes (infinity-
-# containing entries act only as closure intermediates and are not listed).
+# External modes at L = 0: the finite members of the vee closure of the five external-momentum modes.
 def derive_external_modes(momenta):
     seen = set(momenta)
     changed = True
@@ -206,11 +176,9 @@ def derive_external_modes(momenta):
     return out
 
 
-# ---- item-[3] external eligibility  (messenger_completion_draft_20260921.md)
-# Eligible directions for a degree-m messenger from the external legs. kind 'A' (S^m): wide legs depth(e) >= m,
-# pair legs depth(e) >= m; kind 'B' (S^mC23): wide legs depth(e) >= m, pair legs depth(e) >= m+1 (depth_of: wide
-# C_i^a -> a; pair C_mem^aC23 -> a+1; pair members counted separately, "pair2"/"pair3"). Returns the RAW set;
-# the acceptance shape is applied in messenger_gate() (kind B: both pair legs + at least one wide leg). [2026-09-21]
+# ==================== MESSENGER ELIGIBILITY & GATE ====================
+
+# Eligible external directions for a degree-m messenger of the given kind ('A' = S^m, 'B' = S^m C23).
 def messenger_eligibility(momenta, m, kind):
     dirs = set()
     for e in momenta:
@@ -218,8 +186,7 @@ def messenger_eligibility(momenta, m, kind):
         if d is None:
             continue
         if d == 23:
-            # m_2 and/or m_3 = 0 (bare C23): C23 counts as ONE direction
-            # (2026-09-21); the current label/display stands.
+            # m_2 and/or m_3 = 0 (bare C23): C23 counts as one direction.
             need = m + 1 if kind == 'B' else m
             if F.depth_of(e) >= need:
                 dirs.add('pair%d' % (F.mem_of(e) or 0))
@@ -229,10 +196,7 @@ def messenger_eligibility(momenta, m, kind):
     return dirs
 
 
-# Acceptance gate (item [3]) for advancing the tower to degree m. kind 'A' (S^m): >= 3 eligible directions suffice.
-# kind 'B' (S^mC23): targets are pinned at power m -- {C2^mC23, C3^mC23, wide C_i^m} -- so BOTH pair legs must be
-# attachable (depth >= m+1) AND at least one wide leg (depth >= m). [2026-09-21: e.g. bare-C23 pair legs fail this
-# and cap the tower -- matches the k0 result.] Returns (ok, detail) with a human-readable reason when not ok.
+# Item-[3] acceptance gate for advancing the tower to degree m; returns (ok, detail) with a reason when not ok.
 def messenger_gate(momenta, m, kind):
     dirs = messenger_eligibility(momenta, m, kind)
     if kind == 'A':
@@ -252,10 +216,9 @@ def messenger_gate(momenta, m, kind):
     return False, '; '.join(parts)
 
 
-# ------------------------------------------------- cut-chain levels for engines
-# Earliest level of an n_i=0 target for the S^m kernel among the external legs (tree level -> 0; None when no leg
-# qualifies). A leg e qualifies when depth(e) - (m - m_of(e)) == 0, i.e. the leg's mode is exactly a minimal target
-# the kernel can be relevant to. (2026-09-21: k4 -- C2C23/C3C23 at tree level enable S^2@2.)
+# ==================== CUT-CHAIN LEVELS ====================
+
+# Earliest level (0, or None) at which an S^m kernel can anchor on a tree-level n_i=0 target among the external legs.
 def _tree_anchor_level(momenta, m):
     for e in momenta:
         if F.d_of(e) is None:
@@ -269,19 +232,15 @@ def _tree_anchor_level(momenta, m):
     return None
 
 
-# Cut-chain refinement levels needed by a graph of loop count L (ext_mode: {'p1'..'p5'} mode dict). Returns five ints
-# in the skeleton LEVELS convention: wide i (1/4/5) = (max carrier power n among direction-i modes within L) - 1;
-# pair 2/3 = max k among C_mem^kC23 (C2C23 = 1); k0 = 0. Levels > 1 not implemented yet (guard raises; only k2 can
-# reach 2+, at L >= 6/8 -- no corpus graphs yet). k4 [2026-09-21]: S^2 and its vee products sit at L=2
-# (degree-2 kernel anchors on the tree-level C2C23/C3C23 targets; see _tree_anchor_level); verified against the pysd_cache dumps.
+# Per-graph cut-chain powers (ext_mode: {'p1'..'p5'}): wide leg = sorted powers n of C_i^n with first level <= L;
+# the 2/3 pair = sorted powers k of C_mem^k C23 with first level <= L; an empty set means no cut in that channel.
 def cut_chain_levels(ext_mode, L):
     mom = [ext_mode[k] for k in ('p1', 'p2', 'p3', 'p4', 'p5')]
     tokens = derive_external_modes(mom)
-    # Headroom note: predict's "reached Lmax" gate can prune additions that
-    # would still land at <= L (same-level cases, e.g. k4's S^2@2 when L=2);
-    # run with L + 2 headroom and filter explicitly to first-level <= L.
+    # Run with headroom L + 2 and keep only first levels <= L (the "reached Lmax" gate can prune same-level additions).
     table, _log = predict(tokens, L + 2, momenta=mom)
-    lv = {1: 0, 2: 0, 3: 0, 4: 0, 5: 0}
+    wide = {1: set(), 4: set(), 5: set()}
+    pair = {2: set(), 3: set()}
     for m, mlv in table.items():
         if mlv > L:
             continue
@@ -289,11 +248,27 @@ def cut_chain_levels(ext_mode, L):
         if d in (1, 4, 5):
             n = F.n_of(m)
             if n is not None and n != F.INF and n >= 1:
-                lv[d] = max(lv[d], n - 1)
+                wide[d].add(n)
         elif d == 23:
             k = F.n_of(m)
             if k is not None and k != F.INF and k >= 1:
                 mem = F.mem_of(m)
                 if mem in (2, 3):
-                    lv[mem] = max(lv[mem], k)
-    return {'p1': lv[1], 'p2': lv[2], 'p3': lv[3], 'p4': lv[4], 'p5': lv[5]}
+                    pair[mem].add(k)
+    return {'p1': sorted(wide[1]), 'p2': sorted(pair[2]), 'p3': sorted(pair[3]),
+            'p4': sorted(wide[4]), 'p5': sorted(wide[5])}
+
+
+# Scalar chain depth per leg (the legacy view of the ladder): wide legs max power - 1, the 2/3 pair max k; 0 when no power appears.
+# The shallow fixed-slot path needs only this scalar (0/1); the strict-overlap dev engine keeps it.
+def cut_chain_depth(levels):
+    out = {}
+    for leg in ('p1', 'p2', 'p3', 'p4', 'p5'):
+        v = levels[leg]
+        if not v:
+            out[leg] = 0
+        elif leg in ('p1', 'p4', 'p5'):
+            out[leg] = max(v) - 1
+        else:
+            out[leg] = max(v)
+    return out
