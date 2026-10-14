@@ -5,7 +5,7 @@ Interactive Regge-limit FRI region enumerator.
 Usage: python3 facet_regions_interactive.py [-v]
 
 At startup you choose a kinematics (k0..k2 are shown as local examples, default k1; kx enters the four external-momentum modes p1..p4 as powers); its ext_mode is fed into the FRI pipeline (cuts -> overlay -> Glauber adjustment -> subgraph requirements -> IR compatibility).
-Enumeration runs on the pruned skeleton enumerator (skeleton.py).
+Enumeration runs on the pruned skeleton enumerator (enumerator.py).
 
 Type an edge list to enumerate (external momenta p1..p4 attach at vertices 1, 2, 3, 4).
 At the edge prompt: 'kin kx' (or a k0..k2 label) switches kinematics, 'v' toggles the enumeration statistics, 'q'/'b' quits.
@@ -30,7 +30,7 @@ BASE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, BASE)
 
 from primitives import to_scaling, mode_components, INF, to_old, leg_check
-from skeleton import skel_regions   # pruned skeleton enumerator
+from enumerator import skel_regions   # pruned skeleton enumerator
 from primitives import to_mode          # mode strings are plain literals ('C13', 'sH', ...) everywhere
 from indep_loops import show_basis     # indep loops + edge momenta
 from mode_levels import Predictor, KIN_EXT

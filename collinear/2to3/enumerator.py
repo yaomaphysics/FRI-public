@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""skeleton.py — skeleton-based cut enumeration for the collinear 2->3 kinematics (general external virtualities).
+"""enumerator.py — skeleton-based cut enumeration for the collinear 2->3 kinematics (general external virtualities).
 
 A region is built from a skeleton: a connected uncovered vertex set H, one leg path P_i per external momentum, and per chain a cut expanded as a connected superset of P_i inside its domain.
 One enumeration engine covers the kinematics: enumerate_skelg, for a general ms = (m1, ..., m5); the

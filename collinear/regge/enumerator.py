@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 r"""
-skeleton.py — skeleton-based cut enumeration & pruning for the Regge 2->2 kinematics (general external virtualities).
+enumerator.py — skeleton-based cut enumeration & pruning for the Regge 2->2 kinematics (general external virtualities).
 
 Start from a skeleton: a connected uncovered vertex set Γ (the union of H, sH and G), one shared "stem" per leg pair (1/3 and 2/4) that leaves Γ and splits into the two "branches".
 Cuts are constructed upon each such skeleton.

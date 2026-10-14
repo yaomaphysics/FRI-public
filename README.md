@@ -65,7 +65,7 @@ Usage: `python3 wide_angle/scaleless_diagnosis.py`.
 
 ### Relevant modes at each loop order
 
-Modes switch on in a fixed order as the loop count grows — each mode has a definite first-appearance level.  `mode_levels.py` encodes this ladder for the two collinear frameworks: Regge (`collinear/regge/mode_levels.py`, k0–k5) and five-point 2→3 (`collinear/2to3/mode_levels.py`, k0–k4) — where the same data also derives, per graph, the cut-chain refinement levels used by the skeleton enumerators ($L = E - V + 1$).  Each framework ships an interactive stepper (`mode_level_interactive.py`; the 2→3 one is also reachable from the unified entry): input the external-momentum modes, then walk up the loop orders — every step lists the newly available modes with their mechanism of origin (a messenger tower, two confirmed components meeting, and so on). The Regge module is self-checking against the tabulated ladders (`--check`).
+Modes switch on in a fixed order as the loop count grows — each mode has a definite first-appearance level.  `mode_levels.py` encodes this ladder for the two collinear frameworks: Regge (`collinear/regge/mode_levels.py`, k0–k5) and five-point 2→3 (`collinear/2to3/mode_levels.py`, k0–k4) — where the same data also derives, per graph, the cut-chain refinement levels used by the enumerators ($L = E - V + 1$).  Each framework ships an interactive stepper (built into its `facet_regions_interactive.py`, run with `--ladder`, and reachable from the unified entry): input the external-momentum modes, then walk up the loop orders — every step lists the newly available modes with their mechanism of origin (a messenger tower, two confirmed components meeting, and so on). The Regge module is self-checking against the tabulated ladders (`--check`).
 
 ## Implementations
 
@@ -81,17 +81,17 @@ Two kinematics classes are implemented — **wide-angle** and **collinear** (tim
   - *memoisation* (Regge): the graph kernels used by both enumeration and judgment — connectivity, 1VI, connected components and 1VI-block finding — are cached by content and cleared between cases;
   - *per-graph refinement levels*: the cut-chain levels that can contribute are read off the mode first-appearance ladder ($L = E - V + 1$), so needless refinement levels are never enumerated;
   - *layer compression* (wide-angle): only the usable cut layers are enumerated; higher towers collapse to their lower equivalent counts;
-  - *chain-level early kills* (Regge skeleton): most candidates are rejected by count/level conditions before the full overlap test (validated against the overlap condition in shadow mode — zero mis-kills);
+  - *chain-level early kills* (Regge k1 enumerator): most candidates are rejected by count/level conditions before the full overlap test (validated against the overlap condition in shadow mode — zero mis-kills);
   - *deduplication*: candidates are deduplicated by cut set and by vertex-mode assignment; the verdict depends only on the vertex modes, so repeats are skipped cheaply.
 
-In code: the pruned skeleton enumerators live in `wide_angle/skeleton.py` (the canonical implementation; soft externals included), `collinear/regge/skeleton.py` and `collinear/2to3/skeleton.py`.
+In code: the pruned enumerators live in `wide_angle/enumerator.py` (the canonical implementation; soft externals included), `collinear/regge/enumerator.py` and `collinear/2to3/enumerator.py`.
 
 ### Checks (subgraph requirements)
 
 Every surviving configuration is judged by the same chain of subgraph requirements: momentum conservation at every vertex, jet connectivity (Coleman–Norton), the 1VI blocks of the contracted mode subgraphs, the mojetic (hard–jet) condition, First Connectivity, and the per-component IR-compatibility fixpoint that removes the residual non-regions.
 The requirements are derived in [arXiv:2601.22144](https://arxiv.org/abs/2601.22144) for the wide-angle class; the collinear versions (Regge and the five-point 2→3 kinematics) follow the same cycle of subgraph conditions with the collinear mode algebra and will be presented in a forthcoming work.
 A non-region fails at a definite first check — that diagnosis is exactly what `scaleless_diagnosis.py` reports (wide-angle).
-The check implementations live in `region_checker.py` (one per framework: wide-angle, five-point 2->3, and Regge); the wide-angle mode algebra and graph machinery shared by the enumerator and the checker live in `wide_angle/primitives.py`. The collinear sides keep analogous shared base layers in `collinear/2to3/primitives.py` and `collinear/regge/primitives.py`.
+The check implementations live in `region_filter.py` (one per framework: wide-angle, five-point 2->3, and Regge); the wide-angle mode algebra and graph machinery shared by the enumerator and the checker live in `wide_angle/primitives.py`. The collinear sides keep analogous shared base layers in `collinear/2to3/primitives.py` and `collinear/regge/primitives.py`.
 
 ---
 
@@ -99,11 +99,11 @@ The check implementations live in `region_checker.py` (one per framework: wide-a
 
 ```
 FRI-project/
-├── facet_regions_interactive.py       # unified entry: [1] wide-angle / [2] collinear
+├── facet_regions_interactive.py       # unified entry: [1] wide-angle / [2] collinear ([1] 2->3 / [2] 2->2 / [3] mode ladder)
 ├── wide_angle/                        # class 1: wide-angle scattering (canonical)
 │   ├── primitives.py                  #   shared base: mode algebra + graph machinery
-│   ├── skeleton.py                    #   pruned skeleton cut enumerator (enumeration core)
-│   ├── region_checker.py              #   region judgment: subgraph requirements + IR fixpoint
+│   ├── enumerator.py                  #   pruned skeleton cut enumerator (enumeration core)
+│   ├── region_filter.py              #   region judgment based on subgraph requirements
 │   ├── indep_loops.py                 #   independent loop momenta per region
 │   ├── power_counting.py              #   scalar + numerator power counting for the region browser
 │   ├── power_report.py                #   per-region derivation report (PDF) for the power counting
@@ -115,23 +115,19 @@ FRI-project/
 │   └── tests/                         #   fast unit tests
 ├── collinear/                         # class 2: collinear kinematics
 │   ├── 2to3/                          #   part 1: five-point 2->3
-│   │   ├── primitives.py               #     mode algebra + graph tools (zero-judgment base layer)
-│   │   ├── skeleton.py                 #     skeleton cut enumerators (k0--k4; per-graph cut-chain levels)
-│   │   ├── region_checker.py           #     region checks / judgment (check chain shared with skeleton)
+│   │   ├── primitives.py               #     mode algebra + graph tools + the external-kinematics API (zero-judgment base layer)
+│   │   ├── enumerator.py               #     skeleton cut enumerators (k0--k4; per-graph cut-chain levels)
+│   │   ├── region_filter.py           #     region judgment based on subgraph requirements
 │   │   ├── indep_loops.py               #     independent loop momenta + line-momentum parameterization
-│   │   ├── kin23.py                    #     kinematics table (k0--k4 presets; general virtuality patterns)
 │   │   ├── mode_levels.py              #     mode first-appearance ladder + cut-chain level derivation
-│   │   ├── mode_level_interactive.py   #     interactive stepper for the mode ladder
 │   │   ├── facet_regions_interactive.py #     interactive enumerator for a new graph (built-in example: 1-3,1-5,2-3,2-5,3-4,4-5)
 │   │   └── region_plot.py              #     region figures + PDF atlas
 │   └── regge/                         #   part 2: Regge limit of 2->2
 │       ├── primitives.py              #     mode algebra + mode strings + graph tools (zero-judgment base layer)
-│       ├── skeleton.py                #     skeleton cut enumerator (fast path) + the full FRI enumerators (k0--k5)
-│       ├── region_checker.py          #     engine: mode lattice, cuts, pipeline, IR fixpoint
+│       ├── enumerator.py              #     skeleton cut enumerators (k0--k5; the all-lightlike k1 case by its own engine)
+│       ├── region_filter.py          #     region judgment based on subgraph requirements
 │       ├── indep_loops.py             #     independent loop momenta (semihard fix)
-│       ├── regge_graphs.py            #     example graph library + k0--k5 kinematics
 │       ├── mode_levels.py             #     mode first-appearance ladder
-│       ├── mode_level_interactive.py  #     interactive stepper for the mode ladder
 │       ├── facet_regions_interactive.py #     interactive enumerator for a new graph
 │       └── region_plot.py             #     region figures + PDF atlas
 └── validation/                        # cross-checks vs pySecDec (graphs, records, examples; see validation/README.md)

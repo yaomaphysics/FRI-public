@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 r"""
-skeleton.py — skeleton-based cut enumeration & pruning for wide-angle FRI.
+enumerator.py — skeleton-based cut enumeration & pruning for wide-angle FRI.
 
 Constructing the skeleton.
   * Enumerated explicitly a set of vertices whose induced subgraph is connected; this is H (no cuts touch it).

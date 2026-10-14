@@ -324,7 +324,7 @@ def show_basis(edges, em, vm, F=None, ext_attach=None):
 
 if __name__ == '__main__':
     # quick self-test on the necklace (sH fix) and the box (k0, G edge)
-    from skeleton import skel_regions
+    from enumerator import skel_regions
     cases = [
         ('box k1', [(1, 3), (2, 4), (1, 2), (3, 4)], {'p1': 'C1∞C13', 'p2': 'C2∞C24', 'p3': 'C3∞C13', 'p4': 'C4∞C24'}),
         ('box k0', [(1, 3), (2, 4), (1, 2), (3, 4)], {'p1': 'C13', 'p2': 'C24', 'p3': 'C13', 'p4': 'C24'}),

@@ -8,7 +8,7 @@ Contents:
   - mode-string parsing: parse_mode, mode_str;
   - graph helpers: Graph (vertex_mode); spanning_tree; find_1vi_blocks (Tarjan; used by the 1VI checks).
 
-Used by: skeleton.py (enumeration), region_filter.py (filtering), usable_modes.py, scaleless_diagnosis.py, indep_loops.py, read_graph.py (input).
+Used by: enumerator.py (enumeration), region_filter.py (filtering), usable_modes.py, scaleless_diagnosis.py, indep_loops.py, read_graph.py (input).
 """
 
 import re

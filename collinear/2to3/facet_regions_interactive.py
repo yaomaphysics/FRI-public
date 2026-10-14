@@ -33,7 +33,7 @@ from collections import defaultdict
 BASE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, BASE)
 import region_filter
-import skeleton
+import enumerator
 from indep_loops import indep_loops, show_basis, _disp_key   # independent loop momenta + line-momentum parameterization
 from primitives import V, m_of, name, n_of, INF, leg_check, ext_modes
 from mode_levels import predict, derive_external_modes

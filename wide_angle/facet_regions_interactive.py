@@ -35,7 +35,7 @@ from primitives import scaling_of, mode_str, parse_mode, vee, eq
 from indep_loops import indep_loops, show_basis
 from power_counting import (show_power_counting, measure_power, integrand_power, fmt_power, parse_numerator, fmt_ast, region_context, numerator_power)
 from power_report import build_report
-from skeleton import run as skeleton_run, kappa_of
+from enumerator import run as skeleton_run, kappa_of
 H = (0, 0, 0)
 
 
