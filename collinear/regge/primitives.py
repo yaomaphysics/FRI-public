@@ -97,6 +97,16 @@ C = lambda fam, m=0: Mode(m, 0, None, fam)        # noqa: E731
 CC = lambda leg, n=1, m=0: Mode(m, n, leg)        # noqa: E731
 EXT = lambda leg: Mode(0, INF, leg)               # noqa: E731
 
+# True when mode m is admissible as the momentum mode of external leg i.
+def leg_check(i, m):
+    if not isinstance(m, Mode):
+        return False
+    fam = LEG_FAM[i]
+    if m.n == INF:
+        return m.fam == fam and m.leg == i
+    return m.fam == fam and (m.leg is None or m.leg == i)
+
+
 # ==================== MODE-STRING PARSE / PRINT BOUNDARY ====================
 
 # The legacy leg-blind V=4 symbol decodes to (m,n) = (1,1) with an unknown leg.
@@ -141,7 +151,7 @@ def _parse(name: str):
     return Mode(m, nv, leg, fam)
 
 
-# Mode -> legacy region_checker string (external legs print as C{i}∞C{fam}).
+# Mode -> legacy region_filter string (external legs print as C{i}∞C{fam}).
 def to_old(x: Mode) -> str:
     if x == G:
         return 'G'
@@ -155,7 +165,7 @@ def to_old(x: Mode) -> str:
     return str(x)
 
 
-# Legacy region_checker mode string -> Mode, including the G / sH sentinels.
+# Legacy region_filter mode string -> Mode, including the G / sH sentinels.
 def to_mode(name: str) -> Mode:
     if name in ('G', 'sH'):
         return G if name == 'G' else SH
@@ -300,7 +310,7 @@ def _rank(x):
     return 0 if x == H else 3
 
 
-# Softer of the two under the chain H >- G >- sH >- L (unreachable from region_checker).
+# Softer of the two under the chain H >- G >- sH >- L (unreachable from region_filter).
 def _chain_meet(a, b):
     if a == b:
         return a
@@ -637,7 +647,7 @@ def check_physics(verbose=True):
         good = got == want
         ok &= good
         sym = '/\\' if op == 'mode_meet' else '\\/'
-        note = '' if op == 'mode_join' else '   (dead path in region_checker)'
+        note = '' if op == 'mode_join' else '   (dead path in region_filter)'
         if verbose:
             print(f'  {str(a):4} {sym} {str(b):6} = {got:5} (want {want:5}) {"ok" if good else "*** FAIL"}{note}')
     try:

@@ -1,5 +1,5 @@
 """
-mode_levels.py -- first-appearance (loop-level) prediction for the regge mode ladder, for a given kinematics.
+mode_levels.py -- first-appearance (loop-level) prediction for the regge mode ladder, for a given kinematics, and the per-leg cut-chain powers that follow from it.
 
 Rules:
 
@@ -42,15 +42,6 @@ from primitives import (Mode, mode_meet, mode_join, to_mode, to_old, C, H, INF) 
 LMAX_DEFAULT = 8
 BUDGET_SLACK = 4
 
-
-# True when mode m is admissible as the momentum mode of external leg i.
-def leg_check(i, m):
-    if not isinstance(m, Mode):
-        return False
-    fam = 13 if i in (1, 3) else 24
-    if m.n == INF:
-        return m.fam == fam and m.leg == i
-    return m.fam == fam and (m.leg is None or m.leg == i)
 
 
 # Cost-map engine for one kinematics: seeds + the vee/wedge/messenger closure, keeping the cheapest route per mode.
@@ -187,8 +178,18 @@ def _skey(x):
     return (4, x.fam, x.m, x.n, x.leg)
 
 
+# Per-leg member-cut powers C_i^nC_ij with first level <= L ('p1'..'p4' -> sorted n; empty means no cut in that channel).
+def cut_chain_levels(ext_mode, L):
+    modes = {int(str(k).lstrip('p')): (v if isinstance(v, str) else to_old(v)) for k, v in ext_mode.items()}
+    p = Predictor(modes, Lmax=L)
+    p.run()
+    return {'p%d' % leg: sorted(x.n for x, c in p.cost.items()
+                                if c <= L and x.m == 0 and x.leg == leg and x.n not in (None, INF) and x.n >= 1)
+            for leg in (1, 2, 3, 4)}
+
+
 # ---------------------------------------------------------------- kinematics
-# This part is for debugging purposes only, not involved in the "stepper" (key engine of mode_level_interactive.py).
+# This part is for debugging purposes only, not involved in the "stepper" (key engine of facet_regions_interactive.py --ladder).
 
 KIN_EXT = {
     'k0': {1: 'C13', 2: 'C24', 3: 'C13', 4: 'C24'},

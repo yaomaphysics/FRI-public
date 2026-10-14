@@ -1,15 +1,16 @@
 """
-indep_loops.py — independent loop momenta per region (Regge).
+indep_loops.py — independent loop momenta of a region (Regge kinematics).
 
-  * lattice modes (H, C13/C24, refinements, S^m, SC, S^2C, ...): the contracted X-subgraph gamma~_X (V_X ∪ aux, all non-X endpoints -> aux);
-    r_X = cycle rank of gamma~_X = sum over its 1VI blocks of (|E| - |V| + 1); basis = per block, complement of a spanning tree (contracted self-loops are always basis lines).
+  * Lattice modes (H, C13/C24, refinements, S^m, SC, S^2C, ...):
+      the contracted X-subgraph Γ̃_X (V_X ∪ aux, all non-X endpoints -> aux);
+      r_X = the cycle rank of Γ̃_X = the sum over its 1VI blocks of (|E| − |V| + 1);
+      the basis is, per block, the complement of a spanning tree (contracted self-loops are always basis lines).
     The 1VI blocks are exactly primitives.mode_components().
 
-  * semihard (sH): sH is a product from Glauber adjustment, not a lattice mode.
-    The contracted-rank rule overcounts (two parallel sH edges between two G vertices both contract to (aux,aux) self-loops -> r = 2, but they are one bubble).
-    Fix: the semihard loops are the loops of the subgraph gamma_{sH} ∪ gamma_{G} computed on the original graph (no aux).
-    The G subgraph is the necklace string (acyclic), so it has no loops by itself and the union's loops are exactly the semihard ones.
-    One combined entry 'sH ∪ G' is reported; G is not reported separately when sH is present (its edges live inside the union).
+  * Semihard (sH): sH and G are products of the Glauber adjustment, not a lattice mode.
+  The semihard loops are the loops of the subgraph Γ_sH ∪ Γ_G computed on the original graph (no aux).
+  The G subgraph is the necklace string (acyclic), so it has no loops by itself and the union loops are exactly the semihard ones.  One combined entry 'sH ∪ G' is reported; G
+    is not reported separately when sH is present (its edges live inside the union).
 
 For sanity check: Σ_X r_X = L = |E| − |V| + 1 for every region.
 """
@@ -17,12 +18,12 @@ import os, sys
 
 BASE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, BASE)
-from primitives import mode_components, find_1vi_blocks, ext_m
+from primitives import mode_components, find_1vi_blocks
 
 UNION = 'sH∪G'        # combined semihard unit: gamma_sH ∪ gamma_G
 
 
-# ============================= GRAPH TOOLS =============================
+# ===================== INDEPENDENT LOOP MOMENTA =====================
 
 
 # Spanning tree of a connected block (aux included); basis = the deleted edges.
@@ -57,7 +58,6 @@ def _basis_of_block(block_verts, block_edges, edges2, skip=None):
     return tree, basis
 
 
-# =========================== PER-UNIT BLOCKS ===========================
 # 1VI blocks of gamma~_mode as (bv, contracted_edges, original_idxs).
 def _lattice_blocks(mode, vm, em, edges, verts):
     out = []
@@ -95,7 +95,6 @@ def _iter_units(em, vm, edges, verts):
             yield mode, _lattice_blocks(mode, vm, em, edges, verts)
 
 
-# ======================= INDEPENDENT LOOP MOMENTA =======================
 # Per-unit independent loop momenta of a region: rank r_X and basis blocks per unit.
 def indep_loops(edges, em, vm):
     verts = sorted({v for e in edges for v in e})
@@ -134,7 +133,7 @@ def forced_basis(edges, em, vm, F):
             basis_all += [idxs[j] for j in basis]
     return basis_all, None
 
-# ==================== PHYSICAL MOMENTUM PARAMETERIZATION ====================
+# ===================== LINE-MOMENTUM PARAMETERIZATION =====================
 # Spanning tree of (verts, edge_list) avoiding the skip set; None if no such tree exists.
 def _spanning_tree(verts, edge_list, skip):
     parent = {v: v for v in verts}
@@ -297,7 +296,7 @@ def show_edge_momenta(edges, em, vm, carriers, ext_attach, forced=False):
     print('  These line momenta can form a loop-momentum basis.')
 
 
-# ============================ BASIS DISPLAY ============================
+# ========================= BASIS DISPLAY =========================
 # A concrete basis: default per-unit 1VI-block algebraic basis, or forced lines F (physical tree+chords parameterization); then every line's momentum in terms of k1..kL and the externals.
 def show_basis(edges, em, vm, F=None, ext_attach=None):
     if F:
@@ -325,7 +324,7 @@ def show_basis(edges, em, vm, F=None, ext_attach=None):
 
 if __name__ == '__main__':
     # quick self-test on the necklace (sH fix) and the box (k0, G edge)
-    from skeleton import skel_regions, skel_regions_k1
+    from skeleton import skel_regions
     cases = [
         ('box k1', [(1, 3), (2, 4), (1, 2), (3, 4)], {'p1': 'C1∞C13', 'p2': 'C2∞C24', 'p3': 'C3∞C13', 'p4': 'C4∞C24'}),
         ('box k0', [(1, 3), (2, 4), (1, 2), (3, 4)], {'p1': 'C13', 'p2': 'C24', 'p3': 'C13', 'p4': 'C24'}),
@@ -334,11 +333,7 @@ if __name__ == '__main__':
     ext_attach = {'p1': 1, 'p2': 2, 'p3': 3, 'p4': 4}
     for name, edges, ext_mode in cases:
         verts = sorted({v for e in edges for v in e})
-        ms = [ext_m(ext_mode.get(n)) for n in ('p1', 'p2', 'p3', 'p4')]
-        if all(m is None for m in ms):
-            regs, _cnt, _dp = skel_regions_k1(edges, verts, ext_attach, ext_mode)
-        else:
-            regs, _cnt, _dp = skel_regions(edges, verts, ext_attach, ext_mode)
+        regs, _cnt, _dp = skel_regions(edges, verts, ext_attach, ext_mode)
         print(f'== {name}: {len(regs)} regions ==')
         for i, (cut13, cut24, cut1, cut3, cut2, cut4, vm, em) in enumerate(regs, 1):
             results, total, L = indep_loops(edges, em, vm)

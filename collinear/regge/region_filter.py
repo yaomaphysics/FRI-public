@@ -1,5 +1,5 @@
 """
-Judgment module for the Regge (collinear) cut enumeration: it filters the candidate regions produced by the cut overlay down to facet regions (one of the two cores of the main code).
+Filter module for the Regge (collinear) cut enumeration: it filters the candidate regions produced by the cut overlay down to facet regions (one of the two cores of the main code).
 
 The filter is built on three subgraph requirements, which together are the necessary and sufficient condition for a facet region:
     (A) fundamental pattern (momentum conservation, Coleman--Norton interpretation),
@@ -20,7 +20,7 @@ from functools import lru_cache
 import os
 from primitives import (Mode, to_mode, to_old, G, SH, H, mode_meet, mode_join, mode_marginally_softer, connected, is_1vi, components, mode_components, find_1vi_blocks, ext_mode_for)
 
-# Fixed lattice-mode labels of the judgment, converted once to Mode objects (the single representation).
+# Fixed lattice-mode labels of the filter, converted once to Mode objects (the single representation).
 C13 = to_mode('C13'); C24 = to_mode('C24')
 C1C13 = to_mode('C1C13'); C3C13 = to_mode('C3C13'); C2C24 = to_mode('C2C24'); C4C24 = to_mode('C4C24')
 C1SQ13 = to_mode('C1^2C13'); C3SQ13 = to_mode('C3^2C13'); C2SQ24 = to_mode('C2^2C24'); C4SQ24 = to_mode('C4^2C24')
@@ -1041,9 +1041,6 @@ def cond1_confirms(blk, mode, comps, confirmed, edges, em, vm, ext_attach, ext_m
 
 # ========== INFRARED COMPATIBILITY: WALKS, PORTS AND DRIVER ===========
 
-# Third-port requirement (part of condition 1): the block's assembled scale also needs an exit port
-# outside its entry vertices — a same-mode vertex shared with another component (A), or a harder own-edge endpoint (B).
-USE_THIRD_PORT = True
 
 
 # All target elements reachable from the start elements by a non-softer flow; returns the entered real vertices.
@@ -1166,8 +1163,6 @@ def _port_sources(blk, X, edges, em, vm, ext_attach, ext_mode, confirmed, comps,
 
 # Hidden-path receiver port check: exclude the union of source entries, then require a third port.
 def _hp_receiver_port_ok(blk, X, edges, em, vm, ext_attach, ext_mode, confirmed, comps, _lc=None):
-    if not USE_THIRD_PORT:
-        return True
     srcs = _port_sources(blk, X, edges, em, vm, ext_attach, ext_mode, confirmed, comps, _lc=_lc)
     entry = set()
     for (_tag, md, cands, att) in srcs:
