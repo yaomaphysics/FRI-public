@@ -21,7 +21,7 @@ Graph: chain 1-2-3-4-5-6 plus branch 2-3 with the SC edge:
 """
 import sys, os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-import region_checker as rc
+import region_filter as rc
 from primitives import marginally_softer
 
 H = (0, 0, 0)

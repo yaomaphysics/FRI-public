@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """usable_modes.py — derive the usable internal modes from external modes + IR compatibility (see §5.2 of 2601.22144).
 
-This step runs before the main steps (cut enumeration + region judgement) of the program.
+This step runs before the main steps (cut enumeration + region filtering) of the program.
 
 [Motivation] Consider a form factor with on-shell external momenta p1 in the C1^2 mode and p2 in the C2^3 mode, then from the infrared-compatibility requirement, all the possible modes (at all loops) are:
             H, C1^2, C2^3, S^2C2, which contains no C1 mode.

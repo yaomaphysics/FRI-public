@@ -29,7 +29,7 @@ Tips for acceleration.
   * mask: cut sets carry bitmasks alongside the vertex sets; dedup keys and the route/overlap tests are fixed-slot bit operations.
   * chain-completion memoisation: the nested-chain superset recursion is memoised per (layer, innermost set), turning the recursion tree into a DAG (directed acyclic graph).
   * layer compression: cuts are enumerated only on the usable layers — dead layers are dropped, higher towers collapse to lower chain counts.
-  * cut-set / vm dedup: repeated cut assignments are skipped by fixed-slot keys; repeated vertex modes are skipped outright (every check depends only on vm).
+  * cut-set / vm dedup: repeated cut assignments are skipped by fixed-slot keys; repeated vertex modes are skipped outright (the filter depends only on vm).
   * DFS (depth-first search) early pruning: a subtree is pruned as soon as some overlap requirement (or route exclusion) is provably unsatisfiable for all of its completions.
 """
 import sys, os, time, itertools
@@ -38,7 +38,7 @@ from collections import defaultdict
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 from primitives import Graph, vee, eq, harder_or_eq, meet, norm, is_connected, mode_str, INF
-from region_checker import (jet_connected_ok, hard_jet_mojetic_ok, check_fc, momentum_ok, ir_ok)
+from region_filter import (jet_connected_ok, hard_jet_mojetic_ok, filter_fc, momentum_ok, ir_ok)
 from usable_modes import derive_usable_modes, usable_layers
 
 H = (0, 0, 0)
@@ -239,10 +239,10 @@ def _comps(sub, adj):
     return out
 
 
-# ============================ CHECK CHAIN ============================
+# ============================ FILTER CHAIN ============================
 
 # Run the check chain (Step1 / FC / jet / mojetic / IR) on one cut assignment; returns (vm, em) or None.
-def _check_combo(verts, edges_t, g, ext_attach, ext_mode, combo, seen_vm=None):
+def _filter_combo(verts, edges_t, g, ext_attach, ext_mode, combo, seen_vm=None):
     vm = {}
     if all(len(_e) > 2 for _e in combo):
         # fast path: every entry carries its vertex mask -> integer bit tests, no set lookups
@@ -264,7 +264,7 @@ def _check_combo(verts, edges_t, g, ext_attach, ext_mode, combo, seen_vm=None):
                     acc = meet(acc, md)
                 vm[v] = norm(acc)
     if seen_vm is not None:
-        # vm-level dedup: every check depends only on vm; key = the vm mapping in fixed vertex order
+        # vm-level dedup: the filter depends only on vm; key = the vm mapping in fixed vertex order
         key_m = tuple([vm[v] for v in verts])
         if key_m in seen_vm:
             return None
@@ -284,7 +284,7 @@ def _check_combo(verts, edges_t, g, ext_attach, ext_mode, combo, seen_vm=None):
         return None
     if not jet_connected_ok(vm, em, edges_t):
         return None
-    if not check_fc(g, em, ext_mode):
+    if not filter_fc(g, em, ext_mode):
         return None
     ok_mj, _ = hard_jet_mojetic_ok(edges_t, em, ext_attach, ext_mode)
     if not ok_mj:
@@ -446,7 +446,7 @@ def _run_union_construction(verts, edges, ext_attach, ext_mode, verbose=True, vm
                     continue
                 seen_ck.add(ck)
                 n_cand += 1
-                r = _check_combo(V, edges_t, g, ext_attach, ext_mode, assign, seen_vm)
+                r = _filter_combo(V, edges_t, g, ext_attach, ext_mode, assign, seen_vm)
                 if r is None:
                     continue
                 vm, em = r
@@ -966,7 +966,7 @@ def run(verts, edges, ext_attach, ext_mode, verbose=True, use_overlap=True, use_
                     continue
                 seen_ck.add(ck)
                 n_cand += 1
-                r = _check_combo(V, edges_t, g, ext_attach, ext_mode, assign, seen_vm if vm_dedup else None)
+                r = _filter_combo(V, edges_t, g, ext_attach, ext_mode, assign, seen_vm if vm_dedup else None)
                 if r is None:
                     continue
                 vm, em = r

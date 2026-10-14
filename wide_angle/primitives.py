@@ -1,6 +1,6 @@
 """primitives.py — the shared base layer of the wide-angle FRI code: mode
 algebra and graph machinery (no region criteria — those live in
-region_checker.py).
+region_filter.py).
 
 Contents:
   - mode algebra on (m, n, i) tuples [S^m C_i^n; H = (0,0,0)]: V, norm, eq, harder_or_eq, join, meet, marginally_softer, vee;
@@ -8,7 +8,7 @@ Contents:
   - mode-string parsing: parse_mode, mode_str;
   - graph helpers: Graph (vertex_mode); spanning_tree; find_1vi_blocks (Tarjan; used by the 1VI checks).
 
-Used by: skeleton.py (enumeration), region_checker.py (judgment), usable_modes.py, scaleless_diagnosis.py, indep_loops.py, read_graph.py (input).
+Used by: skeleton.py (enumeration), region_filter.py (filtering), usable_modes.py, scaleless_diagnosis.py, indep_loops.py, read_graph.py (input).
 """
 
 import re

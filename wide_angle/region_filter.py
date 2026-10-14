@@ -1,5 +1,5 @@
 """
-This script constructs the "judgment module" (one of the two cores of the main code), which filters regions from those cut-overlaying results.
+This script is the region filter (one of the two cores of the main code): it filters the regions out of those cut-overlaying results.
 The filter is built on the following subgraph requirements (§4 and §5 of 2601.22144):
     (A) fundamental pattern (momentum conservation, Coleman--Norton interpretation),
     (B) connectivity requirement (First Connectivity Theorem),
@@ -14,9 +14,6 @@ To realize them, the following notions are developed:
     infrared compatibility -- this notion is defined recursively to check the "delivery of correct infrared scaling" to each mode component of a region.
                               For each region, it is required that all its mode components are infrared compatible (the infrared-compatibility requirement).
 For more details, it is recommended to read the relevant sections of 2601.22144.
-
-The pipeline checks used by the enumerators (check_fc / momentum_ok / ir_ok) live here next to the conditions they implement;
-the shared base layer (mode algebra, graph and component machinery) is in primitives.py.
 """
 
 from collections import defaultdict, deque
@@ -329,7 +326,7 @@ def hard_jet_mojetic_ok(edges_in, em, ext_attach, ext_mode=None):
 # This part constructs the subgraph requirements subject to the First Connectivity Theorem (certain unions of mode subgraphs must be connected, see theorem 5.1 of 2601.22144).
 
 # First Connectivity (§5.1): ∪_{𝒱≤n} Γ_X must be connected for every threshold n (isolated mode-vertices count as nodes).
-def check_fc(g, edge_modes, EXTMODE):
+def filter_fc(g, edge_modes, EXTMODE):
     eVs = [V(m) if m is not None else INF for m in edge_modes]
     vVs = [V(vertex_mode(g, edge_modes, v, EXTMODE)) if vertex_mode(g, edge_modes, v, EXTMODE) else INF for v in g.vertices]
     # all softness values V present (edge and vertex modes)
@@ -363,7 +360,7 @@ def check_fc(g, edge_modes, EXTMODE):
 # Recursive per-component requirement — "delivery of correct infrared scaling" to every mode component γ, through one of three conditions:
 # Condition 1 (mode = the external momenta and already infrared-confirmed line momenta entering γ),
 # Condition 2 (messenger mechanism),
-# Condition 3 (mode = the wedge of the harder modes which γ is relevant to)
+# Condition 3 (mode = the wedge of the harder modes which γ is relevant to).
 # The whole procedure may require several iterations; region only if all components are confirmed.
 
 # [Condition 1] the following partial sum -- over those external momenta and line momenta from already confirmed infrared-compatible components entering γ -- must be of the same mode as γ.
@@ -553,9 +550,6 @@ def find_messenger(g, all_comps, verts, edges, attach, extmode, confirmed=(), ke
                 memb[id(c)] = True; changed = True
     # Γ: the connected member list
     G = [c for c in cands if memb[id(c)]]
-    # What must be prevented instead is BORROWING: the other S component's external must not feed this kernel (CheesePizza k2: l1 sat on the OTHER S component). So:
-    #   - special (a): the feeding external must sit on the kernel's own vertices or on a Γ member ADJACENT to the kernel;
-    #   - n_i = 0 kernel matches use ONLY g (not any other S^m in Γ).
     n_s = sum(1 for c in G if c['mode'][0] == m and c['mode'][1] == 0 and c['mode'][2] == 0)
     if n_s > 1:
         # Still proceed: kernel g is connected; other S^m members are not part of g's verdict (guarded by the two rules below).
@@ -571,7 +565,7 @@ def find_messenger(g, all_comps, verts, edges, attach, extmode, confirmed=(), ke
         if id(d) in gids:
             continue
         md = d['mode']
-        mi = m - md[0]                      # m_i in 1...m
+        mi = m - md[0]                      # m_i in 1, ..., m
         if not (1 <= mi <= m):
             continue
         n_i = md[1] - mi                    # n_i >= 0
@@ -657,9 +651,6 @@ def _is_tadpole(comp, verts, all_comps):
             return False
     return True
 
-# The kernel of a messenger Γ^[m] is the whole CONNECTED component of the pure-soft S^m subgraph.
-# A confirmation via Condition 2 covers every confirmable S^m block of that kernel cloud.
-
 # Precompute tadpole flags and kernel clouds for one fixpoint call.
 def _ir_prepare(all_comps, verts):
     # tadpole flags, per component
@@ -711,7 +702,7 @@ def _cloud_kernel(comp, state):
 
 # Confirm one component inside the fixpoint (first success wins): cond 1 (sources + third port), cond 3 (meet of two relevant confirmed), cond 2 (messenger); tadpoles: cond 1 only.
 # Returns (1|2|3, rule-2 covered blocks), or (None, ()).
-def check_conditions(g, confirmed, verts, edges, all_comps, attach, extmode, state=None):
+def filter_conditions(g, confirmed, verts, edges, all_comps, attach, extmode, state=None):
     if state is None:
         state = _ir_prepare(all_comps, verts)
     # cond 1: sources + third port
@@ -747,7 +738,7 @@ def confirm_all(all_comps, verts, edges, attach, extmode):
         for comp in all_comps:
             if comp in confirmed:
                 continue
-            cc, kbs = check_conditions(comp, confirmed, verts, edges, all_comps, attach, extmode, state=state)
+            cc, kbs = filter_conditions(comp, confirmed, verts, edges, all_comps, attach, extmode, state=state)
             if cc is not None:
                 confirmed.append(comp); order.append((comp, cc)); changed = True
                 if cc == 2:

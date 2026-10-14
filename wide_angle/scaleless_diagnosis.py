@@ -32,7 +32,7 @@ Mode syntax: H / S / S^m / C_i / C_i^n / C_i^inf / C_i^\infty / SC_i / SC_i^n / 
 import sys, os, itertools, re, signal
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from primitives import Graph, vertex_mode, vee, eq, V, parse_mode, INF
-from region_checker import (hard_jet_mojetic_ok, confirm_all, mode_components)
+from region_filter import (hard_jet_mojetic_ok, confirm_all, mode_components)
 
 H = (0, 0, 0)
 
@@ -72,7 +72,7 @@ def momentum_fail_vertex(g, em, extmode):
     return None
 
 
-# Direction of the first disconnected jet (same logic as region_checker.jet_connected_ok, but reports the direction).
+# Direction of the first disconnected jet (same logic as region_filter.jet_connected_ok, but reports the direction).
 def disconnected_jet(vm, em, edges_in):
     dirs = set()
     for v, md in vm.items():
@@ -172,7 +172,7 @@ def _fmt_set(items):
     return '{' + ', '.join(parts) + '}'
 
 
-# =========================== CHECK CHAIN ===========================
+# =========================== FILTER CHAIN ===========================
 # Run the FRI check chain; stop at the first failure; returns (is_region, message).
 def diagnose(edges, em, ext_attach, extmode):
     verts = sorted({v for e in edges for v in e})
