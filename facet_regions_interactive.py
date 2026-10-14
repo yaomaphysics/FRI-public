@@ -7,8 +7,8 @@ First choose a framework; the framework's own interactive browser then runs (all
     [2] collinear
           [1] 2->3           -> collinear/2to3/facet_regions_interactive.py
           [2] 2->2 (Regge)   -> collinear/regge/facet_regions_interactive.py
-          [3] mode ladder    -> 2->3: collinear/2to3/mode_level_interactive.py
-                                2->2: collinear/regge/mode_level_interactive.py
+          [3] mode ladder    -> 2->3: collinear/2to3/facet_regions_interactive.py --ladder
+                                2->2: collinear/regge/facet_regions_interactive.py --ladder
 
 Every browser shares the same workflow: give a graph (topology + external kinematics ONLY — the cut formalism stays internal), enumerate ALL its regions, list them, then
     1) inspect specific regions  — per-mode subgraphs + loop numbers (+ a concrete independent-loop-momentum basis with forced lines),
@@ -37,14 +37,14 @@ def _ask(prompt, valid, default=None):
         print('  ! choose one of: %s' % '/'.join(valid))
 
 
-def run_backend(path, label):
+def run_backend(path, label, args=None):
     print('=' * 72)
     print('launching %s interactive ...' % label)
     print('=' * 72)
     # Each framework runs in its own process: same-named modules (skeleton, primitives, ...) cannot clash.
     old = signal.signal(signal.SIGINT, signal.SIG_IGN)
     try:
-        subprocess.call([sys.executable, path])
+        subprocess.call([sys.executable, path] + (args or []))
     finally:
         signal.signal(signal.SIGINT, old)
 
@@ -69,9 +69,9 @@ def run_mode_ladder():
     print('    [b] back')
     s = _ask('mode ladder [1/2/b] > ', ('1', '2', 'b'))
     if s == '1':
-        run_backend(os.path.join(HERE, 'collinear', '2to3', 'mode_level_interactive.py'), 'mode ladder (2->3)')
+        run_backend(os.path.join(HERE, 'collinear', '2to3', 'facet_regions_interactive.py'), 'mode ladder (2->3)', ['--ladder'])
     elif s == '2':
-        run_backend(os.path.join(HERE, 'collinear', 'regge', 'mode_level_interactive.py'), 'mode ladder (2->2 Regge)')
+        run_backend(os.path.join(HERE, 'collinear', 'regge', 'facet_regions_interactive.py'), 'mode ladder (2->2 Regge)', ['--ladder'])
 
 
 def main():
