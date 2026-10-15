@@ -317,7 +317,7 @@ def ask_momenta():
             else:
                 print('    [error] enter an integer >= %d, or ' % lo + chr(92) + 'infty')
                 continue
-            if not leg_check(i, region_filter.parse(pre + p + post)):
+            if not leg_check(i, region_filter.parse((pre[:-1] + p + post) if p == '∞' else (pre + p + post))):
                 print('    [error] not allowed for %s' % leg)
                 continue
             q.append(INF if p == '∞' else int(p))
@@ -507,7 +507,7 @@ def run_ladder():
     if q is None:
         print('bye 👋')
         return
-    momenta = [region_filter.parse(pre + ('∞' if p == INF else str(p)) + post) for (leg, pre, post, lo), p in zip(LEG_MODES, q)]
+    momenta = [region_filter.parse((pre[:-1] + '∞' + post) if p == INF else (pre + str(p) + post)) for (leg, pre, post, lo), p in zip(LEG_MODES, q)]
     mnames = [region_filter.name(m) for m in momenta]
     print('momenta: ' + ', '.join('p%d=%s' % (i + 1, nm) for i, nm in enumerate(mnames)))
     ext = derive_external_modes(momenta)

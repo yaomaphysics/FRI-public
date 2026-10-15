@@ -323,7 +323,7 @@ def ask_momenta():
             if s in ('q', 'quit', 'exit', 'b', 'back'):
                 return None
             if s in ('inf', 'infty', 'os', 'on-shell', chr(92) + 'infty'):
-                mstr = tmpl.replace('^?', '∞')
+                mstr = tmpl.replace('^?', '∞').replace('^∞', '∞')
             elif s.isdigit() and int(s) >= lo:
                 mstr = tmpl.replace('?', s)
             else:
