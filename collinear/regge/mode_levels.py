@@ -69,6 +69,12 @@ class Predictor:
         n1, n2, n3, n4 = (self.n(l) for l in (1, 2, 3, 4))
         return (n2 >= m) and (n4 >= m) and (min(n1, n3) >= (m - 1))
 
+    # True when the two operands carry the two different legs of one family pair (p1&p3 or p2&p4): their
+    # combination is the Glauber direction (p1-p3 = p4-p2), so the vee rule must not be used on them.
+    def same_family_pair(self, a, b):
+        return (a.leg is not None and b.leg is not None
+                and (a.leg, b.leg) in ((1, 3), (3, 1), (2, 4), (4, 2)))
+
     # Record mode `x` at cost c when it improves the cost map; returns True if anything changed.
     def upd(self, x, c, label=None):
         if not isinstance(x, Mode):
@@ -131,7 +137,7 @@ class Predictor:
             for (a, ca), (b, cb) in itertools.combinations_with_replacement(items, 2):
                 if max(ca, cb) <= self.Lmax + BUDGET_SLACK:
                     n_carrier = sum(1 for x in (a, b) if x.n == INF)
-                    if n_carrier == 1:
+                    if n_carrier == 1 and not self.same_family_pair(a, b):
                         try:
                             ch |= self.upd(mode_join(a, b), max(ca, cb), ('vee', a, ca, b, cb))
                         except Exception:

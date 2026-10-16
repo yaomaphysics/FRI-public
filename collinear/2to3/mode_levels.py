@@ -30,18 +30,21 @@ def predict(ext_tokens, Lmax, momenta=None):
     ext_mom = list(momenta) if momenta is not None else list(ext_modes((F.INF,) * 5).values())
 
     levels = {}
+    routes = {}
     messenger_log, wedge_log = [], []
     exc_count = [0]
 
-    # Register mode m at level lvl once (no-op if already present).
-    def add(m, lvl):
+    # Register mode m at level lvl once (no-op if already present), recording how it was produced.
+    def add(m, lvl, route=None):
         if m not in levels:
             levels[m] = lvl
+            if route is not None:
+                routes[m] = route
             return True
         return False
 
     for m0 in ext_modes:
-        add(m0, 0)
+        add(m0, 0, ('seed',))
 
     # Vee closure: fixpoint over joins of modes and momenta (free, does not raise the level).
     def vee_closure():
@@ -58,6 +61,7 @@ def predict(ext_tokens, Lmax, momenta=None):
                         continue
                     if r not in levels:
                         levels[r] = max(pool[i][1], pool[j][1])
+                        routes[r] = ('vee', pool[i][0], pool[i][1], pool[j][0], pool[j][1])
                         changed = True
 
     # Meet products still missing from the current set (the next wedge batch).
@@ -72,8 +76,8 @@ def predict(ext_tokens, Lmax, momenta=None):
                     exc_count[0] += 1
                     continue
                 if r not in levels:
-                    miss[r] = None
-        return list(miss)
+                    miss.setdefault(r, (items[i], items[j]))
+        return list(miss.items())
 
     # The collinear 2->3 (2,3) pair always brings the C23 family in (via the momenta).
     pair_enabled = True
@@ -117,24 +121,26 @@ def predict(ext_tokens, Lmax, momenta=None):
             if lvl > Lmax:
                 stop = 'next wedge batch would land at L=%d > Lmax' % lvl
                 break
-            for r in batch:
-                add(r, lvl)
-            wedge_log.append((lvl, sorted(F.name(r) for r in batch)))
+            for r, pr in batch:
+                add(r, lvl, ('wedge', pr[0], pr[1]))
+            wedge_log.append((lvl, sorted(F.name(r) for r, _ in batch)))
             cur = lvl
         nxt, why = next_messenger()
         if nxt is None:
             stop = why
             break
         lvl = max(prev_mess + 2, cur + 1)
+        anchored = None
         # Tree-anchored kernel: an S^m kernel with a tree-level n_i=0 target may appear as early as L = 2.
         if nxt[0] == 'S':
             t = _tree_anchor_level(ext_mom, F.m_of(nxt))
             if t is not None and t + 2 < lvl:
                 lvl = t + 2
+                anchored = t
         if lvl > Lmax:
             stop = 'next messenger %s would land at L=%d > Lmax' % (F.name(nxt), lvl)
             break
-        add(nxt, lvl)
+        add(nxt, lvl, ('messenger', lvl, prev_mess, cur, anchored))
         prev_mess = lvl
         messenger_log.append((lvl, F.name(nxt)))
 
@@ -147,11 +153,11 @@ def predict(ext_tokens, Lmax, momenta=None):
         lvl = max(levels.values()) + 1
         if lvl > Lmax:
             break
-        for r in batch:
-            add(r, lvl)
-        wedge_log.append((lvl, sorted(F.name(r) for r in batch)))
+        for r, pr in batch:
+            add(r, lvl, ('wedge', pr[0], pr[1]))
+        wedge_log.append((lvl, sorted(F.name(r) for r, _ in batch)))
 
-    return levels, dict(messenger_log=messenger_log, wedge_log=wedge_log, stop=stop, exc=exc_count[0])
+    return levels, dict(messenger_log=messenger_log, wedge_log=wedge_log, routes=routes, stop=stop, exc=exc_count[0])
 
 
 # External modes at L = 0: the finite members of the vee closure of the five external-momentum modes.

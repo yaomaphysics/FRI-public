@@ -29,11 +29,11 @@ import sys, os, time, re, signal
 BASE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, BASE)
 
-from primitives import to_scaling, mode_components, INF, to_old, leg_check
+from primitives import to_scaling, mode_components, INF, to_old, leg_check, C, CC, FAM_LEGS
 from enumerator import skel_regions   # pruned skeleton enumerator
 from primitives import to_mode          # mode strings are plain literals ('C13', 'sH', ...) everywhere
 from indep_loops import show_basis     # indep loops + edge momenta
-from mode_levels import Predictor, KIN_EXT
+from mode_levels import Predictor, KIN_EXT, _skey
 from collections import defaultdict
 
 DEFAULT_MOMENTA = ['C1∞C13', 'C2∞C24', 'C3∞C13', 'C4∞C24']
@@ -480,21 +480,17 @@ BANNER = '''\
 --------------------------------------------------------------
   Enter the four external-momentum modes, then:
     SPACE = step +1 loop      ENTER = jump to next non-empty loop
-    A     = cumulative table  Q/B   = quit
+    A     = cumulative table  R     = report (L=0 .. current level)
+    Q/B   = quit
   (levels are capped at L = %d)
 ==============================================================''' % LMAX
-
-
-# Cost in words for the source lines (tree / 1 loop / N loops).
-def _fmt_cost(c):
-    return 'tree' if c == 0 else ('1 loop' if c == 1 else '%d loops' % c)
 
 
 # single keypress on a tty; line-based fallback otherwise ('' line = space).
 def read_key():
     if not sys.stdin.isatty():
         try:
-            s = input('▶ (SPACE=advance, J=jump, A=all, Q/B=quit): ')
+            s = input('▶ (SPACE=advance, J=jump, A=all, R=report, Q/B=quit): ')
         except EOFError:
             return 'q'
         s = s.strip()
@@ -537,61 +533,20 @@ class Stepper:
     def modes_at(self, k):
         return self.levels.get(k, [])
 
-    # One-line origin of mode `name` (route records set by mode_levels).
-    def source_text(self, name):
-        if name == 'G':
-            return 'tree level (Glauber)'
-        if name == 'sH':
-            return '1 loop (semihard)'
-        x = self.by_name.get(name)
-        if x is None:
-            return 'tree level (hard)' if name == 'H' else '—'
-        r = self.pred.route.get(x)
-        if r is None:
-            return '—'
-        kind = r[0]
-        if kind == 'ext':
-            return 'external mode'
-        if kind == 'hard':
-            return 'tree level (hard)'
-        if kind == 'base':
-            return 'base structure (1 loop)'
-        if kind == 'messenger':
-            _, m, stock, sc = r
-            return 'messenger: %s (%s) + %d' % (stock, _fmt_cost(sc), 2 * m)
-        if kind == 'messenger2':
-            _, m, branch = r
-            third = self._other_legs(branch)
-            A, B = ('C2', 'C4') if branch == '24' else ('C1', 'C3')
-            p = '' if m == 1 else '^%d' % m
-            A, B = A + p + 'C' + branch, B + p + 'C' + branch
-            return ('messenger: relevant to %s, %s, and %s simultaneously, with %s confirmed IR-compatible' % (A, B, third, third))
-        if kind == 'vee':
-            _, a, ca, b, cb = r
-            if a.n == INF or b.n == INF:
-                nc, cc = (b, a) if a.n == INF else (a, b)
-                return 'vee (member extension): %s ∨ %s' % (to_old(nc), to_old(cc))
-            return 'vee: %s (%s) ∨ %s (%s)' % (to_old(a), _fmt_cost(ca), to_old(b), _fmt_cost(cb))
-        if kind == 'wedge':
-            _, a, ca, b, cb = r
-            if (cb, to_old(b)) < (ca, to_old(a)):
-                a, ca, b, cb = b, cb, a, ca
-            return ('wedge: %s (%s) + %s (%s) + an additional loop' % (to_old(a), _fmt_cost(ca), to_old(b), _fmt_cost(cb)))
-        return '—'
-
-    # Names of the finite legs of the other family, for the messenger2 line.
-    def _other_legs(self, branch):
-        legs = (1, 3) if branch == '24' else (2, 4)
-        names = []
-        for i in legs:
-            m = to_mode(self.ext[i])
-            if m.n != INF:
-                nm = to_old(m)
-                if nm not in names:
-                    names.append(nm)
-        if len(names) == 1:
-            return names[0]
-        return '%s (or %s)' % (names[0], ' or '.join(names[1:]))
+    # Cheapest other-family power-(m-1) targets of a messenger mode, in ladder order.
+    def messenger_targets(self, x):
+        other = 24 if x.fam == 13 else 13
+        ms = x.m - 1
+        seen, tset = set(), []
+        for y in [C(other, ms)] + [CC(leg, ms) for leg in FAM_LEGS[other]]:
+            if y in seen or y not in self.pred.cost:
+                continue
+            seen.add(y)
+            tset.append(y)
+        cbest = min((self.pred.cost[y] for y in tset), default=None)
+        if cbest is None or cbest + 2 != self.pred.cost[x]:
+            return [], None
+        return sorted((y for y in tset if self.pred.cost[y] == cbest), key=_skey), cbest
 
 
 # Ask for the kinematics, then run the stepper's key loop.
@@ -617,13 +572,12 @@ def run_ladder():
         if names:
             n = len(names)
             print('L=%d — %d new edge scaling%s:' % (k, n, 's' if n != 1 else ''))
-            w = min(22, max(len(nm) for nm in names))
             for nm in names:
-                print('   %-*s — %s' % (w, nm, st.source_text(nm)))
+                print('   %s' % nm)
         else:
             print('L=%d — (no new edge scalings)' % k)
         n_le = sum(len(st.modes_at(lv)) for lv in st.levels if lv <= k)
-        print('   cumulative: %d edge scalings (≤L=%d) | SPACE=+1, ENTER=next non-empty, A=all, Q/B=quit' % (n_le, k))
+        print('   cumulative: %d edge scalings (≤L=%d) | SPACE=+1, ENTER=next non-empty, A=all, R=report, Q/B=quit' % (n_le, k))
 
     show(cur)
     while True:
@@ -661,8 +615,12 @@ def run_ladder():
                 if lv > cur:
                     break
                 print('L=%-3d: %s' % (lv, ', '.join(st.modes_at(lv))))
+        elif k in ('r', 'R'):
+            import mode_report
+            pdf, _ = mode_report.build_report(st, cur)
+            print('  saved mode-ladder report to: %s' % pdf)
         else:
-            print('  (SPACE=advance, ENTER=jump, A=all, Q/B=quit)')
+            print('  (SPACE=advance, ENTER=jump, A=all, R=report, Q/B=quit)')
 
 # Entry point: interactive loop over graphs; -v/--verbose starts with the enumeration statistics on.
 def main():

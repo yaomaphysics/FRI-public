@@ -439,7 +439,8 @@ BANNER = '''\
   Enter the five external-momentum modes,
   then:
     space = step +1 loop      enter = jump to next non-empty loop
-    a     = cumulative table  q/b   = quit
+    a     = cumulative table  r     = report (L=0 .. current level)
+    q/b   = quit
   (levels are capped at L = %d)
 ==============================================================''' % LMAX
 
@@ -447,7 +448,7 @@ BANNER = '''\
 def read_key():
     if not sys.stdin.isatty():
         try:
-            s = input('▶ (blank=advance, j=jump, a=all, q/b=quit): ')
+            s = input('▶ (blank=advance, j=jump, a=all, r=report, q/b=quit): ')
         except EOFError:
             return 'q'
         s = s.strip()
@@ -471,6 +472,7 @@ class Stepper:
     def __init__(self, ext, momenta):
         self.ext, self.momenta = ext, momenta
         self.levels = {}
+        self.routes = {}
         self.m_log, self.w_log = [], []
         self.computed = -1
 
@@ -481,6 +483,7 @@ class Stepper:
             return
         self.levels, log = predict(self.ext, k, momenta=self.momenta)
         self.m_log, self.w_log = log['messenger_log'], log['wedge_log']
+        self.routes = log['routes']
         self.computed = k
 
     # Mode names first computed at exactly level k.
@@ -529,7 +532,7 @@ def run_ladder():
             print('L=%d — (no new modes)' % k)
         print('   [%s]' % st.source_line(k))
         n_le = sum(1 for lv in st.levels.values() if lv <= k)
-        print('   cumulative: %d modes (≤L=%d) | space=+1, enter=next non-empty, a=all, q/b=quit' % (n_le, k))
+        print('   cumulative: %d modes (≤L=%d) | space=+1, enter=next non-empty, a=all, r=report, q/b=quit' % (n_le, k))
 
     show(cur)
     while True:
@@ -567,8 +570,12 @@ def run_ladder():
                 if lv > cur:
                     break
                 print('L=%-3d: %s' % (lv, ', '.join(st.modes_at(lv))))
+        elif k in ('r', 'R'):
+            import mode_report
+            pdf, _ = mode_report.build_report(st, cur)
+            print('  saved mode-ladder report to: %s' % pdf)
         else:
-            print('  (space=advance, enter=jump, a=all, q/b=quit)')
+            print('  (space=advance, enter=jump, a=all, r=report, q/b=quit)')
 
 # Entry point: interactive loop over graphs.
 def main():
