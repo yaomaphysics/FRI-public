@@ -466,14 +466,13 @@ def read_key():
     return ch
 
 
-# Display state for one kinematics: extends the ladder on demand and reports each new level's origin.
+# Display state for one kinematics: extends the ladder on demand and keeps the per-mode routes.
 class Stepper:
     # Store the entered external modes and the momentum modes; the ladder is built lazily by ensure().
     def __init__(self, ext, momenta):
         self.ext, self.momenta = ext, momenta
         self.levels = {}
         self.routes = {}
-        self.m_log, self.w_log = [], []
         self.computed = -1
 
     # [Optimization] Extend the cached ladder to level k (recompute with the larger cap when the display advances).
@@ -482,26 +481,12 @@ class Stepper:
         if k <= self.computed:
             return
         self.levels, log = predict(self.ext, k, momenta=self.momenta)
-        self.m_log, self.w_log = log['messenger_log'], log['wedge_log']
         self.routes = log['routes']
         self.computed = k
 
     # Mode names first computed at exactly level k.
     def modes_at(self, k):
         return [region_filter.name(m) for m in self.levels if self.levels[m] == k]
-
-    # One-line origin of the new modes at level k.
-    def source_line(self, k):
-        for lv, nm in self.m_log:
-            if lv == k:
-                return 'messenger round: %s (+2 anchored)' % nm
-        for lv, names in self.w_log:
-            if lv == k:
-                return 'wedge round (+1): ' + ', '.join(names)
-        if k == 0:
-            return 'seeds (external modes)'
-        return 'vee closure'
-
 
 # Entry point: interactive loop over the mode ladder (the -l/--ladder mode).
 def run_ladder():
@@ -527,10 +512,10 @@ def run_ladder():
         if names:
             n = len(names)
             print('L=%d — %d new mode%s:' % (k, n, 's' if n != 1 else ''))
-            print('   ' + ', '.join(names))
+            for nm in names:
+                print('   %s' % nm)
         else:
             print('L=%d — (no new modes)' % k)
-        print('   [%s]' % st.source_line(k))
         n_le = sum(1 for lv in st.levels.values() if lv <= k)
         print('   cumulative: %d modes (≤L=%d) | space=+1, enter=next non-empty, a=all, r=report, q/b=quit' % (n_le, k))
 

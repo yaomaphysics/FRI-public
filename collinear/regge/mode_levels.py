@@ -118,12 +118,12 @@ class Predictor:
         if fin13:
             m = 1 + int(min(fin13))
             if self.gate24(m):
-                ch |= self.upd(C(24, m), 2, ('messenger2', m, '24'))
+                ch |= self.upd(C(24, m), 2, ('messenger', m, 'C13', 0))
         fin24 = [v for v in (self.n(2), self.n(4)) if v != INF]
         if fin24:
             m = 1 + int(min(fin24))
             if self.gate13(m):
-                ch |= self.upd(C(13, m), 2, ('messenger2', m, '13'))
+                ch |= self.upd(C(13, m), 2, ('messenger', m, 'C24', 0))
         return ch
 
     # Fixpoint loop: alternate towers/seats with all pairwise vee/wedge closures until a full sweep adds nothing.

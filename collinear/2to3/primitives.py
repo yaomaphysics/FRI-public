@@ -86,7 +86,11 @@ def parse(s):
         n = None  # bare
     pair = m.group(5) is not None
     if d in (1, 4, 5):
-        return W(d, 1 if n is None else n, sm)
+        nw = 1 if n is None else n
+        # A wide leg with no collinear depth is the hard mode.
+        if nw == 0 and sm == 0:
+            return H()
+        return W(d, nw, sm)
     if d == 23 or pair:
         if pair:
             # C{mem}C23 / C{mem}^kC23 / C{mem}∞C23

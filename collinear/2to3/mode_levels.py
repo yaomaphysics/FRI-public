@@ -5,10 +5,10 @@ mode_levels.py — first-appearance loop levels of internal modes and the cut-ch
 
 The mode ladder for the collinear 2->3 kinematics:
   * seeds: the external modes (L = 0) and the finite vee closure of the five external momenta;
-  * vee closure: joins of modes and momenta are free (they do not raise the level);
-  * wedge batches: meet products raise the level by one per complete batch;
-  * messenger tower: a degree-m kernel starts at max(prev_messenger + 2, current + 1), gated by messenger_gate;
-  * close-out: anything the last additions still force within the cap.
+  * vee closure: a join is free when one operand is a messenger, and costs one extra loop otherwise;
+  * wedge: every meet costs ca + cb + 1;
+  * messenger: a tree-level target gives t + 2, otherwise the component gives its level + 2
+    (S^m C23 <- S^m, S^{m+1} <- S^m C23); gated by messenger_gate and by "the degree-m mode exists two loops earlier".
 
 predict() returns {mode tuple: first-appearance level} together with a log of the messenger and wedge rounds.
 """
@@ -31,64 +31,83 @@ def predict(ext_tokens, Lmax, momenta=None):
 
     levels = {}
     routes = {}
-    messenger_log, wedge_log = [], []
     exc_count = [0]
 
-    # Register mode m at level lvl once (no-op if already present), recording how it was produced.
+    # Record mode m at lvl when it is new or cheaper; the route travels with the level. True on a change.
     def add(m, lvl, route=None):
-        if m not in levels:
+        old = levels.get(m)
+        if old is None or lvl < old:
             levels[m] = lvl
             if route is not None:
                 routes[m] = route
             return True
         return False
 
+    # True when m was produced by the messenger (its +2 already pays for the extra edge of a join).
+    def is_messenger(m):
+        r = routes.get(m)
+        return bool(r) and r[0] == 'messenger'
+
     for m0 in ext_modes:
         add(m0, 0, ('seed',))
 
-    # Vee closure: fixpoint over joins of modes and momenta (free, does not raise the level).
-    def vee_closure():
-        changed = True
-        while changed:
-            changed = False
-            pool = [(m, levels[m]) for m in list(levels)] + [(e, 0) for e in ext_mom]
-            for i in range(len(pool)):
-                for j in range(i + 1, len(pool)):
-                    try:
-                        r = F.join(pool[i][0], pool[j][0])
-                    except Exception:
-                        exc_count[0] += 1
-                        continue
-                    if r not in levels:
-                        levels[r] = max(pool[i][1], pool[j][1])
-                        routes[r] = ('vee', pool[i][0], pool[i][1], pool[j][0], pool[j][1])
-                        changed = True
-
-    # Meet products still missing from the current set (the next wedge batch).
-    def wedge_missing():
-        items = list(levels)
-        miss = {}
+    # One sweep over every pair of `items`; `visit` returns True when it changed something.
+    def pair_sweep(items, visit):
+        changed = False
         for i in range(len(items)):
             for j in range(i + 1, len(items)):
                 try:
-                    r = F.meet(items[i], items[j])
+                    changed = visit(items[i], items[j]) or changed
                 except Exception:
-                    exc_count[0] += 1
                     continue
-                if r not in levels:
-                    miss.setdefault(r, (items[i], items[j]))
-        return list(miss.items())
+        return changed
 
-    # The collinear 2->3 (2,3) pair always brings the C23 family in (via the momenta).
-    pair_enabled = True
+    # Fixpoint of `visit` over the mode pairs; `extra` adds (mode, 0) entries to the pool.
+    def closure(visit, extra=()):
+        any_change = False
+        while True:
+            items = [(m, levels[m]) for m in list(levels)] + list(extra)
+            if not pair_sweep(items, visit):
+                return any_change
+            any_change = True
+
+    # Vee: a join is free when one operand is a messenger, and costs +1 otherwise.
+    def vee_closure():
+        def visit(pa, pb):
+            (a, ca), (b, cb) = pa, pb
+            extra = 0 if (is_messenger(a) or is_messenger(b)) else 1
+            return add(F.join(a, b), max(ca, cb) + extra, ('vee', a, b))
+        return closure(visit, [(e, 0) for e in ext_mom])
+
+    # Wedge: every meet costs ca + cb + 1.
+    def wedge_closure():
+        def visit(pa, pb):
+            (a, ca), (b, cb) = pa, pb
+            lvl = ca + cb + 1
+            return lvl <= Lmax and add(F.meet(a, b), lvl, ('wedge', a, b))
+        return closure(visit)
+
+    # Mode of one direction at the messenger's degree: C_i^m (wide), C_mem^{m-1}C23 (A) or C_mem^mC23 (B).
+    def target_mode(i, m, kind):
+        if i in (1, 4, 5):
+            return F.W(i, m)
+        if kind == 'B':
+            return F.P(m, i)
+        return F.P(m - 1, i) if m > 1 else F.P(0, 0)
+
+    # Tower predecessor of a candidate: S^m C23 <- S^m, S^{m+1} <- S^m C23; S^1 has none.
+    def component_of(cand):
+        m = F.m_of(cand)
+        if cand[0] == 'S':
+            return F.P(0, 0, m - 1) if m > 1 else None
+        return F.S(m)
 
     # Candidate messengers in tower order: S^m, then S^m C23.
     def messenger_iter():
         m = 1
         while True:
             yield F.S(m)
-            if pair_enabled:
-                yield F.P(0, 0, m)
+            yield F.P(0, 0, m)
             m += 1
 
     mit = messenger_iter()
@@ -96,8 +115,6 @@ def predict(ext_tokens, Lmax, momenta=None):
     # Next tower candidate that passes the degree-m acceptance gate, or (None, reason).
     def next_messenger():
         for cand in mit:
-            if cand in levels:
-                continue
             m = F.m_of(cand)
             kind = 'A' if cand[0] == 'S' else 'B'
             ok, detail = messenger_gate(ext_mom, m, kind)
@@ -106,58 +123,51 @@ def predict(ext_tokens, Lmax, momenta=None):
             return cand, None
         return None, 'no new messenger -- end'
 
-    # Alternate vee closure, one wedge batch, and one messenger step until the cap.
-    prev_mess = 0
+    # Alternate the two closures with one messenger step until nothing more can be added.
     stop = None
     while True:
-        vee_closure()
+        ch = vee_closure()
+        ch = wedge_closure() or ch
         cur = max(levels.values())
         if cur >= Lmax:
             stop = 'gate: level L=%d reached Lmax=%d' % (cur, Lmax)
             break
-        batch = wedge_missing()
-        if batch:
-            lvl = cur + 1
-            if lvl > Lmax:
-                stop = 'next wedge batch would land at L=%d > Lmax' % lvl
+        # Take tower candidates in order until one lowers a level or is new; a mode already there may still be too late.
+        added = False
+        while True:
+            nxt, why = next_messenger()
+            if nxt is None:
+                stop = why
                 break
-            for r, pr in batch:
-                add(r, lvl, ('wedge', pr[0], pr[1]))
-            wedge_log.append((lvl, sorted(F.name(r) for r, _ in batch)))
-            cur = lvl
-        nxt, why = next_messenger()
-        if nxt is None:
-            stop = why
-            break
-        lvl = max(prev_mess + 2, cur + 1)
-        anchored = None
-        # Tree-anchored kernel: an S^m kernel with a tree-level n_i=0 target may appear as early as L = 2.
-        if nxt[0] == 'S':
+            # A tree-level target gives t + 2; otherwise the level is the component's level + 2.
             t = _tree_anchor_level(ext_mom, F.m_of(nxt))
-            if t is not None and t + 2 < lvl:
-                lvl = t + 2
-                anchored = t
-        if lvl > Lmax:
-            stop = 'next messenger %s would land at L=%d > Lmax' % (F.name(nxt), lvl)
+            comp = component_of(nxt)
+            if t is not None:
+                lvl, rec = t + 2, None
+            elif comp is None:
+                lvl, rec = 2, None
+            elif comp in levels:
+                lvl, rec = levels[comp] + 2, comp
+            else:
+                stop = 'messenger %s: component %s is not in the ladder' % (F.name(nxt), F.name(comp))
+                break
+            # One eligible direction must already carry the degree-m mode two loops earlier.
+            mdeg = F.m_of(nxt)
+            kind = 'A' if nxt[0] == 'S' else 'B'
+            if not any(levels.get(target_mode(i, mdeg, kind), F.INF) <= lvl - 2 for i in (1, 4, 5, 2, 3)):
+                stop = 'messenger %s: no direction carries the degree-%d mode two loops earlier' % (F.name(nxt), mdeg)
+                break
+            if lvl > Lmax:
+                stop = 'next messenger %s would land at L=%d > Lmax' % (F.name(nxt), lvl)
+                break
+            if add(nxt, lvl, ('messenger', lvl, rec)):
+                added = True
+                break
+        ch = ch or added
+        if not ch:
             break
-        add(nxt, lvl, ('messenger', lvl, prev_mess, cur, anchored))
-        prev_mess = lvl
-        messenger_log.append((lvl, F.name(nxt)))
 
-    # Close-out: capture anything else the last additions force within Lmax.
-    for _ in range(5):
-        vee_closure()
-        batch = wedge_missing()
-        if not batch:
-            break
-        lvl = max(levels.values()) + 1
-        if lvl > Lmax:
-            break
-        for r, pr in batch:
-            add(r, lvl, ('wedge', pr[0], pr[1]))
-        wedge_log.append((lvl, sorted(F.name(r) for r, _ in batch)))
-
-    return levels, dict(messenger_log=messenger_log, wedge_log=wedge_log, routes=routes, stop=stop, exc=exc_count[0])
+    return levels, dict(routes=routes, stop=stop)
 
 
 # External modes at L = 0: the finite members of the vee closure of the five external-momentum modes.

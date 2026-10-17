@@ -11,37 +11,19 @@ The result is rendered as a multi-page monospace PDF.
 Called from the ladder stepper at any level ("R" in facet_regions_interactive.py --ladder).
 """
 import os
+import sys
 import time
-from PIL import Image, ImageDraw, ImageFont
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+for _d in (HERE, os.path.dirname(HERE)):
+    if _d not in sys.path:
+        sys.path.insert(0, _d)
 
 from primitives import to_old, to_mode, FAM_LEGS, INF
-
-# Page geometry: A4 at 150 dpi.
-W, H = 1240, 1754
-MARGIN = 64
-LH = 21
-BG, FG, GRAY = (255, 255, 255), (17, 17, 17), (140, 140, 140)
-
-SEP = '-' * 66
-BAR = '=' * 66
+from report_pdf import render_pdf, emit_level, cost as _cost, lev as _lev, art as _art
 
 
 # ================================= WORDING =================================
-
-# Cost in words.
-def _cost(c):
-    return 'tree-level' if c == 0 else ('1 loop' if c == 1 else '%d loops' % c)
-
-
-# Level in words for the "first occurs at ..." clause.
-def _lev(k):
-    return 'tree level' if k == 0 else ('one-loop level' if k == 1 else '%d-loop level' % k)
-
-
-# Indefinite article for a mode name (an 'S...' mode is read "ess", so it takes "an").
-def _art(name):
-    return 'an' if name[:1] == 'S' else 'a'
-
 
 # p1 / p1 and p3 for a leg list.
 def _legs_str(legs):
@@ -71,7 +53,7 @@ def _messenger_clause(st, x):
 # The "Explanation:" line for one edge scaling, built from its recorded route.
 def explain(st, name):
     if name == 'G':
-        return 'G: first occurs at tree level; p1-p3 = p4-p2 is of the Glauber mode.'
+        return 'G: first occurs at tree level; p1-p3 = p4-p2 is of the Glauber scaling.'
     if name == 'sH':
         return 'sH: first occurs at one-loop level; the simplest structure is a loop between two Glauber vertices.'
     x = st.by_name.get(name)
@@ -81,7 +63,7 @@ def explain(st, name):
     head = '%s: first occurs at %s; ' % (name, _lev(st.pred.cost[x]))
     kind = r[0] if r else None
     if kind == 'hard':
-        return head + 'p1+p2 = p3+p4 is of the hard mode.'
+        return head + 'p1+p2 = p3+p4 is of the hard scaling.'
     if kind == 'ext':
         legs = [x.leg] if x.leg is not None else list(FAM_LEGS[x.fam])
         return head + 'it is the external-momentum mode of %s.' % _legs_str(legs)
@@ -102,49 +84,12 @@ def explain(st, name):
                        'propagator adjacent to them both (+1 loop).' % (_art(to_old(a)), to_old(a), _cost(ca),
                                                                         _art(to_old(b)), to_old(b), _cost(cb),
                                                                         _art(name), name))
-    if kind in ('messenger', 'messenger2'):
+    if kind == 'messenger':
         return head + _messenger_clause(st, x)
     return head[:-2] + '.'
 
 
 # =============================== REPORT / PDF ===============================
-
-# Render the report lines into a multi-page monospace PDF (A4 at 150 dpi).
-def render_pdf(lines, outpath, title, subtitle):
-    font = ImageFont.truetype('/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf', 15)
-    font_b = ImageFont.truetype('/usr/share/fonts/truetype/dejavu/DejaVuSansMono-Bold.ttf', 15)
-    font_s = ImageFont.truetype('/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf', 11)
-    cols = int((W - 2 * MARGIN) / font.getlength('M'))
-    rows = int((H - 2 * MARGIN - 90) / LH) - 2
-    wrapped = []
-    for ln in lines:
-        s = ln
-        while len(s) > cols:
-            wrapped.append(s[:cols])
-            s = s[cols:]
-        wrapped.append(s)
-    pages = [wrapped[i:i + rows] for i in range(0, len(wrapped), rows)] or [[]]
-    imgs = []
-    total = len(pages)
-    for pi, plines in enumerate(pages, 1):
-        img = Image.new('RGB', (W, H), BG)
-        d = ImageDraw.Draw(img)
-        y = MARGIN
-        if pi == 1:
-            d.text((MARGIN, y), title, font=font_b, fill=FG)
-            y += LH + 6
-            d.text((MARGIN, y), subtitle, font=font_s, fill=GRAY)
-            y += LH + 12
-            d.line([(MARGIN, y), (W - MARGIN, y)], fill=(210, 210, 210), width=1)
-            y += 14
-        for ln in plines:
-            d.text((MARGIN, y), ln, font=font, fill=FG)
-            y += LH
-        d.text((W - MARGIN - 60, H - MARGIN + 10), '%d / %d' % (pi, total), font=font_s, fill=GRAY)
-        imgs.append(img)
-    imgs[0].save(outpath, 'PDF', save_all=True, append_images=imgs[1:], resolution=150.0)
-    return outpath
-
 
 # Build the report for the levels L = 0 .. upto of the stepper's kinematics and render it; returns (pdf, lines).
 def build_report(st, upto, outdir=None):
@@ -156,22 +101,8 @@ def build_report(st, upto, outdir=None):
     lines.append('')
     for k in range(upto + 1):
         names = st.modes_at(k)
-        if names:
-            n = len(names)
-            lines.append('L=%d — %d new edge scaling%s:' % (k, n, 's' if n != 1 else ''))
-            for nm in names:
-                lines.append('   %s' % nm)
-        else:
-            lines.append('L=%d — (no new edge scalings)' % k)
-        lines.append('   cumulative: %d edge scalings (≤L=%d)' % (sum(len(st.modes_at(lv)) for lv in st.levels if lv <= k), k))
-        lines.append(SEP)
-        if names:
-            lines.append('Explanation:')
-            for nm in names:
-                lines.append('   ' + explain(st, nm))
-        lines.append('')
-        lines.append(BAR)
-        lines.append('')
+        cum = sum(len(st.modes_at(lv)) for lv in st.levels if lv <= k)
+        emit_level(lines, k, names, 'edge scaling', cum, lambda nm: explain(st, nm))
     fdir = outdir or os.path.join(os.path.dirname(os.path.abspath(__file__)), 'fri_out')
     os.makedirs(fdir, exist_ok=True)
     pdf = os.path.join(fdir, 'mode_ladder_%s.pdf' % time.strftime('%Y%m%d-%H%M%S'))

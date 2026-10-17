@@ -303,6 +303,9 @@ def _enumerate_skelg_deep(edges, verts, ext_attach, ms, ext_mode, PWS, use_overl
                     subj = plist[i].get(c, 0)
                     if not subj:
                         continue
+                    # A shallower cut that coincides with a deeper cut of the same leg is exempt.
+                    if any(plist[i].get(c2) == subj for c2 in PW[i] if c2 > c):
+                        continue
                     dirs = [j for j in (1, 4, 5, 2, 3) if j != i]
                     ok = False
                     for a in range(len(dirs)):
@@ -582,13 +585,13 @@ def enumerate_skelg(edges, verts, ext_attach, kin, use_overlap=True, collect=Fal
         cuts_seen.add(ck)
         if use_overlap:
             # overlap: the C_i^n cut must share a vertex with two cuts from two distinct other directions of total C-power n
-            if C1 and 1 < m1 and not (mC1 & ((mC4 & mC5) | mC23)):
+            if C1 and 1 < m1 and not (mC1 == mC1R1) and not (mC1 & ((mC4 & mC5) | mC23)):
                 n_overlap += 1
                 return
-            if C4 and 1 < m4 and not (mC4 & ((mC1 & mC5) | mC23)):
+            if C4 and 1 < m4 and not (mC4 == mC4R1) and not (mC4 & ((mC1 & mC5) | mC23)):
                 n_overlap += 1
                 return
-            if C5 and 1 < m5 and not (mC5 & ((mC1 & mC4) | mC23)):
+            if C5 and 1 < m5 and not (mC5 == mC5R1) and not (mC5 & ((mC1 & mC4) | mC23)):
                 n_overlap += 1
                 return
             if C1R1 and not (mC1R1 & ((mC4R1 & mC5R1) | ((mC4R1 | mC5R1) & (mC2 | mC3)) | (mC2 & mC3))):
@@ -784,7 +787,7 @@ def enumerate_skelg(edges, verts, ext_attach, kin, use_overlap=True, collect=Fal
                         T12 = (U4b & U5b) | ((U4b | U5b) & S2x) | P23x
                         for C1 in C1s:
                             mC1x = mk(C1)
-                            if _use_prune and C1 and 1 < m1 and not (mC1x & T11):
+                            if _use_prune and C1 and 1 < m1 and C1 not in L1map[C1] and not (mC1x & T11):
                                 n_prune += 1; n_prune_split['11'] += 1
                                 skip_combos += len(L1map[C1]) * N4 * N5 * n_c2 * n_c3
                                 continue
@@ -798,7 +801,7 @@ def enumerate_skelg(edges, verts, ext_attach, kin, use_overlap=True, collect=Fal
                                 T42 = (mL1x & U5b) | ((mL1x | U5b) & S2x) | P23x
                                 for C4 in C4s:
                                     mC4x = mk(C4)
-                                    if _use_prune and C4 and 1 < m4 and not (mC4x & T41):
+                                    if _use_prune and C4 and 1 < m4 and C4 not in L4map[C4] and not (mC4x & T41):
                                         n_prune += 1; n_prune_split['41'] += 1
                                         skip_combos += len(L4map[C4]) * N5 * n_c2 * n_c3
                                         continue
@@ -808,7 +811,7 @@ def enumerate_skelg(edges, verts, ext_attach, kin, use_overlap=True, collect=Fal
                                             n_prune += 1; n_prune_split['42'] += 1
                                             skip_combos += N5 * n_c2 * n_c3
                                             continue
-                                        if _RT and C1 and 1 < m1 and not (mC1x & ((mC4x & U5a) | mC23r)):
+                                        if _RT and C1 and 1 < m1 and not (L1 and mL1x == mC1x) and not (mC1x & ((mC4x & U5a) | mC23r)):
                                             n_prune += 1; n_prune_split['11r'] += 1
                                             skip_combos += N5 * n_c2 * n_c3
                                             continue
@@ -827,15 +830,15 @@ def enumerate_skelg(edges, verts, ext_attach, kin, use_overlap=True, collect=Fal
                                                         | (mC23r & (mC1x | mC4x | mC5x)))
                                             else:
                                                 T21c = 0
-                                            if _use_prune and C5 and 1 < m5 and not (mC5x & T51):
+                                            if _use_prune and C5 and 1 < m5 and C5 not in L5map[C5] and not (mC5x & T51):
                                                 n_prune += 1; n_prune_split['51'] += 1
                                                 skip_combos += len(L5map[C5]) * n_c2 * n_c3
                                                 continue
-                                            if _RT and C1 and 1 < m1 and not (mC1x & ((mC5x & mC4x) | mC23r)):
+                                            if _RT and C1 and 1 < m1 and not (L1 and mL1x == mC1x) and not (mC1x & ((mC5x & mC4x) | mC23r)):
                                                 n_prune += 1; n_prune_split['11r'] += 1
                                                 skip_combos += len(L5map[C5]) * n_c2 * n_c3
                                                 continue
-                                            if _RT and C4 and 1 < m4 and not (mC4x & ((mC5x & mC1x) | mC23r)):
+                                            if _RT and C4 and 1 < m4 and not (L4 and mL4x == mC4x) and not (mC4x & ((mC5x & mC1x) | mC23r)):
                                                 n_prune += 1; n_prune_split['41r'] += 1
                                                 skip_combos += len(L5map[C5]) * n_c2 * n_c3
                                                 continue

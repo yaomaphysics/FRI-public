@@ -7,15 +7,15 @@ First choose a framework; the framework's own interactive browser then runs (all
     [2] collinear
           [1] 2->3           -> collinear/2to3/facet_regions_interactive.py
           [2] 2->2 (Regge)   -> collinear/regge/facet_regions_interactive.py
-          [3] mode ladder    -> 2->3: collinear/2to3/facet_regions_interactive.py --ladder
-                                2->2: collinear/regge/facet_regions_interactive.py --ladder
+              then  [1] obtain regions from a single graph
+                    [2] mode prediction      -> the same file with --ladder
 
 Every browser shares the same workflow: give a graph (topology + external kinematics ONLY — the cut formalism stays internal), enumerate ALL its regions, list them, then
     1) inspect specific regions  — per-mode subgraphs + loop numbers (+ a concrete independent-loop-momentum basis with forced lines),
     2) Lee-Pomeransky parametric representation (scaling vectors),
     3) classification by characteristic (softest) mode.
 
-([3] is the exception: it shows what modes appear at which loop level — no graph needed, just the external-momentum modes.)
+(mode prediction is the exception: it shows what modes appear at which loop level — no graph needed, just the external-momentum modes.)
 
 Usage: python3 facet_regions_interactive.py
 """
@@ -54,24 +54,30 @@ def run_wide_angle():
 
 
 def run_regge():
-    run_backend(os.path.join(HERE, 'collinear', 'regge', 'facet_regions_interactive.py'), 'collinear 2->2 (Regge)')
+    run_side(os.path.join(HERE, 'collinear', 'regge', 'facet_regions_interactive.py'),
+             'collinear 2->2 (Regge)', 'mode ladder (2->2 Regge)')
+
+
+# After a side is chosen: regions, or the mode ladder of that side.
+def run_side(path, label, ladder_label):
+    while True:
+        print()
+        print('  %s:' % label)
+        print('    [1] obtain regions from a single graph')
+        print('    [2] mode prediction (what modes appear at which loop level?)')
+        print('    [b] back')
+        s = _ask('task [1/2/b] > ', ('1', '2', 'b'))
+        if s == 'b':
+            return
+        if s == '1':
+            run_backend(path, label)
+        else:
+            run_backend(path, ladder_label, ['--ladder'])
 
 
 def run_two_to_three():
-    run_backend(os.path.join(HERE, 'collinear', '2to3', 'facet_regions_interactive.py'), 'collinear 2->3')
-
-
-def run_mode_ladder():
-    print()
-    print('  mode ladder — what modes appear at which loop level?')
-    print('    [1] 2->3')
-    print('    [2] 2->2 (Regge)')
-    print('    [b] back')
-    s = _ask('mode ladder [1/2/b] > ', ('1', '2', 'b'))
-    if s == '1':
-        run_backend(os.path.join(HERE, 'collinear', '2to3', 'facet_regions_interactive.py'), 'mode ladder (2->3)', ['--ladder'])
-    elif s == '2':
-        run_backend(os.path.join(HERE, 'collinear', 'regge', 'facet_regions_interactive.py'), 'mode ladder (2->2 Regge)', ['--ladder'])
+    run_side(os.path.join(HERE, 'collinear', '2to3', 'facet_regions_interactive.py'),
+             'collinear 2->3', 'mode ladder (2->3)')
 
 
 def main():
@@ -95,17 +101,14 @@ def main():
             print('  collinear:')
             print('    [1] 2->3 scattering (p2 collinear to p3)')
             print('    [2] 2->2 scattering (Regge limit, p1 collinear to p3 while p2 collinear to p4)')
-            print('    [3] mode ladder (what modes appear at which loop level?)')
             print('    [b] back')
-            s = _ask('sub-framework [1/2/3/b] > ', ('1', '2', '3', 'b'))
+            s = _ask('sub-framework [1/2/b] > ', ('1', '2', 'b'))
             if s == 'b':
                 break
             if s == '1':
                 run_two_to_three()
-            elif s == '2':
+            else:
                 run_regge()
-            elif s == '3':
-                run_mode_ladder()
     print('bye!')
 
 

@@ -13,35 +13,16 @@ Called from the ladder stepper at any level ("r" in facet_regions_interactive.py
 import os
 import sys
 import time
-from PIL import Image, ImageDraw, ImageFont
-
 HERE = os.path.dirname(os.path.abspath(__file__))
-if HERE not in sys.path:
-    sys.path.insert(0, HERE)
+for _d in (HERE, os.path.dirname(HERE)):
+    if _d not in sys.path:
+        sys.path.insert(0, _d)
 
 import region_filter as F
-
-# Page geometry: A4 at 150 dpi.
-W, H = 1240, 1754
-MARGIN = 64
-LH = 21
-BG, FG, GRAY = (255, 255, 255), (17, 17, 17), (140, 140, 140)
-
-SEP = '-' * 66
-BAR = '=' * 66
+from report_pdf import render_pdf, emit_level, cost as _cost, lev as _lev, art as _art
 
 
 # ================================ WORDING ================================
-
-# Cost in words.
-def _cost(c):
-    return 'tree' if c == 0 else ('1 loop' if c == 1 else '%d loops' % c)
-
-
-# Level in words for the "first occurs at ..." clause.
-def _lev(k):
-    return 'tree level' if k == 0 else ('one-loop level' if k == 1 else '%d-loop level' % k)
-
 
 # p<i> of the external momentum carrying mode name nm ('' when it is not one of the five).
 def _leg_of(st, nm):
@@ -65,67 +46,39 @@ def explain(st, name):
         leg = _leg_of(st, name)
         if leg:
             return head + 'it is the external-momentum mode of %s.' % leg
+        if name == 'C23':
+            return head + 'p2+p3 (or p2-p3) is of the C23 scaling'
         if name == 'H':
-            return head + 'it is the hard mode.'
-        return head + 'it is a finite vee closure of the external-momentum modes, at tree level.'
+            return head + 'p1+p2, p1-p4, etc., are of the hard scaling.'
+        return head + 'it is a free vee closure of the external-momentum modes (a vee join does not raise the level).'
     if kind == 'vee':
-        _, a, la, b, lb = r
-        return head + ('the join of the %s mode (%s) with the %s mode (%s) is free '
-                       '(a vee join does not raise the level).' % (F.name(a), _cost(la), F.name(b), _cost(lb)))
+        _, a, b = r
+        la, lb = st.levels.get(a, 0), st.levels.get(b, 0)
+        extra = 0 if any((st.routes.get(x) or ('',))[0] == 'messenger' for x in (a, b)) else 1
+        pa, pb = _leg_of(st, F.name(a)), _leg_of(st, F.name(b))
+        if pa or pb:
+            nc, cc, car, leg = (b, lb, a, pa) if pa else (a, la, b, pb)
+            return head + ('the simplest structure needs the %s component (%s), which joins the %s '
+                           'external-momentum mode %s (+%d loop).' % (F.name(nc), _cost(cc), F.name(car), leg, extra))
+        return head + ('the simplest structure joins %s %s component (%s) with %s %s component (%s) (%s).' % (
+            _art(F.name(a)), F.name(a), _cost(la), _art(F.name(b)), F.name(b), _cost(lb),
+            'free: one of them is a messenger' if extra == 0 else 'one extra loop'))
     if kind == 'wedge':
         _, a, b = r
-        return head + ('the meet of the %s mode (%s) and the %s mode (%s) forms the next wedge batch, '
-                       'one level above the current top (+1 loop).' % (F.name(a), _cost(st.levels.get(a, 0)),
-                                                                      F.name(b), _cost(st.levels.get(b, 0))))
+        return head + ('the simplest structure needs %s %s component (%s), %s %s component (%s), and %s %s '
+                       'propagator adjacent to them both (+1 loop).' % (
+                           _art(F.name(a)), F.name(a), _cost(st.levels.get(a, 0)),
+                           _art(F.name(b)), F.name(b), _cost(st.levels.get(b, 0)), _art(name), name))
     if kind == 'messenger':
-        _, lvl, prev_mess, cur, anchored = r
-        if anchored is not None:
-            return head + ('a tree-level target anchors the messenger at L = %d + 2 = %d, earlier than the '
-                           'tower rule max(%d + 2, %d + 1) = %d.' % (anchored, lvl, prev_mess, cur,
-                                                                     max(prev_mess + 2, cur + 1)))
-        return head + ('the tower step lands at max(previous messenger + 2, current top level + 1) '
-                       '= max(%d + 2, %d + 1) = %d loops.' % (prev_mess, cur, lvl))
+        _, lvl, comp = r
+        part = ('the tree-level external modes (tree-level)' if comp is None
+                else 'the %s component (%s)' % (F.name(comp), _cost(st.levels.get(comp, 0))))
+        return head + 'the simplest structure needs %s and %s %s messenger (allowed at this level; +2 loops).' % (
+            part, _art(name), name)
     return head[:-2] + '.'
 
 
 # =============================== REPORT / PDF ===============================
-
-# Render the report lines into a multi-page monospace PDF (A4 at 150 dpi).
-def render_pdf(lines, outpath, title, subtitle):
-    font = ImageFont.truetype('/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf', 15)
-    font_b = ImageFont.truetype('/usr/share/fonts/truetype/dejavu/DejaVuSansMono-Bold.ttf', 15)
-    font_s = ImageFont.truetype('/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf', 11)
-    cols = int((W - 2 * MARGIN) / font.getlength('M'))
-    rows = int((H - 2 * MARGIN - 90) / LH) - 2
-    wrapped = []
-    for ln in lines:
-        s = ln
-        while len(s) > cols:
-            wrapped.append(s[:cols])
-            s = s[cols:]
-        wrapped.append(s)
-    pages = [wrapped[i:i + rows] for i in range(0, len(wrapped), rows)] or [[]]
-    imgs = []
-    total = len(pages)
-    for pi, plines in enumerate(pages, 1):
-        img = Image.new('RGB', (W, H), BG)
-        d = ImageDraw.Draw(img)
-        y = MARGIN
-        if pi == 1:
-            d.text((MARGIN, y), title, font=font_b, fill=FG)
-            y += LH + 6
-            d.text((MARGIN, y), subtitle, font=font_s, fill=GRAY)
-            y += LH + 12
-            d.line([(MARGIN, y), (W - MARGIN, y)], fill=(210, 210, 210), width=1)
-            y += 14
-        for ln in plines:
-            d.text((MARGIN, y), ln, font=font, fill=FG)
-            y += LH
-        d.text((W - MARGIN - 60, H - MARGIN + 10), '%d / %d' % (pi, total), font=font_s, fill=GRAY)
-        imgs.append(img)
-    imgs[0].save(outpath, 'PDF', save_all=True, append_images=imgs[1:], resolution=150.0)
-    return outpath
-
 
 # Build the report for the levels L = 0 .. upto of the stepper's kinematics and render it; returns (pdf, lines).
 def build_report(st, upto, outdir=None):
@@ -137,22 +90,8 @@ def build_report(st, upto, outdir=None):
     lines.append('')
     for k in range(upto + 1):
         names = st.modes_at(k)
-        if names:
-            n = len(names)
-            lines.append('L=%d — %d new mode%s:' % (k, n, 's' if n != 1 else ''))
-            lines.append('   ' + ', '.join(names))
-        else:
-            lines.append('L=%d — (no new modes)' % k)
-        lines.append('   [%s]' % st.source_line(k))
-        lines.append('   cumulative: %d modes (≤L=%d)' % (sum(1 for lv in st.levels.values() if lv <= k), k))
-        lines.append(SEP)
-        if names:
-            lines.append('Explanation:')
-            for nm in names:
-                lines.append('   ' + explain(st, nm))
-        lines.append('')
-        lines.append(BAR)
-        lines.append('')
+        cum = sum(1 for lv in st.levels.values() if lv <= k)
+        emit_level(lines, k, names, 'mode', cum, lambda nm: explain(st, nm))
     fdir = outdir or os.path.join(HERE, 'fri_out')
     os.makedirs(fdir, exist_ok=True)
     pdf = os.path.join(fdir, 'mode_ladder_%s.pdf' % time.strftime('%Y%m%d-%H%M%S'))
