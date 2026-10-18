@@ -41,7 +41,7 @@ In collinear kinematics, on top of these modes above, we also have:
 
 ### Usage
 
-Run `python3 facet_regions_interactive.py` and choose a kinematics class; the browser takes the graph (edge list + external attachments) as the only input — the cut formalism stays internal.  It enumerates all regions and lists them together with their momentum-space mode assignment: one entry per internal edge, in input order — the same scaling vector that the region finders of pySecDec report, as compared in the cross-checks below.
+Run `python3 facet_regions_interactive.py`; the entry first asks for the kinematics class (`[1] wide-angle` / `[2] collinear`, and under collinear `[1] 2->3` / `[2] 2->2`), then offers what that class can do: **obtain regions from a single graph**, or **mode prediction** (the collinear mode ladder, or the wide-angle usable-mode closure).  The region browser takes the graph (edge list + external attachments) as the only input — the cut formalism stays internal.  It enumerates all regions and lists them together with their momentum-space mode assignment: one entry per internal edge, in input order — the same scaling vector that the region finders of pySecDec report, as compared in the cross-checks below.
 From there the browser can: inspect individual regions (per-mode subgraphs and loop numbers, plus a concrete independent-loop-momentum basis), translate them to the Lee-Pomeransky parametric representation ($x_e \sim \lambda^{v_e}$ with $v_e = -V$, edge order) — the language natural to integration-by-regions tools — classify the list by the characteristic (softest) mode of each region or by power counting (optionally with a numerator polynomial in the edge momenta; a per-region derivation of the power is available as a PDF report), or render regions as figures: a single PDF atlas (default; A4 pages of rows, each with the region figure, `R{n}  v = (...)`, and the per-mode lines) or one PNG per region, written to `<module>/fri_out/regions_<timestamp>/` together with the rendering script and a preview page.  The renderer checks font fidelity first, so a broken font encoding fails loudly instead of producing silent glyph errors.
 
 ---
@@ -65,7 +65,11 @@ Usage: `python3 wide_angle/scaleless_diagnosis.py`.
 
 ### Relevant modes at each loop order
 
-Modes switch on in a fixed order as the loop count grows — each mode has a definite first-appearance level.  `mode_levels.py` encodes this ladder for the two collinear frameworks: Regge (`collinear/regge/mode_levels.py`, k0–k5) and five-point 2→3 (`collinear/2to3/mode_levels.py`, k0–k4) — where the same data also derives, per graph, the cut-chain refinement levels used by the enumerators ($L = E - V + 1$).  Each framework ships an interactive stepper (built into its `facet_regions_interactive.py`, run with `--ladder`, and reachable from the unified entry): input the external-momentum modes, then walk up the loop orders — every step lists the newly available modes with their mechanism of origin (a messenger tower, two confirmed components meeting, and so on). The Regge module is self-checking against the tabulated ladders (`--check`).
+In the two collinear frameworks: Regge (`collinear/regge/mode_levels.py`) and five-point 2→3 (`collinear/2to3/mode_levels.py`), momentum modes are switched on in a fixed order as the loop count grows, and possibly end up with a cascade of modes. It is natural to ask the following (pre-graph) question: what modes are involved at the amplitude level, and for each mode, what is its first-appearance loop level? `mode_levels.py` encodes this through an interactive stepper (built into its `facet_regions_interactive.py`, run with `--ladder`, and reachable from the unified entry): input the external-momentum modes, then walk up the loop orders — every step lists the newly available modes with their origins explained.
+
+For the wide-angle kinematics, it has been proved by corollary 5.4.2 of [2601.22144](https://arxiv.org/abs/2601.22144) that with the external kinematics given, the amplitude-level momentum modes are finite (no cascading modes). `wide_angle/usable_modes.py` clarifies the precise list of modes, using the notion of ``infrared compatibility'' developed in §5.2 of [2601.22144](https://arxiv.org/abs/2601.22144).
+
+Both views sit behind the same second-level menu (class → `[2]`), and both can emit a PDF derivation (`r` in the stepper, shared renderer `report_pdf.py`).
 
 ## Implementations
 
@@ -99,7 +103,8 @@ The check implementations live in `region_filter.py` (one per framework: wide-an
 
 ```
 FRI-project/
-├── facet_regions_interactive.py       # unified entry: [1] wide-angle / [2] collinear ([1] 2->3 / [2] 2->2 / [3] mode ladder)
+├── facet_regions_interactive.py       # unified entry: class -> side -> [1] regions / [2] mode prediction
+├── report_pdf.py                      # shared monospace report renderer (PDF) for the two mode views
 ├── wide_angle/                        # class 1: wide-angle scattering (canonical)
 │   ├── primitives.py                  #   shared base: mode algebra + graph machinery
 │   ├── enumerator.py                  #   pruned skeleton cut enumerator (enumeration core)
@@ -107,12 +112,11 @@ FRI-project/
 │   ├── indep_loops.py                 #   independent loop momenta per region
 │   ├── power_counting.py              #   scalar + numerator power counting for the region browser
 │   ├── power_report.py                #   per-region derivation report (PDF) for the power counting
-│   ├── usable_modes.py                #   IR-compatible mode closure (compression)
-│   ├── read_graph.py                  #   input parsing
+│   ├── usable_modes.py                #   IR-compatible mode closure (compression; optional derivation trace)
+│   ├── mode_report.py                 #   usable-mode derivation report (PDF)
 │   ├── facet_regions_interactive.py   #   interactive browser (enumerate + menu)
 │   ├── region_plot.py                 #   region figures + PDF atlas
-│   ├── scaleless_diagnosis.py         #   why a non-region is scaleless
-│   └── tests/                         #   fast unit tests
+│   └── scaleless_diagnosis.py         #   why a non-region is scaleless
 ├── collinear/                         # class 2: collinear kinematics
 │   ├── 2to3/                          #   part 1: five-point 2->3
 │   │   ├── primitives.py               #     mode algebra + graph tools + the external-kinematics API (zero-judgment base layer)
@@ -120,6 +124,7 @@ FRI-project/
 │   │   ├── region_filter.py           #     region judgment based on subgraph requirements
 │   │   ├── indep_loops.py               #     independent loop momenta + line-momentum parameterization
 │   │   ├── mode_levels.py              #     mode first-appearance ladder + cut-chain level derivation
+│   │   ├── mode_report.py              #     per-level derivation report (PDF)
 │   │   ├── facet_regions_interactive.py #     interactive enumerator for a new graph (built-in example: 1-3,1-5,2-3,2-5,3-4,4-5)
 │   │   └── region_plot.py              #     region figures + PDF atlas
 │   └── regge/                         #   part 2: Regge limit of 2->2
@@ -128,6 +133,7 @@ FRI-project/
 │       ├── region_filter.py          #     region judgment based on subgraph requirements
 │       ├── indep_loops.py             #     independent loop momenta (semihard fix)
 │       ├── mode_levels.py             #     mode first-appearance ladder
+│       ├── mode_report.py             #     per-level derivation report (PDF)
 │       ├── facet_regions_interactive.py #     interactive enumerator for a new graph
 │       └── region_plot.py             #     region figures + PDF atlas
 └── validation/                        # cross-checks vs pySecDec (graphs, records, examples; see validation/README.md)

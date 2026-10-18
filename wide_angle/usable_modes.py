@@ -50,15 +50,29 @@ def depth_of(external_modes, kappa, i):
 
 # Iterative closure: external modes + IR compatibility -> usable modes.
 # ext_mode: {name: (m, n, i)}; kappa: max softness power; returns a set (finite n only, H in).
-def derive_usable_modes(ext_mode, kappa):
+def derive_usable_modes(ext_mode, kappa, trace=False):
     H = (0, 0, 0)
     C = set()
+    order = []      # modes in production order (for the report)
+    route = {}      # mode -> ('seed',) / ('vee', a, b) / ('wedge', a, b) / ('messenger', m, nd)
+
+    # Record mode x once, with how it was produced.
+    def put(x, how):
+        if x in C:
+            return False
+        C.add(x)
+        order.append(x)
+        route[x] = how
+        return True
+
     # R1: seeds
     for md in ext_mode.values():
         if md != H:
-            C.add(norm(md))
+            put(norm(md), ('seed',))
     # n0 = min external level  (dead-layer law input to R4)
     levels = [external_level(md, kappa) for md in ext_mode.values()]
+    if all(l is None for l in levels):
+        return {H}                      # only hard externals: nothing to close over
     n0 = min(l for l in levels if l is not None)
     dirs = {md[2] for md in ext_mode.values() if md[2] != 0}
 
@@ -79,14 +93,12 @@ def derive_usable_modes(ext_mode, kappa):
                     continue           # need a collinear C_i^N
                 if m < o_n:            # strict: m < N (lattice handles dir)
                     jn = join(other, md)
-                    if jn not in C:
-                        C.add(jn); changed = True
+                    changed = put(jn, ('vee', other, md)) or changed
         # R3: meets of confirmed pairs (cond 3)
         for a in range(len(L)):
             for b in range(a + 1, len(L)):
                 mt = meet(L[a], L[b])
-                if mt not in C:
-                    C.add(mt); changed = True
+                changed = put(mt, ('wedge', L[a], L[b])) or changed
         # R4: S^m messengers (cond 2)
         for m in range(1, kappa + 1):
             if (m, 0, 0) in C:
@@ -99,21 +111,23 @@ def derive_usable_modes(ext_mode, kappa):
             # Target directions, either:
             #   (a) collinear depth >= m  (kernel/member targets C_i^{n'}), or
             #   (b) an SC/S external S^{m'}C_i^{n'} with m' < m <= m' + n' — its own mode is a messenger target (m_i = m - m', n_i = n' - m_i >= 0).
-            nd = 0
+            hit = []
             for i in dirs:
                 if depth_of(ext_mode, kappa, i) >= m:
-                    nd += 1
+                    hit.append(i)
                     continue
                 for md in ext_mode.values():
                     m2, n2, i2 = md
                     if i2 == i and 1 <= m2 < m and (n2 >= INF or m <= m2 + n2):
-                        nd += 1
+                        hit.append(i)
                         break
-            if nd >= 3:
-                C.add((m, 0, 0)); changed = True
+            if len(hit) >= 3:
+                changed = put((m, 0, 0), ('messenger', m, len(hit), tuple(sorted(hit)))) or changed
     # filter: no infinite parts, nothing beyond the kinematics' softness cap
     out = {m for m in C if m[0] <= kappa and m[1] <= kappa}
     out.add(H)
+    if trace:
+        return out, [x for x in order if x in out], route
     return out
 
 

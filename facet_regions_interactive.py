@@ -50,16 +50,17 @@ def run_backend(path, label, args=None):
 
 
 def run_wide_angle():
-    run_backend(os.path.join(HERE, 'wide_angle', 'facet_regions_interactive.py'), 'wide-angle')
+    run_side(os.path.join(HERE, 'wide_angle', 'facet_regions_interactive.py'),
+             'wide-angle', 'usable modes (wide-angle)', '--modes')
 
 
 def run_regge():
     run_side(os.path.join(HERE, 'collinear', 'regge', 'facet_regions_interactive.py'),
-             'collinear 2->2 (Regge)', 'mode ladder (2->2 Regge)')
+             'collinear 2->2 (Regge)', 'mode ladder (2->2 Regge)', '--ladder')
 
 
 # After a side is chosen: regions, or the mode ladder of that side.
-def run_side(path, label, ladder_label):
+def run_side(path, label, task2_label, task2_flag):
     while True:
         print()
         print('  %s:' % label)
@@ -72,18 +73,19 @@ def run_side(path, label, ladder_label):
         if s == '1':
             run_backend(path, label)
         else:
-            run_backend(path, ladder_label, ['--ladder'])
+            run_backend(path, task2_label, [task2_flag])
 
 
 def run_two_to_three():
     run_side(os.path.join(HERE, 'collinear', '2to3', 'facet_regions_interactive.py'),
-             'collinear 2->3', 'mode ladder (2->3)')
+             'collinear 2->3', 'mode ladder (2->3)', '--ladder')
 
 
 def main():
     print('=' * 72)
     print('Facet Region Interpreter (FRI)')
     print('=' * 72)
+    print('  Welcome! ☕☕☕')
     while True:
         print()
         print('  frameworks:')
@@ -109,11 +111,11 @@ def main():
                 run_two_to_three()
             else:
                 run_regge()
-    print('bye!')
+    print('Bye! 👋👋👋')
 
 
 if __name__ == '__main__':
     try:
         main()
     except (KeyboardInterrupt, EOFError):
-        print('\nbye!')
+        print('\nBye! 👋👋👋')

@@ -14,7 +14,7 @@ import os
 import sys
 import time
 HERE = os.path.dirname(os.path.abspath(__file__))
-for _d in (HERE, os.path.dirname(HERE)):
+for _d in (HERE, os.path.dirname(HERE), os.path.dirname(os.path.dirname(HERE))):
     if _d not in sys.path:
         sys.path.insert(0, _d)
 

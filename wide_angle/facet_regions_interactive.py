@@ -30,12 +30,14 @@ Mode syntax: H / S / S^m / C_i / C_i^n / C_i^inf / C_i^\\infty / SC_i / SC_i^n /
 import sys, re, os, time, warnings, signal
 warnings.filterwarnings('ignore', category=SyntaxWarning)
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from read_graph import (sc_short, type_order, group_by_type)
+from collections import defaultdict
 from primitives import scaling_of, mode_str, parse_mode, vee, eq
 from indep_loops import indep_loops, show_basis
 from power_counting import (show_power_counting, measure_power, integrand_power, fmt_power, parse_numerator, fmt_ast, region_context, numerator_power)
 from power_report import build_report
 from enumerator import run as skeleton_run, kappa_of
+from usable_modes import derive_usable_modes, usable_layers
+from mode_report import build_report as build_mode_report
 H = (0, 0, 0)
 
 
@@ -214,6 +216,53 @@ def print_region_with_vector(vm, em, edges, indent='    '):
     print_region_modes(vm, em, edges, indent=indent)
     vec = [scaling_of(md) for md in em]
     print(f'{indent}scaling vector = ({', '.join(map(str, vec))}, 1)')
+
+
+# Short label for a mode class: (1,1)->SC, (1,2)->SC^2, (2,1)->S^2C, (m,0)->S^m.
+def sc_short(m, n):
+    if n == 0:
+        return 'S' if m == 1 else f'S^{m}'
+    if m == 1:
+        return 'SC' if n == 1 else f'SC^{n}'
+    if n == 1:
+        return f'S^{m}C'
+    return f'S^{m}C^{n}'
+
+
+# All (m,n) with m>=1, n>=0, m+n<=kappa, softest first.
+def type_order(kappa):
+    lst = []
+    for m in range(1, kappa + 1):
+        for n in range(0, kappa + 1 - m):
+            lst.append((m, n))
+    lst.sort(key=lambda mn: (-(mn[0] + mn[1]), -mn[0]))
+    return lst
+
+
+# Label a region by its softest mode component (vertex or edge).
+def classify(vm, em, kappa):
+    order = type_order(kappa)
+    present = set()
+    for v, md in vm.items():
+        m, n, i = md
+        if m >= 1:
+            present.add((m, n))
+    for md in em:
+        m, n, i = md
+        if m >= 1:
+            present.add((m, n))
+    for mn in order:
+        if mn in present:
+            return sc_short(*mn)
+    return 'C/H'
+
+
+# Group regions by their softest-mode label.
+def group_by_type(results, kappa):
+    groups = defaultdict(list)
+    for vm, em in results:
+        groups[classify(vm, em, kappa)].append((vm, em))
+    return groups
 
 
 # ---------------------------------------------------------------- display
@@ -455,7 +504,74 @@ def visualize_regions(edges, regs, extmode, ext_attach):
 DEFAULT_EDGES = '1-5,1-8,2-5,2-7,3-6,3-8,4-6,4-7,5-6,7-8'
 
 # Interactive loop: read a graph, enumerate its regions, serve the menu; save results to fri_out/.
+# Ask for the external modes only (no vertices/names): the usable-mode closure needs just the modes.
+def ask_externals_modes():
+    print('Externals: enter the modes one by one (form S^mC_i^n; also allowed: H, S^m, C_i^n).')
+    modes = []
+    while True:
+        i = len(modes) + 1
+        while True:
+            s = input(f'  external {i}: mode? > ').strip()
+            if s.lower() in ('q', 'quit', 'exit', 'b', 'back'):
+                return None
+            try:
+                md = parse_mode(s)
+            except ValueError as e:
+                print(f'  ! {e}')
+                continue
+            if shares_direction(md, modes):
+                print('  ! this mode combination is not allowed in the wide-angle kinematics scope — please enter a different mode')
+                continue
+            break
+        modes.append(md)
+        print(f'  added: external {i} = {mode_str(md)}')
+        if not ask_yn('  Add another external? (y/n) [n] > '):
+            issue = check_ext_momenta(modes)
+            if issue == 'conservation':
+                print('  Error: momentum conservation not satisfied — please continue entering the external momenta.')
+                continue
+            if issue == 'same':
+                print('  Error: all the external modes are the same; no expansions — please continue entering the external momenta.')
+                continue
+            break
+    return modes
+
+
+# Ask for the externals, then print the usable-mode closure (no graph needed).
+def run_usable_modes():
+    print('=' * 72)
+    print('usable modes — which modes are infrared compatible?')
+    print('=' * 72)
+    modes = ask_externals_modes()
+    if modes is None:
+        print('bye 👋')
+        return
+    ext_mode = {'p%d' % (i + 1): md for i, md in enumerate(modes)}
+    kappa = kappa_of(ext_mode)
+    usable, order, route = derive_usable_modes(ext_mode, kappa, trace=True)
+    print()
+    print('  kappa = %d' % kappa)
+    print('  usable modes (%d, alphabetical):' % len(usable))
+    for nm in sorted(mode_str(m) for m in usable):
+        print('    ' + nm)
+    print()
+    while True:
+        s = input('  [r] report (derivation order)   [q] quit > ').strip().lower()
+        if s in ('', 'q', 'quit', 'b', 'back'):
+            print('bye 👋')
+            return
+        if s == 'r':
+            pdf, _ = build_mode_report(ext_mode, kappa)
+            print('  saved: %s' % pdf)
+        else:
+            print('  (r = report, q = quit)')
+
+
 def main():
+    # hidden mode: --modes shows the usable-mode closure instead of the graph browser
+    if any(a in ('-m', '--modes') for a in sys.argv[1:]):
+        run_usable_modes()
+        return
     # Hidden debug switch (not shown to the user): -v/--verbose starts with the enumeration statistics on.
     verbose = any(a in ('-v', '--verbose') for a in sys.argv[1:])
     print('=== facet-region browser ===')

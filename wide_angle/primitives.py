@@ -8,7 +8,7 @@ Contents:
   - mode-string parsing: parse_mode, mode_str;
   - graph helpers: Graph (vertex_mode); spanning_tree; find_1vi_blocks (Tarjan; used by the 1VI checks).
 
-Used by: enumerator.py (enumeration), region_filter.py (filtering), usable_modes.py, scaleless_diagnosis.py, indep_loops.py, read_graph.py (input).
+Used by: enumerator.py (enumeration), region_filter.py (filtering), usable_modes.py, scaleless_diagnosis.py, indep_loops.py.
 """
 
 import re
@@ -149,6 +149,8 @@ def mode_str(md):
         if n >= INF:
             return f'C_{i}^∞'
         return f'C_{i}' if n == 1 else f'C_{i}^{n}'
+    if n >= INF:
+        return f'S^{m}C_{i}^∞'
     return f'S^{m}C_{i}^{n}'
 
 
