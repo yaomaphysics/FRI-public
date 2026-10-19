@@ -1,8 +1,8 @@
 # FRI — Facet Region Interpreter
 
-A graph-theoretic **region finder** for multiscale Feynman integrals. Given a graph (topology + external momenta) in the context of **massless scattering**, which we classify into the **wide-angle** and **collinear** types based on their kinematics, FRI constructs **all facet regions** of the asymptotic expansion directly from the graph — the majority, and mostly the entire list of regions. The construction is based on understandings of the all-order region structures in momentum space, without any Feynman-polynomial computation or polytope geometry.
+A graph-theoretic **region finder** for multiscale Feynman integrals. Given a graph (topology + external momenta) in the context of **massless scattering**, which we classify into the **wide-angle** and **collinear** types based on their kinematics, FRI constructs the momentum representation of **all facet regions** of the asymptotic expansion directly from the graph — the majority, and mostly the entire list of regions. The construction is based on understandings of the all-order region structures in momentum space, without any Feynman-polynomial computation or polytope geometry.
 
-For the wide-angle kinematics, the region-structure understanding is from the paper *"All-order prescription for facet regions in massless wide-angle scattering"* ([arXiv:2601.22144](https://arxiv.org/abs/2601.22144)). FRI is supposed to enumerate the whole list of facet regions for any Feynman graph under the following conditions.
+For the wide-angle kinematics, the region-structure understanding is from the paper *"All-order prescription for facet regions in massless wide-angle scattering"* ([arXiv:2601.22144](https://arxiv.org/abs/2601.22144)). The kinematics scope satisfy the following conditions.
 1. The external momenta are within the following three types:
     (1) the "on-shell momenta" $p_i$, each close to a lightcone ($p_i^2$ small or 0);
     (2) the "off-shell momenta" $q_j$, each with $q_j^2 \sim 1$ (not small);
@@ -42,7 +42,7 @@ In collinear kinematics, on top of these modes above, we also have:
 ### Usage
 
 Run `python3 facet_regions_interactive.py`; the entry first asks for the kinematics class (`[1] wide-angle` / `[2] collinear`, and under collinear `[1] 2->3` / `[2] 2->2`), then offers what that class can do: **obtain regions from a single graph**, or **mode prediction** (the collinear mode ladder, or the wide-angle usable-mode closure).  The region browser takes the graph (edge list + external attachments) as the only input — the cut formalism stays internal.  It enumerates all regions and lists them together with their momentum-space mode assignment: one entry per internal edge, in input order — the same scaling vector that the region finders of pySecDec report, as compared in the cross-checks below.
-From there the browser can: inspect individual regions (per-mode subgraphs and loop numbers, plus a concrete independent-loop-momentum basis), translate them to the Lee-Pomeransky parametric representation ($x_e \sim \lambda^{v_e}$ with $v_e = -V$, edge order) — the language natural to integration-by-regions tools — classify the list by the characteristic (softest) mode of each region or by power counting (optionally with a numerator polynomial in the edge momenta; a per-region derivation of the power is available as a PDF report), or render regions as figures: a single PDF atlas (default; A4 pages of rows, each with the region figure, `R{n}  v = (...)`, and the per-mode lines) or one PNG per region, written to `<module>/fri_out/regions_<timestamp>/` together with the rendering script and a preview page.  The renderer checks font fidelity first, so a broken font encoding fails loudly instead of producing silent glyph errors.
+From there the browser can: inspect individual regions (per-mode subgraphs and loop numbers, plus a concrete independent-loop-momentum basis), translate them to the Lee-Pomeransky parametric representation ($x_e \sim \lambda^{v_e}$ with $v_e = -V$, edge order), classify the list by the characteristic (softest) mode of each region or by power counting (optionally with a numerator polynomial in the edge momenta; a per-region derivation of the power is available as a PDF report), or render regions as figures: a single PDF atlas (default; A4 pages of rows, each with the region figure, `R{n}  v = (...)`, and the per-mode lines) or one PNG per region, written to `<module>/fri_out/regions_<timestamp>/` together with the rendering script and a preview page.  The renderer checks font fidelity first, so a broken font encoding fails loudly instead of producing silent glyph errors.
 
 ---
 
@@ -55,7 +55,7 @@ Whether the choice matters beyond bookkeeping is theory-dependent (e.g. power co
 
 ### Power counting
 
-For a scalar integral, a region's contribution scales as $\lambda^{A-B}$: the loop measure contributes $A = (2-\epsilon)\sum_X r_X V(X)$ (one factor $(\lambda^{V(X)})^{2-\epsilon}$ per independent loop momentum), the propagators $B = \sum_e V_e$ (the virtuality degrees of the edge modes).  The browser groups all regions by this power and can emit a per-region derivation of it as a PDF report.  A numerator polynomial in the edge momenta $K_i$ (input edge order) is supported as well: it is expanded per region into the independent loop momenta, every scalar product of two modes scales as their join, with sums taking the minimum and products adding, and the resulting integer $N$ enters as $A - B + N$.  Implemented for wide-angle; the collinear frameworks are to follow.
+For a scalar integral, a region's contribution scales as $\lambda^{A-B}$: the loop measure contributes $A = (2-\epsilon)\sum_X r_X V(X)$ (one factor $(\lambda^{V(X)})^{2-\epsilon}$ per independent loop momentum), the propagators $B = \sum_e V_e$ (the virtuality degrees of the edge modes).  The browser groups all regions by this power and can emit a per-region derivation of it as a PDF report.  A numerator polynomial in the edge momenta $K_i$ (input edge order) is supported as well: it is expanded per region into the independent loop momenta, the scalar product of two modes $S^{m_1}C_i^{n_1}$ and $S^{m_2}C_j^{n_2}$ scales as $m_1+m_2+\min(n_1,n_2)$ for the same direction and as $m_1+m_2$ for distinct directions, with sums taking the minimum and products adding, and the resulting integer $N$ enters as $A - B + N$.  Implemented for wide-angle; the collinear frameworks are to follow.
 
 ### Scaleless diagnosis
 
@@ -69,33 +69,34 @@ In the two collinear frameworks: Regge (`collinear/regge/mode_levels.py`) and fi
 
 For the wide-angle kinematics, it has been proved by corollary 5.4.2 of [2601.22144](https://arxiv.org/abs/2601.22144) that with the external kinematics given, the amplitude-level momentum modes are finite (no cascading modes). `wide_angle/usable_modes.py` clarifies the precise list of modes, using the notion of ``infrared compatibility'' developed in §5.2 of [2601.22144](https://arxiv.org/abs/2601.22144).
 
-Both views sit behind the same second-level menu (class → `[2]`), and both can emit a PDF derivation (`r` in the stepper, shared renderer `report_pdf.py`).
+Both views sit behind the same second-level menu (class → `[2]`), and both can output derivations in a PDF report (`r` in the stepper, shared renderer `report_pdf.py`).
 
 ## Implementations
 
-Two kinematics classes are implemented — **wide-angle** and **collinear** (timelike or spacelike) — sharing the same philosophy: a region is constructed purely from the graph, by enumerating cut configurations combinatorially and filtering them, and is then judged by the per-component subgraph requirements (the IR-compatibility fixpoint).  No Feynman-parameter computation, polytope geometry or integral evaluation enters at any point.
+Two kinematics classes are implemented — **wide-angle** and **collinear** (timelike or spacelike) — sharing the same philosophy: a region is constructed purely from the graph, by enumerating cut configurations combinatorially and filtering them, and is then judged by the subgraph requirements (based on Coleman--Norton interpretation, connectivity, and infrared compatibility). No Feynman-parameter computation, polytope geometry or integral evaluation enters at any point.
 
 ### Enumeration (cuts, overlay, pruning)
 
-- **Cut construction.**  Every external leg of a refinement-chain type ($C_i^n$, $C_i^nC_{ij}$) whose root is not inside the hard subgraph *H* receives a route to *H* (routes of different legs are kept disjoint); cuts are connected vertex sets containing the leg root, built on nested levels that are confined to their allowed vertex regions and kept off the other legs' routes.  At the lowest tier (k0) the construction reduces to a union form with "≥ 2" leftover rules and corner pruning.
-- **Overlay.**  A configuration of cuts is overlaid on the graph: every vertex takes the meet of the modes of the cuts covering it (*H* if none), every edge the meet of its endpoints — yielding the momentum-space mode assignment (the scaling vector) of the candidate region.
-- **Filtering.**  Every subject cut must share vertices with partner cuts of other directions under the kinematics-specific overlap condition (in the layered refinements: two partner directions of matching total power); route exclusivity keeps every cut off the other legs' paths.
-- **Pruning and fast paths** (all designed to be behaviour-preserving; validated by old-vs-new A/B comparisons plus the cross-checks below):
+- **Cut construction.**  Every external leg of a refinement-chain type ($C_i^n$, $C_i^nC_{ij}$) whose root is not inside the hard subgraph *H* receives a route to *H* (routes of different legs are kept disjoint); cuts are connected vertex sets containing the leg root, built on nested levels that are confined to their allowed vertex regions and kept off the other legs' routes.
+- **Pruning and fast paths**:
+  - *overlap constraint*: for any $C_i^m$-mode external momentum, any $C_i^n$-mode cut around it (with $n < m$) must share a vertex with cuts from other two directions; this requirement is from the infrared compatibility.
   - *bitmask fast path*: cut sets are additionally carried as bitmasks, so dedup keys become fixed-slot integer arrays and the overlap/route tests become bit intersections — masks are cached per graph and computed once along a chain;
-  - *memoisation* (Regge): the graph kernels used by both enumeration and judgment — connectivity, 1VI, connected components and 1VI-block finding — are cached by content and cleared between cases;
+  - *memoisation*: the graph kernels used by both enumeration and judgment — connectivity, 1VI, connected components and 1VI-block finding — are cached by content and cleared between cases;
   - *per-graph refinement levels*: the cut-chain levels that can contribute are read off the mode first-appearance ladder ($L = E - V + 1$), so needless refinement levels are never enumerated;
-  - *layer compression* (wide-angle): only the usable cut layers are enumerated; higher towers collapse to their lower equivalent counts;
-  - *chain-level early kills* (Regge k1 enumerator): most candidates are rejected by count/level conditions before the full overlap test (validated against the overlap condition in shadow mode — zero mis-kills);
+  - *layer compression*: only the usable cut layers are enumerated; higher towers collapse to their lower equivalent counts;
+  - *chain-level early kills*: most candidates are rejected by count/level conditions before the full overlap test (validated against the overlap condition in shadow mode — zero mis-kills);
   - *deduplication*: candidates are deduplicated by cut set and by vertex-mode assignment; the verdict depends only on the vertex modes, so repeats are skipped cheaply.
+- **Overlay.**  A configuration of cuts is overlaid on the graph: every vertex takes the meet of the modes of the cuts covering it (*H* if none), every edge the meet of its endpoints — yielding the momentum-space mode assignment (the scaling vector) of the candidate region.
 
-In code: the pruned enumerators live in `wide_angle/enumerator.py` (the canonical implementation; soft externals included), `collinear/regge/enumerator.py` and `collinear/2to3/enumerator.py`.
+In code: the enumerators live in `wide_angle/enumerator.py`, `collinear/2to3/enumerator.py`, and `collinear/regge/enumerator.py`.
 
-### Checks (subgraph requirements)
+### Filtration (subgraph requirements)
 
-Every surviving configuration is judged by the same chain of subgraph requirements: momentum conservation at every vertex, jet connectivity (Coleman–Norton), the 1VI blocks of the contracted mode subgraphs, the mojetic (hard–jet) condition, First Connectivity, and the per-component IR-compatibility fixpoint that removes the residual non-regions.
-The requirements are derived in [arXiv:2601.22144](https://arxiv.org/abs/2601.22144) for the wide-angle class; the collinear versions (Regge and the five-point 2→3 kinematics) follow the same cycle of subgraph conditions with the collinear mode algebra and will be presented in a forthcoming work.
+Every surviving configuration is judged by the same chain of subgraph requirements: momentum conservation at every vertex, Coleman--Norton interpretation, connectivity requirement, and infrared compatibility requirement that remove the residual non-regions.
+These requirements are derived in [arXiv:2601.22144](https://arxiv.org/abs/2601.22144) for the wide-angle class; the collinear versions (Regge and the five-point 2→3 kinematics) follow the same cycle of subgraph conditions with the collinear mode algebra and will be presented in a forthcoming work.
 A non-region fails at a definite first check — that diagnosis is exactly what `scaleless_diagnosis.py` reports (wide-angle).
-The check implementations live in `region_filter.py` (one per framework: wide-angle, five-point 2->3, and Regge); the wide-angle mode algebra and graph machinery shared by the enumerator and the checker live in `wide_angle/primitives.py`. The collinear sides keep analogous shared base layers in `collinear/2to3/primitives.py` and `collinear/regge/primitives.py`.
+
+In code: the filters live in `wide_angle/region_filter.py`, `collinear/2to3/region_filter.py`, and `collinear/regge/region_filter.py`.
 
 ---
 
@@ -174,7 +175,7 @@ The advantage of FRI grows rapidly with the number of loops: the two tools are c
 
 ## Status
 
-Research-grade, version 0.1.0.  License: MIT (code); CC BY 4.0 (validation data).  © 2026 ETH Zurich; created by Yao Ma.
+Research-grade, version 0.1.0.  License: MIT (code); CC BY 4.0 (validation data).  © 2026 ETH Zurich; created by Yao Ma. Below list some open items, which are functions supposed to be realized in the near future.
 
 **Open items — general**
 

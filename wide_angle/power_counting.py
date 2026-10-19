@@ -14,12 +14,13 @@ To compute B. B = sum of V(edge mode) over the propagators.
 
 To compute N. First express the numerator (given by the user) in terms of the independent loop momenta k1, k2 ....
               Then it should be a sum of products of ki.kj or ki.pj.
-              The power of ki.kj is then the virtuality degree of Xi\vee Xj (with Xi and Xj being modes of ki and kj, respectively). ki.pj similar.
-              Namely, ki.kj ~ \lambda^{V(Xi\vee Xj)}.
+              For two modes S^{m1}C_i^{n1} and S^{m2}C_j^{n2}:
+                same direction (i = j, or one of them has no direction such as S^m): ki.kj ~ \lambda^{m1+m2+min(n1,n2)};
+                distinct directions (n1, n2 >= 1): ki.kj ~ \lambda^{m1+m2}.
 """
 
 import re
-from primitives import V, join
+from primitives import V
 from indep_loops import indep_loops, edge_momenta
 
 
@@ -40,6 +41,10 @@ def integrand_power(em):
 def fmt_power(a0, a1):
     if a1 == 0:
         exp = f'{a0}'
+    elif a1 == 1:
+        exp = f'{a0} + \\epsilon'
+    elif a1 == -1:
+        exp = f'{a0} - \\epsilon'
     elif a1 > 0:
         exp = f'{a0} + {a1}\\epsilon'
     else:
@@ -288,9 +293,18 @@ def numerator_power(ast, ctx):
     def mode_of(t):
         return ctx['k_modes'][t[1]] if t[0] == 'k' else ctx['p_modes'][t[1]]
 
-    # Power of one atom x.y: min over the expansion pairs a.b (a from v1, b from v2) of V(X_a \vee X_b).
+    # Two-mode scalar product: same direction (i1 == i2, or one has no direction) -> m1+m2+min(n1,n2);
+    # distinct directions -> m1+m2.
+    def atom_pow(X, Y):
+        m1, n1, i1 = X
+        m2, n2, i2 = Y
+        if i1 == i2 or i1 == 0 or i2 == 0:
+            return m1 + m2 + min(n1, n2)
+        return m1 + m2
+
+    # Power of one atom x.y: min over the expansion pairs a.b (a from v1, b from v2) of atom_pow.
     def pair_pow(v1, v2):
-        return min(V(join(mode_of(a), mode_of(b))) for a in terms_of(v1) for b in terms_of(v2))
+        return min(atom_pow(mode_of(a), mode_of(b)) for a in terms_of(v1) for b in terms_of(v2))
 
     # Recursive evaluation (rules in the module docstring): atom -> V(Xi \vee Xj); sum -> min; product -> add; power -> times n.
     def ev(node):
