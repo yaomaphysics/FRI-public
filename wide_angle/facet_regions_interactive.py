@@ -13,11 +13,10 @@ Script:
            plus the scalar power counting (integration measure / integrand / power, as \\lambda^{...}).
           Optionally, the user can select a set of line momenta as independent loop momenta (a basis) with optional forced lines.
        2) Show Lee-Pomeransky parametric representation — per region the scaling vector v_i (x_i ~ \\lambda^{v_i}, v_i = -(2m+n), input edge order),
-       3) Group these regions by their characteristic mode — per region its softest-mode class + by-type counts,
-       4) Group these regions by their power — a numerator may be entered first (a polynomial in the edge momenta K_i and the externals p_j; "1" = scalar);
+       3) Group these regions by their power — a numerator may be entered first (a polynomial in the edge momenta K_i and the externals p_j; "1" = scalar);
           each region's power is then computed silently and grouped in ascending order (leading first),
           with an optional step-by-step derivation report (PDF) for a chosen subset.
-       5) Visualize the selected regions — per-mode colours; can choose a single PDF atlas (default) or one PNG file per region.
+       4) Visualize the selected regions — per-mode colours; can choose a single PDF atlas (default) or one PNG file per region.
   This loops until the user quits (empty or q).
 
 Usage: python3 facet_regions_interactive.py [-v]
@@ -30,13 +29,12 @@ Mode syntax: H / S / S^m / C_i / C_i^n / C_i^inf / C_i^\\infty / SC_i / SC_i^n /
 import sys, re, os, time, warnings, signal
 warnings.filterwarnings('ignore', category=SyntaxWarning)
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from collections import defaultdict
 from primitives import scaling_of, mode_str, parse_mode, vee, eq
 from indep_loops import indep_loops, show_basis
 from power_counting import (show_power_counting, measure_power, integrand_power, fmt_power, parse_numerator, fmt_ast, region_context, numerator_power)
 from power_report import build_report
 from enumerator import run as skeleton_run, kappa_of
-from usable_modes import derive_usable_modes, usable_layers
+from usable_modes import derive_usable_modes
 from mode_report import build_report as build_mode_report
 H = (0, 0, 0)
 
@@ -183,86 +181,6 @@ def em_sequence(em):
     return ', '.join(ms(m) for m in em)
 
 
-# Format a vertex/edge set as '{a, b, c}' ('empty' for the empty set).
-def _fmt_set(items):
-    if not items:
-        return 'empty'
-    parts = []
-    for x in items:
-        if isinstance(x, tuple) and len(x) == 2:
-            parts.append(f'[{x[0]},{x[1]}]')
-        else:
-            parts.append(str(x))
-    return '{' + ', '.join(parts) + '}'
-
-
-# Print a region as one line per mode: <mode> vertex = {...}; <mode> edge = {...}. Empty vertex/edge sets print 'empty'.
-def print_region_modes(vm, em, edges, indent='    '):
-    edges_t = [tuple(sorted(e, key=str)) for e in edges]
-    v_by_mode = {}
-    for v in sorted(vm, key=str):
-        v_by_mode.setdefault(vm[v], []).append(v)
-    e_by_mode = {}
-    for (a, b), md in zip(edges_t, em):
-        e_by_mode.setdefault(md, []).append((a, b))
-    all_modes = list(v_by_mode) + [m for m in e_by_mode if m not in v_by_mode]
-    for md in all_modes:
-        s = mode_str(md)
-        print(f'{indent}{s} vertex = {_fmt_set(v_by_mode.get(md, []))}; {s} edge = {_fmt_set(e_by_mode.get(md, []))}.')
-
-
-# print_region_modes followed by the corresponding region vector.
-def print_region_with_vector(vm, em, edges, indent='    '):
-    print_region_modes(vm, em, edges, indent=indent)
-    vec = [scaling_of(md) for md in em]
-    print(f'{indent}scaling vector = ({', '.join(map(str, vec))}, 1)')
-
-
-# Short label for a mode class: (1,1)->SC, (1,2)->SC^2, (2,1)->S^2C, (m,0)->S^m.
-def sc_short(m, n):
-    if n == 0:
-        return 'S' if m == 1 else f'S^{m}'
-    if m == 1:
-        return 'SC' if n == 1 else f'SC^{n}'
-    if n == 1:
-        return f'S^{m}C'
-    return f'S^{m}C^{n}'
-
-
-# All (m,n) with m>=1, n>=0, m+n<=kappa, softest first.
-def type_order(kappa):
-    lst = []
-    for m in range(1, kappa + 1):
-        for n in range(0, kappa + 1 - m):
-            lst.append((m, n))
-    lst.sort(key=lambda mn: (-(mn[0] + mn[1]), -mn[0]))
-    return lst
-
-
-# Label a region by its softest mode component (vertex or edge).
-def classify(vm, em, kappa):
-    order = type_order(kappa)
-    present = set()
-    for v, md in vm.items():
-        m, n, i = md
-        if m >= 1:
-            present.add((m, n))
-    for md in em:
-        m, n, i = md
-        if m >= 1:
-            present.add((m, n))
-    for mn in order:
-        if mn in present:
-            return sc_short(*mn)
-    return 'C/H'
-
-
-# Group regions by their softest-mode label.
-def group_by_type(results, kappa):
-    groups = defaultdict(list)
-    for vm, em in results:
-        groups[classify(vm, em, kappa)].append((vm, em))
-    return groups
 
 
 # ---------------------------------------------------------------- display
@@ -380,26 +298,6 @@ def show_parametric(regs, nedge):
     print('  Lee-Pomeransky parametric representation (v_i = -(2m+n), input edge order):')
     for i, (vm, em) in enumerate(regs, 1):
         print(f'    R{i}: x_i ~ \\lambda^{{v_i}} for i = 1,2,...,{nedge}, with v = {tuple(scaling_of(m) for m in em)}')
-
-
-# Option 3: group the regions by their softest-mode class and print each group.
-def show_classify(regs, edges, kappa):
-    groups = group_by_type(regs, kappa)
-    order = type_order(kappa)
-    labels = [sc_short(*mn) for mn in order] + ['C/H']
-    total = 0
-    for lab in labels:
-        if lab not in groups:
-            continue
-        g = groups[lab]
-        total += len(g)
-        print()
-        print(f'There are {len(g)} {lab} type regions:')
-        for i, (vm, em) in enumerate(g, 1):
-            print(f'  --- {lab} region {i} ---')
-            print_region_with_vector(vm, em, edges, indent='    ')
-    print()
-    print(f'TOTAL: {total} regions')
 
 
 # Option 4: group the regions by their scalar power (plus the numerator power N if given); computed silently, ascending order.
@@ -605,16 +503,14 @@ def main():
         print(f'  {len(regs)} regions in {dt:.1f}s (presented in terms of the edge modes {edge_seq}):')
         for i, (vm, em) in enumerate(regs, 1):
             print(f'    R{i}: {em_sequence(em)}')
-        kappa = kappa_of(extmode)
         numerator = None
         while True:
             print('  Options:')
             print('    1) Inspect specific regions')
             print('    2) Show Lee-Pomeransky parametric representation')
-            print('    3) Group these regions by their characteristic mode')
-            print('    4) Group these regions by their power')
-            print('    5) Visualize these regions (PDF atlas / PNGs)')
-            opt = input('  (1/2/3/4/5; empty/q/b = done with this graph) > ').strip().lower()
+            print('    3) Group these regions by their power')
+            print('    4) Visualize these regions (PDF atlas / PNGs)')
+            opt = input('  (1/2/3/4; empty/q/b = done with this graph) > ').strip().lower()
             if opt in ('', 'q', 'quit', 'b', 'back'):
                 break
             if opt == '1':
@@ -622,18 +518,16 @@ def main():
             elif opt == '2':
                 show_parametric(regs, len(edges))
             elif opt == '3':
-                show_classify(regs, edges, kappa)
-            elif opt == '4':
                 num, ok = ask_numerator(len(edges), set(extmode))
                 if ok:
                     numerator = num
                     show_group_by_power(regs, edges, ext_attach, extmode, numerator)
                     if ask_yn('Show the detailed derivation as a PDF report? (y/n) [n] > '):
                         offer_derivation_report(edges, regs, ext_attach, internal_lines, externals, extmode, numerator)
-            elif opt == '5':
+            elif opt == '4':
                 visualize_regions(edges, regs, extmode, ext_attach)
             else:
-                print('  ! enter 1, 2, 3, 4, 5, or q')
+                print('  ! enter 1, 2, 3, 4, or q')
         # save
         fdir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'fri_out')
         os.makedirs(fdir, exist_ok=True)

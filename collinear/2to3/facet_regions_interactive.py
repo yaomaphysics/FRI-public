@@ -13,9 +13,8 @@ at vertices 1,2,3,4,5.  The script:
           mode subgraph, computed with region_filter's own mode_components; Σ r_X vs L is checked), then optionally a concrete set of independent loop momenta (default basis) with optional FORCED lines ((x,y) endpoint pairs, square brackets also accepted),
        2) Show Lee-Pomeransky parametric representation — per region the scaling vector v_e = -V (edge order, trailing 1 = expansion scale,
           pySecDec style, same as the verified region files),
-       3) Classify these regions based on their characteristic modes — per region its softest-mode class + by-type counts,
-       4) Group these regions by their power — a numerator polynomial in the edge momenta K_i (input order) and the externals p_j may be entered first ("1" = scalar),
-       5) Visualize the selected regions: one PDF atlas (default) or PNG figures (per-mode colours; saved under fri_out/regions_*/),
+       3) Group these regions by their power — a numerator polynomial in the edge momenta K_i (input order) and the externals p_j may be entered first ("1" = scalar),
+       4) Visualize the selected regions: one PDF atlas (default) or PNG figures (per-mode colours; saved under fri_out/regions_*/),
    and loops until the user quits (empty or q).
 
 Kinematics: k0..k2 are shown as local examples (default k1); type kx for a custom p_i^2 pattern.
@@ -36,7 +35,7 @@ sys.path.insert(0, BASE)
 import region_filter
 import enumerator
 from indep_loops import indep_loops, show_basis, _disp_key   # independent loop momenta + line-momentum parameterization
-from primitives import V, m_of, name, n_of, INF, leg_check, ext_modes
+from primitives import name, INF, leg_check, ext_modes
 from mode_levels import predict, derive_external_modes
 from power_counting import (show_power_counting, measure_power, integrand_power, fmt_power,
                            parse_numerator, fmt_ast, region_context, numerator_power)
@@ -250,43 +249,6 @@ def show_parametric(regs):
         print(f'    R{i}: x_i ~ \\lambda^{{v_i}} for i = 1,2,...,{len(vec)}, with v = {fmt_scaling(vec)}')
 
 
-# Softness order for classification, softest first: modes with a soft prefactor m >= 1 by virtuality V (desc); tie m
-# desc, n desc, name.
-def _softness_key(m):
-    return (0, -V(m), -m_of(m), -(n_of(m) if n_of(m) is not None else 0), name(m))
-
-
-# Softest characteristic mode of a region (exclusion-style): the softest mode with m >= 1 present in em/vm; if none,
-# the bare carrier/hard class 'C/H'.
-def classify(vm, em):
-    cands = set(em) | set(vm.values())
-    soft = [m for m in cands if m[0] != 'H' and m_of(m) >= 1]
-    if soft:
-        return min(soft, key=_softness_key)
-    return 'C/H'
-
-
-# Option 3: classify regions by their characteristic (softest) mode, grouped by type (softest first).
-def show_classify(regs):
-    groups = defaultdict(list)
-    for r in regs:
-        vec, cuts, em, vm = r
-        groups[classify(vm, em)].append(r)
-    order = sorted(groups, key=lambda lab: (99,) if lab == 'C/H' else _softness_key(lab))
-    total = 0
-    for lab in order:
-        g = groups[lab]
-        total += len(g)
-        label = lab if lab == 'C/H' else name(lab)
-        print()
-        print(f'There are {len(g)} {label} type regions:')
-        for i, (vec, cuts, em, vm) in enumerate(g, 1):
-            print(f'  --- {label} region {i} ---')
-            print(f'    em = {[name(m) for m in em]}')
-            print(f'    scaling = {fmt_scaling(vec)}')
-    print(f'\nTOTAL: {total} regions')
-
-
 # Option 4: visualize the selected regions — PDF atlas or PNG files.
 def visualize_regions(edges, regs, ext_mode):
     n = len(regs)
@@ -423,7 +385,7 @@ def run_graph(edges_raw, kin_name, verbose=False):
         print('  [warning] L >= 5 may be slow')
     t0 = time.time()
     try:
-        _vecs, total, stats = skeleton.enumerate_surv(edges, verts, EXT_ATTACH, kin_ms)
+        _vecs, total, stats = enumerator.enumerate_surv(edges, verts, EXT_ATTACH, kin_ms)
         surv = stats['survivors']
     except Exception as e:
         print(f'  [error] skeleton engine could not handle this input: {e}')
@@ -435,21 +397,15 @@ def run_graph(edges_raw, kin_name, verbose=False):
     if verbose:
         rej = ', '.join(f'{k}={v}' for k, v in sorted(stats.items()) if k != 'survivors')
         print(f'  [stats] combos={total}  kept={len(regs)}  counters: {rej or "none"}')
-    scal = set()
     for i, (vec, cuts, em, vm) in enumerate(regs, 1):
-        scal.add(vec)
-        print(f'  R{i:3d}: scaling {fmt_scaling(vec)}')
-        print(f'        cuts: {fmt_cuts(cuts)}')
-        print(f'        em: {[name(m) for m in em]}')
-    print(f'  unique scalings: {len(scal)}')
+        print(f'  R{i}: {", ".join(name(m) for m in em)}')
     while True:
         print('  Options:')
         print('    1) Inspect specific regions')
         print('    2) Show Lee-Pomeransky parametric representation')
-        print('    3) Classify these regions based on their characteristic modes')
-        print('    4) Group these regions by their power')
-        print('    5) Visualize these regions (PDF atlas / PNGs)')
-        opt = input('  (1/2/3/4/5; empty/q/b = done with this graph) > ') .strip().lower()
+        print('    3) Group these regions by their power')
+        print('    4) Visualize these regions (PDF atlas / PNGs)')
+        opt = input('  (1/2/3/4; empty/q/b = done with this graph) > ') .strip().lower()
         if opt in ('', 'q', 'quit', 'b', 'back'):
             break
         if opt == '1':
@@ -457,8 +413,6 @@ def run_graph(edges_raw, kin_name, verbose=False):
         elif opt == '2':
             show_parametric(regs)
         elif opt == '3':
-            show_classify(regs)
-        elif opt == '4':
             num, ok = ask_numerator(len(edges), ['p1', 'p2', 'p3', 'p4', 'p5'])
             if ok:
                 show_group_by_power(regs, edges, EXT_ATTACH, ext_mode, num)
@@ -471,10 +425,10 @@ def run_graph(edges_raw, kin_name, verbose=False):
                             import power_report
                             pdf, _lines = power_report.build_report(edges, regs, sel, EXT_ATTACH, ext_mode, numerator=num)
                             print('  saved: %s' % pdf)
-        elif opt == '5':
+        elif opt == '4':
             visualize_regions(edges, regs, ext_mode)
         else:
-            print('  ! enter 1, 2, 3, 4, 5, or q')
+            print('  ! enter 1, 2, 3, 4, or q')
     # save
     fdir = os.path.join(BASE, 'fri_out')
     os.makedirs(fdir, exist_ok=True)

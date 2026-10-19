@@ -13,9 +13,8 @@ Start with -v to have the statistics on from the beginning.
 After enumeration a menu offers:
     1) Inspect specific regions — per-mode subgraphs + loop numbers (Σ r_X vs L), then optionally a concrete independent-loop-momentum basis (default or forced lines),
     2) Lee-Pomeransky parametric representation (v_i = -V, input edge order; trailing entry = expansion scale),
-    3) Classification by characteristic (softest) mode.
-    4) Group by power — a numerator polynomial in the edge momenta K_i (input order) and the externals p_j may be entered first ("1" = scalar).
-    5) Visualization: one PDF atlas (default) or PNG figures with the per-mode colour scheme (region_plot.py; saved under fri_out/regions_*/).
+    3) Group by power — a numerator polynomial in the edge momenta K_i (input order) and the externals p_j may be entered first ("1" = scalar).
+    4) Visualization: one PDF atlas (default) or PNG figures with the per-mode colour scheme (region_plot.py; saved under fri_out/regions_*/).
 Semihard loops use the γ_sH ∪ γ_G rule.
 Results are saved to fri_out/<timestamp>.txt.
 
@@ -181,58 +180,12 @@ def parse_forced_lines(edges, line):
     return sorted(set(F))
 
 
-# Softness order for classification, softest first: lattice modes with m >= 1 by decreasing virtuality V (then m, n, name), then sH, then G.
-def _softness_key(mode):
-    if mode == 'sH':
-        return (1, 0, 0, 0, mode)
-    if mode == 'G':
-        return (2, 0, 0, 0, mode)
-    try:
-        M = to_mode(mode)
-        return (0, -M.V, -M.m, -M.n, mode)
-    except Exception:
-        return (0, -99, 0, 0, mode)
-
-
-# Softest characteristic mode of a region (exclusion-style): the softest lattice mode with m >= 1 present in em/vm; if none, sH; if none, G; else 'C/H'.
-def classify(vm, em):
-    cands = set(em) | set(vm.values())
-    soft = [m for m in cands if m not in ('sH', 'G') and to_mode(m).m >= 1]
-    if soft:
-        return min(soft, key=_softness_key)
-    if 'sH' in cands:
-        return 'sH'
-    if 'G' in cands:
-        return 'G' 
-    return 'C/H'
-
-
 # Option 2: Lee-Pomeransky parametric representation per region: x_i ~ \lambda^{v_i} with v_i = -V(𝒳(e)), edge order.
 def show_parametric(regs):
     print('  Lee-Pomeransky parametric representation (v_i = -V, input edge order; trailing entry = expansion scale):')
     for i, (cut13, cut24, cut1, cut3, cut2, cut4, vm, em) in enumerate(regs, 1):
         sc = to_scaling(em)
         print(f'    R{i}: x_i ~ \\lambda^{{v_i}} for i = 1,2,...,{len(sc)}, with v = {sc}')
-
-
-# Option 3: classify regions by their characteristic (softest) mode, grouped by type (softest first).
-def show_classify(regs, edges):
-    groups = defaultdict(list)
-    for r in regs:
-        cut13, cut24, cut1, cut3, cut2, cut4, vm, em = r
-        groups[classify(vm, em)].append(r)
-    order = sorted(groups, key=lambda lab: (99,) if lab == 'C/H' else _softness_key(lab))
-    total = 0
-    for lab in order:
-        g = groups[lab]
-        total += len(g)
-        print()
-        print(f'There are {len(g)} {lab} type regions:')
-        for i, (cut13, cut24, cut1, cut3, cut2, cut4, vm, em) in enumerate(g, 1):
-            print(f'  --- {lab} region {i} ---')
-            print(f'    em = {em}')
-            print(f'    scaling = {to_scaling(em)}')
-    print(f'\nTOTAL: {total} regions')
 
 
 # Ask for the numerator polynomial (in K_i / externals; "1" or empty = scalar); q/b cancels.
@@ -262,23 +215,14 @@ def ask_numerator(nedge, pnames):
         return (ast, text), True
 
 
-# Mode object from either a mode or its name.
-def _as_mode(x):
-    return to_mode(x) if isinstance(x, str) else x
-
-
-# External modes keyed by 'p1'..'pN' (the interactive stores them by leg).
-def _p_modes(extmode):
-    out = {}
-    for k, v in extmode.items():
-        kk = k if isinstance(k, str) and k.startswith('p') else 'p%s' % k
-        out[kk] = to_mode(v) if isinstance(v, str) else v
-    return out
+# Accept either a mode string ('C13') or an already-parsed mode object.
+def _as_mode(md):
+    return to_mode(md) if isinstance(md, str) else md
 
 
 # Option 4: group the regions by their power lambda^{A-B+N} (a numerator is asked first).
 def show_group_by_power(regs, edges, ext_attach, extmode, numerator):
-    pmodes = _p_modes(extmode)
+    pmodes = {k: _as_mode(v) for k, v in extmode.items()}
     groups = defaultdict(list)
     for i, r in enumerate(regs, 1):
         vm = {v: _as_mode(md) for v, md in r[6].items()}
@@ -486,27 +430,15 @@ def run_graph(edges_raw, ext_mode, verbose=False):
     if verbose:
         rej = ', '.join(f'{k}={v}' for k, v in sorted(cnt.items()) if k != 'combos')
         print(f'  [stats] combos={cnt["combos"]}  kept={len(regs)}  depth={"/".join(str(x) for x in depth)}  counters: {rej or "none"}')
-    scal = set()
     for i, (cut13, cut24, cut1, cut3, cut2, cut4, vm, em) in enumerate(regs, 1):
-        sc = to_scaling(em)
-        scal.add(sc)
-        ref = ''
-        if cut1: ref += f'  C1C13={sorted(cut1)}'
-        if cut3: ref += f'  C3C13={sorted(cut3)}'
-        if cut2: ref += f'  C2C24={sorted(cut2)}'
-        if cut4: ref += f'  C4C24={sorted(cut4)}'
-        print(f'  R{i:3d}: scaling {fmt_scaling(sc)}')
-        print(f'        cuts: C13={sorted(cut13)}  C24={sorted(cut24)}{ref}')
-        print(f'        em: {em}')
-    print(f'  unique scalings: {len(scal)}')
+        print(f'  R{i}: {", ".join(em)}')
     while True:
         print('  Options:')
         print('    1) Inspect specific regions')
         print('    2) Show Lee-Pomeransky parametric representation')
-        print('    3) Classify these regions based on their characteristic modes')
-        print('    4) Group these regions by their power')
-        print('    5) Visualize these regions (PDF atlas / PNGs)')
-        opt = input('  (1/2/3/4/5; empty/q/b = done with this graph) > ') .strip().lower()
+        print('    3) Group these regions by their power')
+        print('    4) Visualize these regions (PDF atlas / PNGs)')
+        opt = input('  (1/2/3/4; empty/q/b = done with this graph) > ') .strip().lower()
         if opt in ('', 'q', 'quit', 'b', 'back'):
             break
         if opt == '1':
@@ -514,8 +446,6 @@ def run_graph(edges_raw, ext_mode, verbose=False):
         elif opt == '2':
             show_parametric(regs)
         elif opt == '3':
-            show_classify(regs, edges)
-        elif opt == '4':
             num, ok = ask_numerator(len(edges), ['p1', 'p2', 'p3', 'p4'])
             if ok:
                 show_group_by_power(regs, edges, ext_attach, ext_mode, num)
@@ -528,10 +458,10 @@ def run_graph(edges_raw, ext_mode, verbose=False):
                             import power_report
                             pdf, _lines = power_report.build_report(edges, regs, sel, ext_attach, ext_mode, numerator=num)
                             print('  saved: %s' % pdf)
-        elif opt == '5':
+        elif opt == '4':
             visualize_regions(edges, regs, ext_mode)
         else:
-            print('  ! enter 1, 2, 3, 4, 5, or q')
+            print('  ! enter 1, 2, 3, 4, or q')
     fdir = os.path.join(BASE, 'fri_out')
     os.makedirs(fdir, exist_ok=True)
     fname = os.path.join(fdir, time.strftime('%Y%m%d-%H%M%S') + '.txt')
