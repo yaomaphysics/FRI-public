@@ -179,7 +179,7 @@ Research-grade, version 0.1.0.  License: MIT (code); CC BY 4.0 (validation data)
 
 **Open items — general**
 
-Interactive part -- power-counting module: added for wide-angle (scalar integrals and polynomial numerators); the collinear frameworks to follow.
+Cleared for now.
 
 **Open items — wide-angle** 
 

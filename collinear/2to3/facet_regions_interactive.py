@@ -14,7 +14,8 @@ at vertices 1,2,3,4,5.  The script:
        2) Show Lee-Pomeransky parametric representation — per region the scaling vector v_e = -V (edge order, trailing 1 = expansion scale,
           pySecDec style, same as the verified region files),
        3) Classify these regions based on their characteristic modes — per region its softest-mode class + by-type counts,
-       4) Visualize the selected regions: one PDF atlas (default) or PNG figures (per-mode colours; saved under fri_out/regions_*/),
+       4) Group these regions by their power — a numerator polynomial in the edge momenta K_i (input order) and the externals p_j may be entered first ("1" = scalar),
+       5) Visualize the selected regions: one PDF atlas (default) or PNG figures (per-mode colours; saved under fri_out/regions_*/),
    and loops until the user quits (empty or q).
 
 Kinematics: k0..k2 are shown as local examples (default k1); type kx for a custom p_i^2 pattern.
@@ -37,6 +38,8 @@ import enumerator
 from indep_loops import indep_loops, show_basis, _disp_key   # independent loop momenta + line-momentum parameterization
 from primitives import V, m_of, name, n_of, INF, leg_check, ext_modes
 from mode_levels import predict, derive_external_modes
+from power_counting import (show_power_counting, measure_power, integrand_power, fmt_power,
+                           parse_numerator, fmt_ast, region_context, numerator_power)
 
 EXT_ATTACH = {'p1': 1, 'p2': 2, 'p3': 3, 'p4': 4, 'p5': 5}
 KIN_EXAMPLES = ['k0', 'k1', 'k2']
@@ -152,9 +155,55 @@ def show_mode_subgraphs(edges, em, vm):
         print(f'  mode {name(mode)}: {{vertices: {Vs}, edges: {Es}}}   loop number = {rank[mode]}')
     flag = '✓' if total == L else '✗ MISMATCH'
     print(f'  Σ loop numbers = {total}  vs  L = {L}  {flag}')
+    show_power_counting(results, em)
 
 
 # ==================== MENU ACTIONS ====================
+
+# Ask for the numerator polynomial (in K_i / externals; "1" or empty = scalar); q/b cancels.
+def ask_numerator(nedge, pnames):
+    while True:
+        print('Input the numerator')
+        print('(e.g. (p1\\cdot K_1)(K_2\\cdot K_3) + ..., where K_i is the momentum of i-th propagator in the input; "1" or empty = scalar; q/b = cancel) ')
+        line = input('> ').strip()
+        if line.lower() in ('q', 'quit', 'b', 'back'):
+            return None, False
+        if not line or line == '1':
+            print('  numerator = 1 (scalar)')
+            return None, True
+        try:
+            ast, warns = parse_numerator(line, nedge, pnames)
+        except ValueError as e:
+            print('  ! %s' % e)
+            continue
+        for w in warns:
+            print('  ! note: %s' % w)
+        if ast is None:
+            print('  numerator = 1 (scalar)')
+            return None, True
+        text = fmt_ast(ast)
+        show = text if len(text) <= 160 else text[:157] + '...'
+        print('  numerator = %s' % show)
+        return (ast, text), True
+
+
+# Option 4: group the regions by their power lambda^{A-B+N} (a numerator is asked first).
+def show_group_by_power(regs, edges, ext_attach, extmode, numerator):
+    groups = defaultdict(list)
+    for i, (vec, cuts, em, vm) in enumerate(regs, 1):
+        res, _t, _L = indep_loops(edges, em, vm)
+        a0, a1 = measure_power(res)
+        n = 0
+        if numerator is not None:
+            ctx = region_context(edges, em, vm, ext_attach, extmode)
+            n = numerator_power(numerator[0], ctx) if ctx is not None else 0
+        groups[(a0 - integrand_power(em) + n, a1)].append(i)
+    for (p0, p1), rs in sorted(groups.items()):
+        print()
+        print('Region(s) with power = %s:' % fmt_power(p0, p1))
+        for i in rs:
+            print('  R%d: %s' % (i, ', '.join(name(m) for m in regs[i - 1][2])))
+
 
 # Option 1: pick regions, show their per-mode subgraphs, then optionally a concrete basis / forced lines / line momenta.
 def inspect_regions(edges, regs, ext_attach):
@@ -398,8 +447,9 @@ def run_graph(edges_raw, kin_name, verbose=False):
         print('    1) Inspect specific regions')
         print('    2) Show Lee-Pomeransky parametric representation')
         print('    3) Classify these regions based on their characteristic modes')
-        print('    4) Visualize these regions (PDF atlas / PNGs)')
-        opt = input('  (1/2/3/4; empty/q/b = done with this graph) > ') .strip().lower()
+        print('    4) Group these regions by their power')
+        print('    5) Visualize these regions (PDF atlas / PNGs)')
+        opt = input('  (1/2/3/4/5; empty/q/b = done with this graph) > ') .strip().lower()
         if opt in ('', 'q', 'quit', 'b', 'back'):
             break
         if opt == '1':
@@ -409,9 +459,22 @@ def run_graph(edges_raw, kin_name, verbose=False):
         elif opt == '3':
             show_classify(regs)
         elif opt == '4':
+            num, ok = ask_numerator(len(edges), ['p1', 'p2', 'p3', 'p4', 'p5'])
+            if ok:
+                show_group_by_power(regs, edges, EXT_ATTACH, ext_mode, num)
+                ans = input('  Detailed derivation report (PDF) for some regions? ([y]/n) > ').strip().lower()
+                if ans in ('', 'y', 'yes'):
+                    line = input('  Region numbers (empty = all; q/b = none) > ').strip()
+                    if line.lower() not in ('q', 'quit', 'b', 'back'):
+                        sel = parse_region_select(line, len(regs)) if line else list(range(1, len(regs) + 1))
+                        if sel:
+                            import power_report
+                            pdf, _lines = power_report.build_report(edges, regs, sel, EXT_ATTACH, ext_mode, numerator=num)
+                            print('  saved: %s' % pdf)
+        elif opt == '5':
             visualize_regions(edges, regs, ext_mode)
         else:
-            print('  ! enter 1, 2, 3, 4, or q')
+            print('  ! enter 1, 2, 3, 4, 5, or q')
     # save
     fdir = os.path.join(BASE, 'fri_out')
     os.makedirs(fdir, exist_ok=True)
