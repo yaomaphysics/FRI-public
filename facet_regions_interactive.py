@@ -12,8 +12,9 @@ First choose a framework; the framework's own interactive browser then runs (all
 
 Every browser shares the same workflow: give a graph (topology + external kinematics ONLY — the cut formalism stays internal), enumerate ALL its regions, list them, then
     1) inspect specific regions  — per-mode subgraphs + loop numbers (+ a concrete independent-loop-momentum basis with forced lines),
-    2) Lee-Pomeransky parametric representation (scaling vectors),
-    3) classification by characteristic (softest) mode.
+    2) the Lee-Pomeransky parametric representation (scaling vectors),
+    3) group the regions by their power counting (numerator input; optional per-region derivation PDF),
+    4) render the regions as figures (PDF atlas or PNGs).
 
 (mode prediction is the exception: it shows what modes appear at which loop level — no graph needed, just the external-momentum modes.)
 

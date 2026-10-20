@@ -25,24 +25,24 @@ The center function of FRI is to identify the entire list of (facet) regions and
 
 ### Notations for the momentum modes
 
-In the context of wide-angle kinematics, the possible modes are:
-- $H$ — hard (all the components $\sim 1$),
-- $C_i^n$ — collinear in direction *i* with virtuality $\sim\lambda^n$ ($n$ up to $\infty$ for being precisely lightlike),
-- $S^m$ — soft with virtuality $\sim\lambda^{2m}$,
-- $S^m C_i^n$ — soft-collinear in direction *i* with virtuality $\sim\lambda^{2m+n}$ ($n$ up to $\infty$).
+In the context of wide-angle kinematics, all the modes can be written as $S^m C_i^n$.
+- $m = n = 0$: hard
+- $m=0$, $n=1$: collinear in the $i$-th direction
+- $m=1$, $n=0$: soft
+- other general cases: soft-collinear in direction $i$ with virtuality $\sim\lambda^{2m+n}$ ($n$ up to $\infty$).
 
 For more detail, see section 3.2 of [arXiv:2601.22144](https://arxiv.org/abs/2601.22144).
 
 In collinear kinematics, on top of these modes above, we also have:
 - $sH$ — semihard, with all the components $\sim\sqrt{\lambda}$,
 - $G$ — Glauber (in the current version of FRI, the only Glauber mode involved is ($\lambda, \lambda, \sqrt{\lambda}$)),
-- $C_i^nC_{ij}$ — collinear in direction *i* with virtuality $\sim\lambda^{n+1}$ ($n$ up to $\infty$ for being precisely lightlike), this notation is for parton *i* when partons *i* and *j* have momenta collinear to each other.
-- $S^mC_i^nC_{ij}$ — soft-collinear in direction *i* with virtuality $\sim\lambda^{2m+n+1}$.
+- $C_i^nC_{ij}$ — collinear in direction $i$ with virtuality $\sim\lambda^{n+1}$ ($n$ up to $\infty$ for being precisely lightlike), this notation is for parton $i$ when partons $i$ and $j$ have momenta collinear to each other.
+- $S^mC_i^nC_{ij}$ — soft-collinear in direction $i$ with virtuality $\sim\lambda^{2m+n+1}$.
 
 ### Usage
 
-Run `python3 facet_regions_interactive.py`; the entry first asks for the kinematics class (`[1] wide-angle` / `[2] collinear`, and under collinear `[1] 2->3` / `[2] 2->2`), then offers what that class can do: **obtain regions from a single graph**, or **mode prediction** (the collinear mode ladder, or the wide-angle usable-mode closure).  The region browser takes the graph (edge list + external attachments) as the only input — the cut formalism stays internal.  It enumerates all regions and lists them together with their momentum-space mode assignment: one entry per internal edge, in input order — the same scaling vector that the region finders of pySecDec report, as compared in the cross-checks below.
-From there the browser can: inspect individual regions (per-mode subgraphs and loop numbers, plus a concrete independent-loop-momentum basis), translate them to the Lee-Pomeransky parametric representation ($x_e \sim \lambda^{v_e}$ with $v_e = -V$, edge order), classify the list by the characteristic (softest) mode of each region or by power counting (optionally with a numerator polynomial in the edge momenta; a per-region derivation of the power is available as a PDF report), or render regions as figures: a single PDF atlas (default; A4 pages of rows, each with the region figure, `R{n}  v = (...)`, and the per-mode lines) or one PNG per region, written to `<module>/fri_out/regions_<timestamp>/` together with the rendering script and a preview page.  The renderer checks font fidelity first, so a broken font encoding fails loudly instead of producing silent glyph errors.
+Run `python3 facet_regions_interactive.py`; the entry first asks for the kinematics class (`[1] wide-angle` / `[2] collinear`, and under collinear `[1] 2->3` / `[2] 2->2`), then offers what that class can do: **obtain regions from a single graph**, or **mode prediction** (the collinear mode ladder, or the wide-angle usable-mode closure).  The region browser takes the graph (edge list + external attachments) as the only input — the cut formalism stays internal.  It enumerates all regions and lists each one in momentum-space form: the mode of every internal edge, in input order.  These mode assignments are what fix the scaling vectors that the pySecDec region finders report, and the cross-checks below compare the two lists.
+From there the browser offers four actions: 1) inspect individual regions (per-mode subgraphs and loop numbers, plus a concrete independent-loop-momentum basis); 2) show the Lee-Pomeransky parametric representation ($x_e \sim \lambda^{v_e}$ with $v_e = -V$, edge order); 3) group the regions by their power counting (with numerator input; a per-region derivation of the power is available as a PDF report); 4) render them as figures: a single PDF atlas (default; A4 pages of rows, each with the region figure, `R{n}  v = (...)`, and the per-mode lines) or one PNG per region, written to `<module>/fri_out/regions_<timestamp>/` together with the rendering script and a preview page.  The renderer checks font fidelity first, so a broken font encoding fails loudly instead of producing silent glyph errors.
 
 ---
 
@@ -104,40 +104,44 @@ In code: the filters live in `wide_angle/region_filter.py`, `collinear/2to3/regi
 
 ```
 FRI-project/
-├── facet_regions_interactive.py       # unified entry: class -> side -> [1] regions / [2] mode prediction
-├── report_pdf.py                      # shared monospace report renderer (PDF) for the two mode views
-├── wide_angle/                        # class 1: wide-angle scattering (canonical)
-│   ├── primitives.py                  #   shared base: mode algebra + graph machinery
-│   ├── enumerator.py                  #   pruned skeleton cut enumerator (enumeration core)
-│   ├── region_filter.py              #   region judgment based on subgraph requirements
-│   ├── indep_loops.py                 #   independent loop momenta per region
-│   ├── power_counting.py              #   scalar + numerator power counting for the region browser
-│   ├── power_report.py                #   per-region derivation report (PDF) for the power counting
-│   ├── usable_modes.py                #   IR-compatible mode closure (compression; optional derivation trace)
-│   ├── mode_report.py                 #   usable-mode derivation report (PDF)
-│   ├── facet_regions_interactive.py   #   interactive browser (enumerate + menu)
-│   ├── region_plot.py                 #   region figures + PDF atlas
-│   └── scaleless_diagnosis.py         #   why a non-region is scaleless
-├── collinear/                         # class 2: collinear kinematics
-│   ├── 2to3/                          #   part 1: five-point 2->3
-│   │   ├── primitives.py               #     mode algebra + graph tools + the external-kinematics API (zero-judgment base layer)
-│   │   ├── enumerator.py               #     skeleton cut enumerators (k0--k4; per-graph cut-chain levels)
-│   │   ├── region_filter.py           #     region judgment based on subgraph requirements
-│   │   ├── indep_loops.py               #     independent loop momenta + line-momentum parameterization
-│   │   ├── mode_levels.py              #     mode first-appearance ladder + cut-chain level derivation
-│   │   ├── mode_report.py              #     per-level derivation report (PDF)
-│   │   ├── facet_regions_interactive.py #     interactive enumerator for a new graph (built-in example: 1-3,1-5,2-3,2-5,3-4,4-5)
-│   │   └── region_plot.py              #     region figures + PDF atlas
-│   └── regge/                         #   part 2: Regge limit of 2->2
-│       ├── primitives.py              #     mode algebra + mode strings + graph tools (zero-judgment base layer)
-│       ├── enumerator.py              #     skeleton cut enumerators (k0--k5; the all-lightlike k1 case by its own engine)
-│       ├── region_filter.py          #     region judgment based on subgraph requirements
-│       ├── indep_loops.py             #     independent loop momenta (semihard fix)
-│       ├── mode_levels.py             #     mode first-appearance ladder
-│       ├── mode_report.py             #     per-level derivation report (PDF)
-│       ├── facet_regions_interactive.py #     interactive enumerator for a new graph
-│       └── region_plot.py             #     region figures + PDF atlas
-└── validation/                        # cross-checks vs pySecDec (graphs, records, examples; see validation/README.md)
+├── facet_regions_interactive.py          # unified entry: class -> side -> [1] regions / [2] mode prediction
+├── report_pdf.py                         # shared monospace report renderer (PDF) for the mode and power-counting views
+├── wide_angle/                           # class 1: wide-angle scattering (canonical)
+│   ├── primitives.py                     #   basic tools
+│   ├── enumerator.py                     #   pruned skeleton cut enumerator (enumeration core)
+│   ├── region_filter.py                  #   region judgment based on subgraph requirements
+│   ├── indep_loops.py                    #   independent loop momenta per region
+│   ├── power_counting.py                 #   scalar + numerator power counting for the region browser
+│   ├── power_report.py                   #   per-region derivation report (PDF) for the power counting
+│   ├── usable_modes.py                   #   IR-compatible mode closure (compression; optional derivation trace)
+│   ├── mode_report.py                    #   usable-mode derivation report (PDF)
+│   ├── facet_regions_interactive.py      #   interactive module
+│   ├── region_plot.py                    #   region figures + PDF atlas
+│   └── scaleless_diagnosis.py            #   why a non-region is scaleless
+├── collinear/                            # class 2: collinear kinematics
+│   ├── 2to3/                             #   part 1: five-point 2->3
+│   │   ├── primitives.py                 #     basic tools
+│   │   ├── enumerator.py                 #     skeleton cut enumerators
+│   │   ├── region_filter.py              #     region judgment based on subgraph requirements
+│   │   ├── indep_loops.py                #     independent loop momenta + line-momentum parameterization
+│   │   ├── mode_levels.py                #     mode first-appearance ladder + cut-chain level derivation
+│   │   ├── power_counting.py             #     scalar + numerator power counting for the region browser
+│   │   ├── power_report.py               #     per-region derivation report (PDF) for the power counting
+│   │   ├── mode_report.py                #     per-level derivation report (PDF)
+│   │   ├── facet_regions_interactive.py  #     interactive module
+│   │   └── region_plot.py                #     region figures + PDF atlas
+│   └── regge/                            #   part 2: Regge limit of 2->2
+│       ├── primitives.py                 #     basic tools
+│       ├── enumerator.py                 #     skeleton cut enumerators (the all-lightlike case by its own engine)
+│       ├── region_filter.py              #     region judgment based on subgraph requirements
+│       ├── indep_loops.py                #     independent loop momenta
+│       ├── mode_levels.py                #     mode first-appearance ladder
+│       ├── power_counting.py             #     scalar + numerator power counting for the region browser
+│       ├── power_report.py               #     per-region derivation report (PDF) for the power counting
+│       ├── mode_report.py                #     per-level derivation report (PDF)
+│       ├── facet_regions_interactive.py  #     interactive module
+│       └── region_plot.py                #     region figures + PDF atlas
+└── validation/                           # cross-checks vs pySecDec (graphs, records, examples; see validation/README.md)
 ```
 
 ---
@@ -175,7 +179,7 @@ The advantage of FRI grows rapidly with the number of loops: the two tools are c
 
 ## Status
 
-Research-grade, version 0.1.0.  License: MIT (code); CC BY 4.0 (validation data).  © 2026 ETH Zurich; created by Yao Ma. Below list some open items, which are functions supposed to be realized in the near future.
+Research-grade, version 0.1.0.  License: MIT (code); CC BY 4.0 (validation data).  © 2026 ETH Zurich; created by Yao Ma. Below may list some open items, which are functions supposed to be realized in the near future.
 
 **Open items — general**
 
