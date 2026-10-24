@@ -16,7 +16,7 @@ BASE = os.path.dirname(os.path.abspath(__file__))
 if BASE not in sys.path:
     sys.path.insert(0, BASE)
 
-from primitives import Mode, G, SH
+from primitives import G, SH
 from indep_loops import indep_loops, edge_momenta
 
 

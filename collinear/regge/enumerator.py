@@ -26,7 +26,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 import region_filter as R                                        # noqa: E402
 import mode_levels as ML                                         # noqa: E402
-from primitives import (conn_sets, comp_sets, components, connected, refined_opts, Mode, to_mode, CC, H, mode_meet, possibly_softest, clear_graph_caches)  # noqa: E402
+from primitives import (conn_sets, comp_sets, connected, refined_opts, Mode, to_mode, CC, H, mode_meet, possibly_softest, clear_graph_caches)  # noqa: E402
 
 # ==================== HELPERS ====================
 FS = frozenset

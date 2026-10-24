@@ -16,8 +16,8 @@ Note that the messenger mechanism slightly differs from the wide-angle case.
 from itertools import combinations
 
 
-from primitives import (H, S, W, P, isS, isC, m_of, d_of, n_of, mem_of, V, name, parse,
-    meet, join, connected, is_1vi, components, find_1vi_blocks,
+from primitives import (H, S, W, P, isS, isC, m_of, d_of, V, name,
+    meet, join, is_1vi, components, find_1vi_blocks,
     marginally_softer, harder_or_eq, INF)
 
 # Mode components: the 1VI blocks of the contracted mode subgraph.

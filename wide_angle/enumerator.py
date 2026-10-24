@@ -270,16 +270,6 @@ def _filter_combo(verts, edges_t, g, ext_attach, ext_mode, combo, seen_vm=None):
             return None
         seen_vm.add(key_m)
     em = [meet(vm[u], vm[v]) for (u, v) in edges_t]
-    for v in verts:
-        accs = []
-        for ei in g.incident.get(v, []):
-            accs.append(em[ei])
-        for name, vv in ext_attach.items():
-            if vv == v:
-                accs.append(ext_mode[name])
-        if accs:
-            if not eq(vee(accs), vm[v]):
-                return None
     if not momentum_ok(g, em, ext_mode):
         return None
     if not jet_connected_ok(vm, em, edges_t):
