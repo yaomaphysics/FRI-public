@@ -559,61 +559,6 @@ def jet_components_ok(jv, je, ext_verts):
     return True
 
 
-# k0 mojetic (two parts): each contracted jet is 1VI, and no H∪J13 / H∪J24 cut vertex separates its family.
-def mojetic_k0_ok(edges, em, vm, fam13, fam24, ext_attach):
-    # part 1: contract the jet — H/G adjacency becomes aux1, the two externals aux2 — and require 1VI
-    def jet_ok(fam, ext_names):
-        fv = {v for v in vm if vm[v] in fam}
-        fe = [e for e, m in zip(edges, em) if m in fam]
-        # H/G vertices adjacent to the jet: jet-edge endpoint, or touching a jet vertex via any edge
-        adj = set()
-        for v in vm:
-            if vm[v] in (H, G) and v not in fv:
-                if any(v == a or v == b for (a, b) in fe) or any((v == a or v == b) and (a in fv or b in fv) for (a, b) in edges):
-                    adj.add(v)
-        vs = set(fv) | {'aux1', 'aux2'}
-        es = set()
-        for (a, b) in fe:
-            es.add(('aux1' if a in adj or a not in vs else a, 'aux1' if b in adj or b not in vs else b))
-        for n in ext_names:
-            vv = ext_attach[n]
-            vv2 = 'aux2' if vv in adj or vv not in vs else vv
-            es.add((vv2, 'aux2'))
-        es.add(('aux1', 'aux2'))
-        return is_1vi(vs, es)
-
-    if not jet_ok(fam13, ('p1', 'p3')):
-        return False
-    if not jet_ok(fam24, ('p2', 'p4')):
-        return False
-    # part 2: no H∪J cut vertex may separate the family from the rest
-    hv = {v for v in vm if vm[v] == H}
-    he = [(a, b) for (a, b), m in zip(edges, em) if m == H]
-    if hv:
-        def fam_ok(fam, ext1, ext2):
-            fv = {v for v in vm if vm[v] in fam}
-            fe = [(a, b) for (a, b), m in zip(edges, em) if m in fam]
-            gv = hv | fv
-            ge = he + fe
-            pa, pb = ext_attach[ext1], ext_attach[ext2]
-            for v in gv:
-                rest = [(a, b) for (a, b) in ge if a != v and b != v]
-                comp = components(rest, gv)
-                c_fam = {comp[p] for p in (pa, pb) if p in gv}
-                if not c_fam:
-                    continue
-                # separated iff some vertex lies outside every family-survivor component (family's own vertices count as survivors)
-                for x in gv:
-                    if x == v or x == pa or x == pb:
-                        continue
-                    if comp[x] not in c_fam:
-                        return False
-            return True
-        if not fam_ok(fam13, 'p1', 'p3') or not fam_ok(fam24, 'p2', 'p4'):
-            return False
-    return True
-
-
 # Mojetic check: contract the component's externals and all adjacent outside vertices to one aux vertex; the result must be 1VI.
 def mojetic_ok(hv, he, jv, je, gv, edges, ext_attach, ext_names):
     vs = set(hv) | set(jv) | {'aux'}
@@ -1042,7 +987,6 @@ def cond1_confirms(blk, mode, comps, confirmed, edges, em, vm, ext_attach, ext_m
 # ========== INFRARED COMPATIBILITY: WALKS, PORTS AND DRIVER ===========
 
 
-
 # All target elements reachable from the start elements by a non-softer flow; returns the entered real vertices.
 def _collect_entries(blk, start_vs, start_es, cur_mode, edges, em, vm, _lc=None):
     key = None
@@ -1363,25 +1307,20 @@ def _build_region(edges, verts, ext_attach, ext_mode, cut13, cut24, cut1, cut3, 
     jv13 = ({v for v in verts if vm[v] in J13_FAM} | {v for e in je13 for v in e})
     je24 = {e for e, m in zip(edges, em) if m in J24_FAM}
     jv24 = ({v for v in verts if vm[v] in J24_FAM} | {v for e in je24 for v in e})
-    if not jet_components_ok(jv13, je13, {ext_attach['p1'], ext_attach['p3']}):
+    jj13 = {v for v in verts if vm[v] in J13_FAM}   # jet vertices only: H/G endpoints of jet edges do not glue components
+    jj24 = {v for v in verts if vm[v] in J24_FAM}
+    if not jet_components_ok(jj13, je13, {ext_attach['p1'], ext_attach['p3']}):
         return None
-    if not jet_components_ok(jv24, je24, {ext_attach['p2'], ext_attach['p4']}):
+    if not jet_components_ok(jj24, je24, {ext_attach['p2'], ext_attach['p4']}):
         return None
     # (3) mojetic (REGGE_NO_MOJETIC=1 disables, for tests)
     if os.environ.get('REGGE_NO_MOJETIC') != '1':
-        # k0 (all externals finite C13/C24): each contracted jet 1VI, each H component needs jet edges of BOTH families adjacent
-        extm = _extm_for(edges, ext_attach, ext_mode)
-        k0 = all(extm[n] in (C13, C24) for n in ext_attach)
-        if k0:
-            if not mojetic_k0_ok(edges, em, vm, J13_FAM, J24_FAM, ext_attach):
+        gv = {v for v in verts if vm[v] == G}
+        hv_m = {v for v in verts if vm[v] == H}
+        he_m = {e for e, m in zip(edges, em) if m == H}
+        for jv, je, ext_names in ((jv13, je13, ('p1', 'p3')), (jv24, je24, ('p2', 'p4'))):
+            if not mojetic_ok(hv_m, he_m, jv, je, gv, edges, ext_attach, ext_names):
                 return None
-        else:
-            gv = {v for v in verts if vm[v] == G}
-            hv_m = {v for v in verts if vm[v] == H}
-            he_m = {e for e, m in zip(edges, em) if m == H}
-            for jv, je, ext_names in ((jv13, je13, ('p1', 'p3')), (jv24, je24, ('p2', 'p4'))):
-                if not mojetic_ok(hv_m, he_m, jv, je, gv, edges, ext_attach, ext_names):
-                    return None
     # [Connectivity] no C13/C24 scaleless island (see c13_c24_island_ok)
     if not c13_c24_island_ok(edges, em, vm, verts):
         return None
