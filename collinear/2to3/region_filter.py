@@ -86,28 +86,15 @@ def acc_join(modes):
         acc = join(acc, m2)
     return acc
 
-# Tight jet connectivity: pieces connect only through a same-family vertex, and every component must touch the family's external leg.
-def _tight_jet_ok(je, vm, tag, extvs):
-    if not je: return True
-    n = len(je); adj = {i: set() for i in range(n)}
-    for i in range(n):
-        for j in range(i + 1, n):
-            shared = set(je[i]) & set(je[j])
-            if any(fam_tag(vm[v]) == tag for v in shared):
-                adj[i].add(j); adj[j].add(i)
-    seen = set()
-    for i in range(n):
-        if i in seen: continue
-        comp = [i]; st = [i]; seen.add(i)
-        while st:
-            u = st.pop()
-            for w in adj[u]:
-                if w not in seen:
-                    seen.add(w); comp.append(w); st.append(w)
-        vs = set()
-        for k in comp: vs |= set(je[k])
-        if not (vs & extvs): return False
-    return True
+# Jet of a family: the subgraph induced by its vertices and its edges; every connected component must contain one of the family's external legs.
+def jet_components_ok(jv, je, ext_verts):
+    if not jv:
+        return True
+    comp = components(list(je), jv)
+    groups = {}
+    for v in jv:
+        groups.setdefault(comp[v], set()).add(v)
+    return all(g & ext_verts for g in groups.values())
 
 # jet structure per family; returns (ok, jvje).
 def jets_ok(edges, verts, vm, em, ext_attach):
@@ -116,23 +103,11 @@ def jets_ok(edges, verts, vm, em, ext_attach):
         je = [e for e, m in zip(edges, em) if fam_tag(m) == tag]
         jv = {v for v in verts if fam_tag(vm[v]) == tag} | {v for e in je for v in e}
         jvje[tag] = (jv, je)
-        names = FAM_EXT[tag]
-        extvs = {ext_attach[n] for n in names}
-        if not _tight_jet_ok(je, vm, tag, extvs):
+        extvs = {ext_attach[n] for n in FAM_EXT[tag]}
+        jj = {v for v in verts if fam_tag(vm[v]) == tag}   # jet vertices only: softer vertices do not glue components
+        if not jet_components_ok(jj, je, extvs):
             return False, (tag, 'jet')
     return True, jvje
-
-# The H and C23 subgraph (the whole C23 mode subgraph, not the cut) must be connected.
-def h_c23_connected_ok(edges, verts, em, vm):
-    hv = {v for v in verts if vm.get(v) == H()}
-    cv = {v for v in verts if vm.get(v) == P(0, 0)}
-    vs = hv | cv
-    es = []
-    for e, m in zip(edges, em):
-        if m == H() or m == P(0, 0):
-            es.append(e)
-            vs.update(e)
-    return connected(vs, es)
 
 # the subgraph outside all cuts (H) must be nonempty and connected.
 def uncovered_ok(edges, verts, cuts):

@@ -23,7 +23,7 @@ sys.path.insert(0, HERE)
 import region_filter as F
 import mode_levels as ML
 from primitives import INF, W, P, meet, H, ext_modes
-from region_filter import (momentum_ok, jets_ok, h_c23_connected_ok, uncovered_ok, mojetic_all_ok, island_ok, ir_ok)
+from region_filter import (momentum_ok, jets_ok, uncovered_ok, mojetic_all_ok, island_ok, ir_ok)
 
 # ==================== OVERLAY ====================
 CUT_MODES = {'C23': P(0, 0), 'C1': W(1, 1), 'C4': W(4, 1), 'C5': W(5, 1), 'C1R1': W(1, 2), 'C4R1': W(4, 2), 'C5R1': W(5, 2), 'C2R1': P(1, 2), 'C3R1': P(1, 3), 'C2R2': P(2, 2), 'C3R2': P(2, 3)}
@@ -337,8 +337,6 @@ def _enumerate_skelg_deep(edges, verts, ext_attach, ms, ext_mode, PWS, use_overl
         okinfo = jets_ok(edges, V, vm, em, ext_attach)
         if not okinfo[0]:
             return
-        if not h_c23_connected_ok(edges, V, em, vm):
-            return
         if not mojetic_all_ok(edges, V, vm, em, ext_attach, okinfo[1]):
             return
         if not island_ok(edges, V, em, vm):
@@ -630,8 +628,6 @@ def enumerate_skelg(edges, verts, ext_attach, kin, use_overlap=True, collect=Fal
             return
         okinfo = jets_ok(edges, V, vm, em, ext_attach)
         if not okinfo[0]:
-            return
-        if not h_c23_connected_ok(edges, V, em, vm):
             return
         if not mojetic_all_ok(edges, V, vm, em, ext_attach, okinfo[1]):
             return
