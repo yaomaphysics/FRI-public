@@ -736,7 +736,7 @@ def confirm_all(all_comps, verts, edges, attach, extmode):
     while changed:
         changed = False
         for comp in all_comps:
-            if comp in confirmed:
+            if any(comp is c for c in confirmed):
                 continue
             cc, kbs = filter_conditions(comp, confirmed, verts, edges, all_comps, attach, extmode, state=state)
             if cc is not None:
@@ -744,10 +744,10 @@ def confirm_all(all_comps, verts, edges, attach, extmode):
                 if cc == 2:
                     # rule 2: cover the other confirmable blocks of the messenger's kernel cloud
                     for kb in kbs:
-                        if kb is not comp and kb not in confirmed and not state['tadpole'].get(id(kb)):  # skip tadpoles
+                        if kb is not comp and not any(kb is c for c in confirmed) and not state['tadpole'].get(id(kb)):  # skip tadpoles
                             confirmed.append(kb); changed = True
-    ok = len(confirmed) == len(all_comps)
-    stuck = [c for c in all_comps if c not in confirmed]
+    stuck = [c for c in all_comps if not any(c is x for x in confirmed)]
+    ok = not stuck
     return ok, order, confirmed, stuck
 
 
