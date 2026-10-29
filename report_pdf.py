@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-report_pdf.py -- pieces shared by the two mode-ladder derivation reports (regge and 2->3).
+report_pdf.py -- shared monospace PDF renderer for the mode and power-counting views.
 
 Both sides render the same A4 monospace PDF and the same per-level block; only the wording and the
 per-mode explanation differ, so those stay in the two mode_report.py modules.
@@ -54,7 +54,7 @@ def emit_level(lines, k, names, noun, cum, explain):
 
 
 # Render the report lines into a multi-page monospace PDF (A4 at 150 dpi).
-def render_pdf(lines, outpath, title, subtitle):
+def render_pdf(lines, outpath, title, subtitle, preview=None):
     font = ImageFont.truetype('/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf', 15)
     font_b = ImageFont.truetype('/usr/share/fonts/truetype/dejavu/DejaVuSansMono-Bold.ttf', 15)
     font_s = ImageFont.truetype('/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf', 11)
@@ -86,5 +86,7 @@ def render_pdf(lines, outpath, title, subtitle):
             y += LH
         d.text((W - MARGIN - 60, H - MARGIN + 10), '%d / %d' % (pi, total), font=font_s, fill=GRAY)
         imgs.append(img)
+    if preview:
+        imgs[0].save(preview)
     imgs[0].save(outpath, 'PDF', save_all=True, append_images=imgs[1:], resolution=150.0)
     return outpath

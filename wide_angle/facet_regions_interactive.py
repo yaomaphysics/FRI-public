@@ -13,7 +13,7 @@ Script:
            plus the scalar power counting (integration measure / integrand / power, as \\lambda^{...}).
           Optionally, the user can select a set of line momenta as independent loop momenta (a basis) with optional forced lines.
        2) Show Lee-Pomeransky parametric representation — per region the scaling vector v_i (x_i ~ \\lambda^{v_i}, v_i = -(2m+n), input edge order),
-       3) Group these regions by their power — a numerator may be entered first (a polynomial in the edge momenta K_i and the externals p_j; "1" = scalar);
+       3) Group these regions by their power (numerator power counting: beta) — a numerator may be entered first (a polynomial in the edge momenta K_i and the externals p_j; "1" = scalar);
           each region's power is then computed silently and grouped in ascending order (leading first),
           with an optional step-by-step derivation report (PDF) for a chosen subset.
        4) Visualize the selected regions — per-mode colours; can choose a single PDF atlas (default) or one PNG file per region.
@@ -31,7 +31,9 @@ warnings.filterwarnings('ignore', category=SyntaxWarning)
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from primitives import scaling_of, mode_str, parse_mode, vee, eq
 from indep_loops import indep_loops, show_basis
-from power_counting import (show_power_counting, measure_power, integrand_power, fmt_power, parse_numerator, fmt_ast, region_context, numerator_power)
+from power_counting import (show_power_counting, measure_power, integrand_power, fmt_power)
+from numerator_power import (parse_numerator, fmt_ast, region_context, exact_power,
+                            numerator_details)
 from power_report import build_report
 from enumerator import run as skeleton_run, kappa_of
 from usable_modes import derive_usable_modes
@@ -303,25 +305,58 @@ def show_parametric(regs, nedge):
 # Option 4: group the regions by their scalar power (plus the numerator power N if given); computed silently, ascending order.
 def show_group_by_power(regs, edges, ext_attach, extmode, numerator):
     groups = {}
+    details = {}
+    total = len(regs)
+    live = bool(numerator is not None and total >= 50 and sys.stdout.isatty())
+    step = 25 if (numerator is not None and total >= 50 and not live) else 0
+    if numerator is not None:
+        print(f'  computing the numerator power for {total} region(s) ...', flush=True)
     for i, (vm, em) in enumerate(regs, 1):
         results, _total, _L = indep_loops(edges, em, vm)
         a0, a1 = measure_power(results)
         n = 0
         if numerator is not None:
             ctx = region_context(edges, em, vm, ext_attach, extmode)
-            n = numerator_power(numerator[0], ctx)
+            if ctx is None:
+                print(f'  ! R{i}: no independent loop-momentum basis; numerator ignored')
+                n = 0
+            else:
+                n, eliminated, terms = numerator_details(numerator[1], ctx, len(edges), list(ext_attach))
+                details[i] = (ctx, eliminated, terms, n)
         groups.setdefault((a0 - integrand_power(em) + n, a1), []).append(i)
+        if live:
+            print(f'\r    {i}/{total} regions', end='', flush=True)
+        elif step and i % step == 0:
+            print(f'    {i}/{total} regions', flush=True)
+    if live:
+        print(f'\r    {total}/{total} regions', flush=True)
     for (p0, p1), rs in sorted(groups.items()):
         print()
         print(f'Region(s) with power = {fmt_power(p0, p1)}:')
         for i in rs:
             print(f'  R{i}: {em_sequence(regs[i - 1][1])}')
+    return details
+
+
+# Print the momentum-flow convention used for K_i and the external momenta.
+def print_momentum_convention(edges, ext_attach):
+    print('  line momenta follow the input edge order; K_i flows from the smaller to the larger vertex:')
+    items = []
+    for i, (a, b) in enumerate(edges, 1):
+        lo, hi = (a, b) if a < b else (b, a)
+        items.append('K%d: %d->%d' % (i, lo, hi))
+    for k in range(0, len(items), 6):
+        print('    ' + '   '.join(items[k:k + 6]))
+    print('  every edge momentum flows from the lower- to the higher-numbered vertex and every')
+    print('  external momentum is outgoing, so that at each vertex')
+    print('      sum(K out) - sum(K in) + p_ext = 0.')
 
 
 # Ask for the numerator polynomial (in K_i / externals; "1" or empty = scalar); q/b cancels.
 def ask_numerator(nedge, pnames):
     while True:
         print(f'Input the numerator')
+        print('  (reminder: K_i and the external signs follow the convention printed above)')
         print(f'(e.g. (p1\\cdot K_1)(K_2\\cdot K_3) + ..., where K_i is the momentum of i-th propagator in the input; "1" or empty = scalar; q/b = cancel) ')
         line = input('> ').strip()
         if line.lower() in ('q', 'quit', 'b', 'back'):
@@ -346,7 +381,7 @@ def ask_numerator(nedge, pnames):
 
 
 # Option 4 (follow-up): render a step-by-step derivation PDF for chosen regions (empty = all).
-def offer_derivation_report(edges, regs, ext_attach, internal_lines, externals, extmode, numerator):
+def offer_derivation_report(edges, regs, ext_attach, internal_lines, externals, extmode, numerator, details=None):
     line = input('Region numbers for the report (e.g. "3, 8--10"; empty = all; q/b = back) > ').strip()
     if line.lower() in ('q', 'quit', 'b', 'back'):
         return
@@ -355,7 +390,7 @@ def offer_derivation_report(edges, regs, ext_attach, internal_lines, externals, 
         return
     print(f'  building the derivation report for {len(sel)} region(s) ...')
     try:
-        pdf, prev, _lines = build_report(edges, regs, sel, ext_attach, internal_lines, externals, extmode=extmode, numerator=numerator)
+        pdf, prev, _lines = build_report(edges, regs, sel, ext_attach, internal_lines, externals, extmode=extmode, numerator=numerator, details=details)
     except Exception as e:
         print(f'  ! report generation failed: {e}')
         return
@@ -508,7 +543,7 @@ def main():
             print('  Options:')
             print('    1) Inspect specific regions')
             print('    2) Show Lee-Pomeransky parametric representation')
-            print('    3) Group these regions by their power')
+            print('    3) Group these regions by their power  (numerator power counting: beta)')
             print('    4) Visualize these regions (PDF atlas / PNGs)')
             opt = input('  (1/2/3/4; empty/q/b = done with this graph) > ').strip().lower()
             if opt in ('', 'q', 'quit', 'b', 'back'):
@@ -518,12 +553,13 @@ def main():
             elif opt == '2':
                 show_parametric(regs, len(edges))
             elif opt == '3':
+                print_momentum_convention(edges, ext_attach)
                 num, ok = ask_numerator(len(edges), set(extmode))
                 if ok:
                     numerator = num
-                    show_group_by_power(regs, edges, ext_attach, extmode, numerator)
+                    details = show_group_by_power(regs, edges, ext_attach, extmode, numerator)
                     if ask_yn('Show the detailed derivation as a PDF report? (y/n) [n] > '):
-                        offer_derivation_report(edges, regs, ext_attach, internal_lines, externals, extmode, numerator)
+                        offer_derivation_report(edges, regs, ext_attach, internal_lines, externals, extmode, numerator, details=details)
             elif opt == '4':
                 visualize_regions(edges, regs, extmode, ext_attach)
             else:
