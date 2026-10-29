@@ -33,8 +33,8 @@ from primitives import to_scaling, mode_components, INF, to_old, leg_check, C, C
 from enumerator import skel_regions   # pruned skeleton enumerator
 from primitives import to_mode          # mode strings are plain literals ('C13', 'sH', ...) everywhere
 from indep_loops import indep_loops, show_basis     # indep loops + edge momenta
-from power_counting import (show_power_counting, measure_power, integrand_power, fmt_power,
-                           parse_numerator, fmt_ast, region_context, numerator_power)
+from power_counting import show_power_counting, measure_power, integrand_power, fmt_power
+from numerator_power import (parse_numerator, fmt_ast, region_context, numerator_power)
 from mode_levels import Predictor, KIN_EXT, _skey
 from collections import defaultdict
 

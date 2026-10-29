@@ -55,13 +55,7 @@ Whether the choice matters beyond bookkeeping is theory-dependent (e.g. power co
 
 ### Power counting
 
-For a scalar integral, a region's contribution scales as $\lambda^{A-B}$: the loop measure contributes $A = (2-\epsilon)\sum_X r_X V(X)$ (one factor $(\lambda^{V(X)})^{2-\epsilon}$ per independent loop momentum), the propagators $B = \sum_e V_e$ (the virtuality degrees of the edge modes).  The browser groups all regions by this power and can emit a per-region derivation of it as a PDF report.  A numerator polynomial in the edge momenta $K_i$ (input edge order) is supported as well: it is expanded per region into the independent loop momenta, the scalar product of two modes $S^{m_1}C_i^{n_1}$ and $S^{m_2}C_j^{n_2}$ scales as $m_1+m_2+\min(n_1,n_2)$ for the same direction and as $m_1+m_2$ for distinct directions, with sums taking the minimum and products adding, and the resulting integer $N$ enters as $A - B + N$.  Implemented for wide-angle; the collinear frameworks are to follow.
-
-### Scaleless diagnosis
-
-The counterpart of the region browser: given an assignment of momentum modes to the edges that is NOT a region, the expanded integral is scaleless — and `scaleless_diagnosis.py` explains why.  It re-runs the region checks in their fixed order (momentum conservation → jet connectivity → mojetic → First Connectivity → IR compatibility) and stops at the first failure, naming the responsible subgraph: a vertex, a jet, a hard-jet interaction, or the union of subgraphs failing to confirm.
-Input: one mode per edge (vertex modes are derived); the built-in example reproduces 4pt3loop region 8.
-Usage: `python3 wide_angle/scaleless_diagnosis.py`.
+For a scalar integral, a region's contribution scales as $\lambda^{A-B}$: the loop measure contributes $A = (2-\epsilon)\sum_X r_X V(X)$ (one factor $(\lambda^{V(X)})^{2-\epsilon}$ per independent loop momentum), the propagators $B = \sum_e V_e$ (the virtuality degrees of the edge modes).  The browser groups all regions by this power and can emit a per-region derivation of it as a PDF report.  A numerator polynomial in the edge momenta $K_i$ (input edge order) is supported as well: the browser computes the expansion power $N$ of the numerator in each region, which enters as $A - B + N$, and can include it in the per-region derivation.  This part is marked **beta** in all three frameworks (it is validated on a finite set of graphs, and the wide-angle evaluation additionally assumes at most five external momenta).
 
 ### Relevant modes at each loop order
 
@@ -94,7 +88,6 @@ In code: the enumerators live in `wide_angle/enumerator.py`, `collinear/2to3/enu
 
 Every surviving configuration is judged by the same chain of subgraph requirements: momentum conservation at every vertex, Coleman--Norton interpretation, connectivity requirement, and infrared compatibility requirement that remove the residual non-regions.
 These requirements are derived in [arXiv:2601.22144](https://arxiv.org/abs/2601.22144) for the wide-angle class; the collinear versions (Regge and the five-point 2→3 kinematics) follow the same cycle of subgraph conditions with the collinear mode algebra and will be presented in a forthcoming work.
-A non-region fails at a definite first check — that diagnosis is exactly what `scaleless_diagnosis.py` reports (wide-angle).
 
 In code: the filters live in `wide_angle/region_filter.py`, `collinear/2to3/region_filter.py`, and `collinear/regge/region_filter.py`.
 
@@ -111,22 +104,24 @@ FRI-project/
 │   ├── enumerator.py                     #   pruned skeleton cut enumerator (enumeration core)
 │   ├── region_filter.py                  #   region judgment based on subgraph requirements
 │   ├── indep_loops.py                    #   independent loop momenta per region
-│   ├── power_counting.py                 #   scalar + numerator power counting for the region browser
-│   ├── power_report.py                   #   per-region derivation report (PDF) for the power counting
+│   ├── power_counting.py                 #   integration measure power A and denominator power B
+│   ├── numerator_power.py                #   numerator power N (beta): atom-level elimination of the momentum relations
+│   ├── power_report.py                   #   per-region derivation text for the power counting (rendered by report_pdf)
 │   ├── usable_modes.py                   #   IR-compatible mode closure (compression; optional derivation trace)
 │   ├── mode_report.py                    #   usable-mode derivation report (PDF)
 │   ├── facet_regions_interactive.py      #   interactive module
-│   ├── region_plot.py                    #   region figures + PDF atlas
-│   └── scaleless_diagnosis.py            #   why a non-region is scaleless
+│   └── region_plot.py                    #   region figures + PDF atlas
 ├── collinear/                            # class 2: collinear kinematics
+│   ├── numerator_core.py                 #   numerator parser + evaluation shared by both collinear sides
 │   ├── 2to3/                             #   part 1: five-point 2->3
 │   │   ├── primitives.py                 #     basic tools
 │   │   ├── enumerator.py                 #     skeleton cut enumerators
 │   │   ├── region_filter.py              #     region judgment based on subgraph requirements
 │   │   ├── indep_loops.py                #     independent loop momenta + line-momentum parameterization
 │   │   ├── mode_levels.py                #     mode first-appearance ladder + cut-chain level derivation
-│   │   ├── power_counting.py             #     scalar + numerator power counting for the region browser
-│   │   ├── power_report.py               #     per-region derivation report (PDF) for the power counting
+│   │   ├── power_counting.py             #     integration measure power A and denominator power B
+│   │   ├── numerator_power.py            #     the scalar product of two modes (wrappers over the shared core)
+│   │   ├── power_report.py               #     per-region derivation text for the power counting (rendered by report_pdf)
 │   │   ├── mode_report.py                #     per-level derivation report (PDF)
 │   │   ├── facet_regions_interactive.py  #     interactive module
 │   │   └── region_plot.py                #     region figures + PDF atlas
@@ -136,8 +131,9 @@ FRI-project/
 │       ├── region_filter.py              #     region judgment based on subgraph requirements
 │       ├── indep_loops.py                #     independent loop momenta
 │       ├── mode_levels.py                #     mode first-appearance ladder
-│       ├── power_counting.py             #     scalar + numerator power counting for the region browser
-│       ├── power_report.py               #     per-region derivation report (PDF) for the power counting
+│       ├── power_counting.py             #     integration measure power A and denominator power B
+│       ├── numerator_power.py            #     the scalar product of two modes, incl. sH / G (wrappers over the shared core)
+│       ├── power_report.py               #     per-region derivation text for the power counting (rendered by report_pdf)
 │       ├── mode_report.py                #     per-level derivation report (PDF)
 │       ├── facet_regions_interactive.py  #     interactive module
 │       └── region_plot.py                #     region figures + PDF atlas

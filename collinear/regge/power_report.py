@@ -19,8 +19,8 @@ for _d in (HERE, os.path.dirname(HERE), os.path.dirname(os.path.dirname(HERE))):
 
 from primitives import to_mode, to_old
 from indep_loops import indep_loops, edge_momenta
-from power_counting import (measure_power, integrand_power, fmt_power, region_context,
-                            term_breakdown, _power_V)
+from power_counting import measure_power, integrand_power, fmt_power, _power_V
+from numerator_power import region_context, term_breakdown
 from report_pdf import render_pdf, SEP
 
 

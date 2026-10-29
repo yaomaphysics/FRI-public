@@ -37,8 +37,8 @@ import enumerator
 from indep_loops import indep_loops, show_basis, _disp_key   # independent loop momenta + line-momentum parameterization
 from primitives import name, INF, leg_check, ext_modes
 from mode_levels import predict, derive_external_modes
-from power_counting import (show_power_counting, measure_power, integrand_power, fmt_power,
-                           parse_numerator, fmt_ast, region_context, numerator_power)
+from power_counting import show_power_counting, measure_power, integrand_power, fmt_power
+from numerator_power import (parse_numerator, fmt_ast, region_context, numerator_power)
 
 EXT_ATTACH = {'p1': 1, 'p2': 2, 'p3': 3, 'p4': 4, 'p5': 5}
 KIN_EXAMPLES = ['k0', 'k1', 'k2']
